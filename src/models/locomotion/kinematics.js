@@ -12,8 +12,10 @@ export const LOCOMOTION = Object.freeze({
   deceleration_ms2: 3.0,
   // [diseño] Giro del cuerpo hacia la dirección de marcha, en grados por segundo.
   turn_rate_deg_s: 200,
-  // [diseño] Impulso del salto. Con g = 3.71 m/s² sube v² / (2 g) ≈ 0.49 m.
-  jump_speed_ms: 1.9,
+  // [diseño] Impulso del salto. Con g = 3.71 m/s² sube v² / (2 g) ≈ 1.75 m y dura casi
+  // 2 s en el aire: mucho más de lo que permitiría un traje real, a propósito, para que
+  // saltar sea divertido.
+  jump_speed_ms: 3.6,
   // [diseño] En el aire apenas se puede corregir la trayectoria.
   air_control: 0.25,
   // [diseño] Cuesta arriba la velocidad baja desde slow_from_deg hasta pararse en

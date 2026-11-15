@@ -321,10 +321,13 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
         hud.hideCard();
         return;
       }
-      if (!target || driving || landing || sortie.isActive()) return;
+      if (!target || driving || landing) return;
       if (target.type === 'rover') openChat();
       else {
-        if (target.type === 'capsule') capsuleSeen = true;
+        if (target.type === 'capsule') {
+          capsuleSeen = true;
+          sortie.capsuleInspected(); // primer paso del tutorial, si está en curso
+        }
         hud.showCard(interaction.use(target));
       }
     },
@@ -413,7 +416,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     followCamera.setVehicleMode(true); // cámara alejada para ver la campana
     followCamera.setFreeLook(true); // y libre: se puede mirar alrededor, arriba y abajo
     followCamera.snap();
-    hud.setLanding({ ...descentState(0), scale: 1 });
+    hud.setLanding({ ...descentState(0), scale: 1, scales: DESCENT.time_scales });
   }
   // cancel: se sale al mapa a media caída; no cuenta como aterrizaje visto.
   function finishLanding(cancel = false) {
@@ -511,7 +514,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       parachute.rotation.set(0, player.yaw_rad, fall.sway_rad * 0.6);
       companion.update(delta_s, null, world.camera);
       truck.update(delta_s, null, vehicleEnv, world.camera);
-      hud.setLanding({ ...fall, scale: landing.scale });
+      hud.setLanding({ ...fall, scale: landing.scale, scales: DESCENT.time_scales });
       if (fall.landed) finishLanding();
     } else if (!paused && driving) {
       // W y S aceleran y frenan; A y D giran el volante. La cámara gira con la camioneta.
@@ -566,12 +569,15 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       const leading = lead && rover && Math.hypot(rover.x_m - player.x_m, rover.z_m - player.z_m) < lead.leash_m;
       companion.update(delta_s, leading ? lead : player, world.camera);
       state.astronaut_position_m = [player.x_m, player.z_m];
-      target = sortie.isActive() ? null : interaction.nearest(player.x_m, player.z_m);
+      // En la misión guiada solo se interactúa con la cápsula, y solo en su tutorial.
+      if (!sortie.isActive()) target = interaction.nearest(player.x_m, player.z_m);
+      else target = sortie.phase() === 'intro' ? interaction.capsuleTarget(player.x_m, player.z_m) : null;
       const flags = vitals.get().vitals;
       sound.update(delta_s, {
         walking_m: player.grounded ? Math.hypot(player.x_m - before.x_m, player.z_m - before.z_m) : 0,
         running: speed_ms > LOCOMOTION.walk_speed_ms + 0.05,
         heart_bpm: flags.heart_rate_bpm, wind: windLevel(), vehicle_speed_ms: null, drilling: guided.drilling,
+        agitation: windLevel(),
       });
       // Aviso sonoro la primera vez que el oxígeno baja del 10 %.
       if (flags.flags.o2_low && !lowOxygenWarned) sound.beep('low');
@@ -606,7 +612,9 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       const heading_deg = ((Math.atan2(Math.sin(yaw), -Math.cos(yaw)) * 180) / Math.PI + 360) % 360;
       const speed_ms = horizontalSpeed_ms(player);
       const prompts = [];
-      if (!paused && !hud.isCardOpen() && !chatOpen && !landing && !sortie.isActive()) {
+      if (!paused && !hud.isCardOpen() && !chatOpen && !landing && sortie.isActive()) {
+        if (target) prompts.push(['E', target.prompt, true]);
+      } else if (!paused && !hud.isCardOpen() && !chatOpen && !landing) {
         if (driving) {
           if (speed_ms < 2) prompts.push(['F', 'Bajar de la camioneta']);
         } else {
@@ -618,6 +626,13 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
         }
       }
       hud.setPrompts(prompts);
+      // Marca en la brújula hacia el objetivo de la misión guiada.
+      const goal = sortie.goal();
+      if (goal) {
+        const bearing_deg = (Math.atan2(goal.x_m - player.x_m, -(goal.z_m - player.z_m)) * 180) / Math.PI;
+        hud.setCompassTarget({ offset_deg: ((bearing_deg - heading_deg + 540) % 360) - 180, label: goal.label });
+      } else hud.setCompassTarget(null);
+      hud.setDust(windLevel());
       hud.update({
         vehicle: { driving, driven_m: snapshot.driven_m },
         objective: interaction.nearestObjective(player.x_m, player.z_m),
@@ -709,6 +724,8 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     exit() {
       if (!active) return;
       chat.close();
+      hud.setCompassTarget(null);
+      hud.setDust(0);
       sortie.cancel();
       sortieMode = false;
       speech.cancelSpeech();

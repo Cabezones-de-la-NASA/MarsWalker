@@ -34,7 +34,6 @@ function el(tag, className, text) {
 // [diseño] El astronauta empieza a unos metros del refugio o de la base, fuera de su
 // círculo de colisión.
 const ASTRONAUT_START_OFFSET_M = 9;
-const ENGINEER_KEY = 'marswalk.engineer';
 const REALISM_KEY = 'marswalk.realism';
 
 /**
@@ -50,27 +49,14 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
   ui.append(dockLeft, dockRight);
 
   // Modo avanzado: capas, entorno, tripulación, fórmulas y gráficos. Plegado de entrada
-  // para que el mapa y la exploración manden; un clic lo abre y se recuerda abierto.
+  // para que el mapa y la exploración manden; un clic lo abre. Siempre empieza plegado.
   const engineer = el('details', 'engineer-drawer');
   const engineerSummary = el('summary', null, 'Modo avanzado');
   engineerSummary.append(el('small', null, 'capas · entorno · fórmulas'));
   const engineerBody = el('div', 'engineer-body');
   engineer.append(engineerSummary, engineerBody);
   dockLeft.append(engineer);
-  try {
-    engineer.open = window.localStorage.getItem(ENGINEER_KEY) === '1';
-  } catch {
-    // Sin almacenamiento: empieza plegado.
-  }
-  ui.classList.toggle('is-engineer', engineer.open);
-  engineer.addEventListener('toggle', () => {
-    ui.classList.toggle('is-engineer', engineer.open);
-    try {
-      window.localStorage.setItem(ENGINEER_KEY, engineer.open ? '1' : '0');
-    } catch {
-      // Sin almacenamiento: no se recuerda.
-    }
-  });
+  engineer.addEventListener('toggle', () => ui.classList.toggle('is-engineer', engineer.open));
 
   // Capas: el compositor pinta un canvas que es la textura del terreno.
   const compositor = await createCompositor(dem, dataset);

@@ -60,7 +60,8 @@ function formatTime(time_s) {
 //   getCrew: tripulación actual, para la ruta por salud
 //   getPoints: puntos de interés de la zona más la base y los objetivos propios
 export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, getPoints }) {
-  const shell = createPanelShell('Plan de EVA', 'route-panel');
+  // Plegado de entrada: se abre solo al marcar el primer punto en el mapa.
+  const shell = createPanelShell('Plan de EVA', 'route-panel', { open: false });
   shell.body.append(el('div', 'route-section', '1 · Marca inicio y destino en el mapa'));
   const panel = shell.body;
 
@@ -297,6 +298,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
   on('terrain:click', ({ x_m, z_m }) => {
     // Mientras se coloca la base o un objetivo, el clic no es para la ruta.
     if (state.clickMode !== 'route') return;
+    shell.root.open = true;
     setPoint(target, [x_m, z_m]);
     // Tras el inicio toca el destino; después, cada clic mueve el destino.
     setTarget('goal');

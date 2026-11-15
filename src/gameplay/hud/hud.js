@@ -26,6 +26,8 @@ const ALERTS = {
 
 const PHASES = { day: 'día', twilight: 'crepúsculo', night: 'noche' };
 const COMPASS_PX_PER_DEG = 3;
+// La marca del objetivo no se sale de la brújula: más allá de esto se queda en el borde.
+const COMPASS_EDGE_PX = 190;
 // Duración del vuelo de los avisos hacia el panel de teclas (igual que en hud.css).
 const DOCK_TRANSITION_MS = 700;
 // [diseño] Burbujas del rover a la vez, y segundos que dura cada una.
@@ -124,13 +126,21 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   }
   compass.append(strip);
   const heading = el('div', 'hud-heading', '—');
+  // Marca del objetivo: se mueve bajo la brújula; en el borde, una flecha dice hacia dónde girar.
+  const compassTarget = el('div', 'hud-compass-target');
+  compassTarget.hidden = true;
+  // Polvo en el visor durante la tormenta.
+  const dustVeil = el('div', 'hud-dust');
 
   // ---- Reloj de Marte y velocidad del tiempo
   const clock = el('div', 'hud-clock');
   const clockHour = el('span', 'hud-clock-hour', '—');
   const clockScale = el('span', 'hud-clock-scale', '—');
   const clockKey = el('kbd', null, 'T');
-  clock.append(clockHour, clockScale, clockKey);
+  // Niveles de velocidad del tiempo: uno por cada valor que recorre la tecla T.
+  const clockTiers = el('span', 'hud-clock-tiers');
+  const speedTiers = timeScales.filter((scale) => scale > 0);
+  clock.append(clockHour, clockScale, clockTiers, clockKey);
 
   // ---- Aviso de vehículo
   const vehicleBadge = el('div', 'hud-vehicle');
@@ -180,6 +190,10 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   helpLine(['Esc'], 'menú');
   const fps = el('div', 'hud-fps');
   help.append(fps);
+  // Con la lista plegada queda solo esta pista.
+  const helpHint = el('div', 'hud-help-hint');
+  helpHint.append(el('kbd', null, 'Tab'), 'controles y telemetría');
+  help.append(helpHint);
 
   // ---- Aterrizaje en paracaídas
   const landingBox = el('section', 'hud-landing');
@@ -190,18 +204,22 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   const landingFill = el('i');
   landingBar.append(landingFill);
   const landingSpeed = el('div', 'hud-landing-speed');
-  landingBox.append(el('span', 'hud-landing-title', 'Aterrizaje en paracaídas'), landingAltitude, landingInfo, landingBar, landingSpeed);
+  const landingTiers = el('div', 'hud-tiers');
+  let landingSignature = '';
+  landingBox.append(el('span', 'hud-landing-title', 'Aterrizaje en paracaídas'), landingAltitude, landingInfo, landingBar, landingSpeed, landingTiers);
 
   // ---- Misión guiada: qué hacer ahora, cuenta atrás de la tormenta y barra al recoger
   const sortieBox = el('section', 'hud-sortie');
   sortieBox.hidden = true;
   const sortieTitle = el('span', 'hud-sortie-title');
   const sortieDetail = el('strong');
+  const sortieKeys = el('div', 'hud-sortie-keys');
   const sortieStorm = el('div', 'hud-sortie-storm');
   const sortieHold = el('div', 'hud-bar');
   const sortieHoldFill = el('i');
   sortieHold.append(sortieHoldFill);
-  sortieBox.append(sortieTitle, sortieDetail, sortieHold, sortieStorm);
+  sortieBox.append(sortieTitle, sortieDetail, sortieKeys, sortieHold, sortieStorm);
+  let sortieKeysSignature = '';
 
   // ---- Lo que dice el rover: burbujas a la derecha que se van solas
   const feed = el('div', 'hud-feed');
@@ -264,7 +282,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   box.append(controls);
   menu.append(box);
 
-  hud.append(vitals, nav, compass, heading, clock, vehicleBadge, mission, help, landingBox, sortieBox, feed, reticle, prompt, card, menu);
+  hud.append(dustVeil, vitals, nav, compass, heading, compassTarget, clock, vehicleBadge, mission, help, landingBox, sortieBox, feed, reticle, prompt, card, menu);
   container.append(hud);
 
   return {
@@ -317,15 +335,47 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
       scaleSelect.value = String(scale);
       clockScale.textContent = scale === 0 ? 'tiempo en pausa' : scale === 1 ? 'tiempo real' : `tiempo ${scale}×`;
       clock.classList.toggle('is-paused', scale === 0);
+      const level = speedTiers.indexOf(scale);
+      clockTiers.replaceChildren(...speedTiers.map((_, index) => el('i', index <= level ? 'is-on' : null)));
+      clockTiers.title = level >= 0 ? `Nivel ${level + 1} de ${speedTiers.length}` : '';
+      clockKey.title = level === speedTiers.length - 1 ? 'T vuelve a tiempo real' : 'T acelera el tiempo';
     },
     // Tab: muestra u oculta la telemetría completa.
-    // sortie: { title, detail, countdown_s (o null), storm, hold (0..1) } o null.
+    // target: { offset_deg (de -180 a 180 respecto a donde se mira), label } o null.
+    setCompassTarget(target) {
+      compassTarget.hidden = !target;
+      if (!target) return;
+      const offset_px = Math.max(-COMPASS_EDGE_PX, Math.min(COMPASS_EDGE_PX, target.offset_deg * COMPASS_PX_PER_DEG));
+      const side = Math.abs(target.offset_deg) * COMPASS_PX_PER_DEG <= COMPASS_EDGE_PX ? 0 : Math.sign(target.offset_deg);
+      compassTarget.style.transform = `translateX(calc(-50% + ${offset_px.toFixed(0)}px))`;
+      compassTarget.textContent = side < 0 ? `◀ ${target.label}` : side > 0 ? `${target.label} ▶` : `▼ ${target.label}`;
+      compassTarget.classList.toggle('is-off', side !== 0);
+    },
+    // level: 0 en calma, 1 en plena tormenta. Llena el visor de polvo.
+    setDust(level) {
+      dustVeil.style.opacity = String(Math.min(Math.max(level, 0), 1));
+      hud.classList.toggle('is-storm', level > 0.5);
+    },
+    // sortie: { title, detail, keys: [[tecla, texto]] (o null), countdown_s (o null), storm,
+    //           hold (0..1) } o null.
     setSortie(sortie) {
       sortieBox.hidden = !sortie;
       hud.classList.toggle('is-sortie', Boolean(sortie));
       if (!sortie) return;
       sortieTitle.textContent = sortie.title;
       sortieDetail.textContent = sortie.detail;
+      // Teclas del tutorial, en grande. Solo se rehacen si cambian.
+      const keysSignature = (sortie.keys ?? []).map((pair) => pair.join(':')).join('|');
+      if (keysSignature !== sortieKeysSignature) {
+        sortieKeysSignature = keysSignature;
+        sortieKeys.replaceChildren();
+        for (const [key, text] of sortie.keys ?? []) {
+          const item = el('span', 'hud-sortie-key');
+          item.append(el('kbd', null, key), text);
+          sortieKeys.append(item);
+        }
+      }
+      sortieKeys.hidden = !sortie.keys?.length;
       sortieHold.hidden = sortie.hold <= 0;
       sortieHoldFill.style.transform = `scaleX(${Math.min(sortie.hold, 1)})`;
       sortieStorm.hidden = sortie.countdown_s === null && !sortie.storm;
@@ -346,7 +396,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
     clearFeed() {
       feed.replaceChildren();
     },
-    // fall: { altitude_m, speed_ms, remaining_s, progress, scale } o null al tocar suelo.
+    // fall: { altitude_m, speed_ms, remaining_s, progress, scale, scales } o null al tocar suelo.
     setLanding(fall) {
       landingBox.hidden = !fall;
       hud.classList.toggle('is-landing', Boolean(fall));
@@ -356,7 +406,20 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
       const eta = real_s >= 60 ? `${Math.floor(real_s / 60)} min ${String(Math.round(real_s % 60)).padStart(2, '0')} s` : `${real_s.toFixed(0)} s`;
       landingInfo.textContent = `sobre el suelo · bajando a ${fall.speed_ms.toFixed(1)} m/s · tocas suelo en ${eta}`;
       landingFill.style.transform = `scaleX(${fall.progress})`;
-      landingSpeed.replaceChildren(el('kbd', null, 'T'), `acelerar la caída · ahora ${fall.scale}×`);
+      // Tecla y niveles: se ve cuál está puesto y si aún queda uno más rápido.
+      const signature = `${fall.scale}|${(fall.scales ?? []).join(',')}`;
+      if (signature !== landingSignature) {
+        landingSignature = signature;
+        const last = fall.scales?.[fall.scales.length - 1];
+        landingSpeed.replaceChildren(
+          'Pulsa ', el('kbd', null, 'T'),
+          fall.scale === last ? 'para volver a la velocidad normal' : 'para acelerar la caída',
+        );
+        landingTiers.replaceChildren(...(fall.scales ?? []).map((scale) => {
+          const tier = el('span', scale === fall.scale ? 'is-on' : scale < fall.scale ? 'is-done' : null, `${scale}×`);
+          return tier;
+        }));
+      }
     },
     // Con realismo el tiempo queda fijo en 1× y no hay vehículos.
     setRealism(on) {

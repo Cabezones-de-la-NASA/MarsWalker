@@ -4,10 +4,12 @@
 import { emit } from '../shared/state.js';
 import {
   SORTIE, planFirstSortie, createSortieState, stepSortie, collectSample, arriveHome, sortieTarget,
+  inspectCapsule, registerJump, canCollect,
 } from '../models/missions/first_sortie.js';
 import { NOMINAL_DUST_TAU, STORM_DUST_TAU } from '../models/environment/weather.js';
 import { MARS_FACTS } from '../shared/mars_facts.js';
 import { createBeacon, createInterestMark } from '../models3d/props.js';
+import { createStation } from '../models3d/station.js';
 
 // [diseño] El polvo sube poco a poco: hasta WARNING_DUST_TAU durante la cuenta atrás y
 // hasta el valor de tormenta en STORM_RISE_S; al terminar se despeja en STORM_CLEAR_S.
@@ -28,7 +30,7 @@ const formatClock = (seconds) => `${Math.floor(seconds / 60)}:${String(Math.floo
  * createSortie({ world, dem, groundAt, bounds, hud, sound, say, getOxygen_l, onDone }) ->
  *   start(home)        home: { x_m, z_m } de la cápsula
  *   update(delta_s, { player, holding }) -> { leadTarget, drilling }
- *   isActive(), cancel(), debug()
+ *   isActive(), phase(), goal(), basePosition(), capsuleInspected(), cancel(), debug()
  * say(text): el rover dice una frase (burbuja y voz). onDone(): la misión terminó.
  */
 export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, getOxygen_l, onDone }) {
@@ -47,7 +49,10 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
     return { beacon, mark };
   });
   const homeMark = createInterestMark(1.6);
-  world.scene.add(homeMark);
+  // La base de la misión: una estación detrás de la cápsula. Se queda tras terminar.
+  const station = createStation({ shadows: world.quality.shadows });
+  station.visible = false;
+  world.scene.add(homeMark, station);
 
   function sendDust(force = false) {
     if (!force && Math.abs(dust_tau - sentDust_tau) < DUST_STEP) return;
@@ -79,9 +84,9 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
       title: 'Misión cumplida',
       lines: [
         `Dos muestras recogidas en ${formatClock(state.elapsed_s)}.`,
-        state.beat_storm ? 'Volviste a la cápsula antes de que llegara la tormenta.' : 'La tormenta te alcanzó antes de llegar a la cápsula.',
+        state.beat_storm ? 'Llegaste a la base antes de que entrara la tormenta.' : 'La tormenta te alcanzó antes de llegar a la base.',
         `Oxígeno gastado: ${used_l.toFixed(1)} L.`,
-        'Te han enviado una camioneta: está junto a la cápsula. A partir de ahora, Marte es tuyo.',
+        'Te han dejado una camioneta junto a la base. A partir de ahora, Marte es tuyo.',
         'Esta misión y su tormenta son parte del juego; no reproducen un suceso real.',
       ],
     });
@@ -90,11 +95,26 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
 
   return {
     isActive: () => Boolean(mission),
+    phase: () => mission?.state.phase ?? null,
+    // Hacia dónde hay que ir ahora, para la marca de la brújula -> { x_m, z_m, label } o null.
+    goal() {
+      if (!mission?.goal_m) return null;
+      const label = { intro: 'Cápsula', to_first: 'Roca 1', to_second: 'Roca 2', return: 'Base' }[mission.state.phase];
+      return { x_m: mission.goal_m[0], z_m: mission.goal_m[1], label };
+    },
+    basePosition: () => (station.visible ? { x_m: station.position.x, z_m: station.position.z } : null),
+    // Tutorial: se inspeccionó la cápsula; ahora sí, a por las rocas.
+    capsuleInspected() {
+      if (!mission || mission.state.phase !== 'intro') return;
+      mission.state = inspectCapsule(mission.state);
+      sound.beep('sample');
+      say('Ahora sígueme: quiero analizar dos rocas cerca de aquí. Con Shift corres.');
+    },
     debug: () => mission,
     start(home) {
       const plan = planFirstSortie(dem, [home.x_m, home.z_m], bounds);
       mission = {
-        state: createSortieState(), home, samples_m: plan.samples_m, hold_s: 0,
+        state: createSortieState(), home, samples_m: plan.samples_m, base_m: plan.base_m, hold_s: 0,
         oxygenStart_l: getOxygen_l(), lastTick: null,
       };
       clearing = false;
@@ -106,7 +126,11 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
         beacon.visible = true;
         mark.visible = true;
       });
-      say('Bienvenido a Marte. Quiero analizar dos rocas cerca de aquí. Sígueme a la primera.');
+      const [baseX_m, baseZ_m] = plan.base_m;
+      station.position.set(baseX_m, groundAt(baseX_m, baseZ_m), baseZ_m);
+      station.rotation.y = Math.atan2(home.x_m - baseX_m, home.z_m - baseZ_m);
+      station.visible = true;
+      say('Bienvenido a Marte. Antes de nada, echa un vistazo a la cápsula que te trajo.');
     },
     // Se sale al mapa a media misión: no cuenta y el cielo vuelve a su estado normal.
     cancel() {
@@ -114,6 +138,7 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
       mission = null;
       clearing = false;
       hideMarkers();
+      station.visible = false;
       hud.setSortie(null);
       dust_tau = NOMINAL_DUST_TAU;
       sendDust(true);
@@ -132,10 +157,30 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
 
       const before = mission.state;
       mission.state = stepSortie(before, delta_s);
-      const { state, home, samples_m } = mission;
+      const { state, home, samples_m, base_m } = mission;
       const goal = sortieTarget(state);
-      const goal_m = goal === 'home' ? [home.x_m, home.z_m] : samples_m[goal];
+      const goal_m = goal === 'capsule' ? [home.x_m, home.z_m] : goal === 'home' ? base_m : samples_m[goal];
+      mission.goal_m = goal_m;
       const distance_m = Math.hypot(goal_m[0] - player.x_m, goal_m[1] - player.z_m);
+
+      // Tutorial, paso 1: la cápsula. Solo se enseñan las teclas; el resto espera.
+      if (goal === 'capsule') {
+        homeMark.visible = true;
+        homeMark.position.set(home.x_m, groundAt(home.x_m, home.z_m) + 5 + Math.sin(clock * 2.4) * 0.1, home.z_m);
+        hud.setSortie({
+          title: 'Primer contacto · primeros pasos',
+          detail: 'Acércate a la cápsula e inspecciónala',
+          keys: [['W A S D', 'moverte'], ['Ratón', 'mirar'], ['E', 'interactuar']],
+          countdown_s: null, storm: false, hold: 0,
+        });
+        return { leadTarget: null, drilling: false };
+      }
+      // Tutorial, paso 2: un salto de camino a la primera roca.
+      if (state.phase === 'to_first' && !state.jumped && !player.grounded) {
+        mission.state = registerJump(state);
+        sound.beep('tick');
+        say('¡Así se salta con un tercio de la gravedad de la Tierra!');
+      }
 
       // Tormenta: aviso con pitido cada segundo y frase del rover cuando entra.
       if (state.storm_in_s !== null && !state.storm) {
@@ -149,7 +194,7 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
       } else if (state.storm) {
         if (!before.storm) {
           sound.beep('warning');
-          say('Ya la tenemos encima. Sigue la luz de la cápsula.');
+          say('Ya la tenemos encima. Mira la brújula: la base está donde apunta la marca.');
         }
         dust_tau = Math.min(STORM_DUST_TAU, dust_tau + ((STORM_DUST_TAU - WARNING_DUST_TAU) / STORM_RISE_S) * delta_s);
       }
@@ -158,22 +203,22 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
       // Recoger: mantener E junto a la muestra mientras el rover taladra.
       let drilling = false;
       if (goal !== 'home') {
-        const near = distance_m <= SORTIE.collect_reach_m;
+        const near = distance_m <= SORTIE.collect_reach_m && canCollect(mission.state);
         drilling = near && holding;
         mission.hold_s = drilling ? mission.hold_s + delta_s : 0;
         if (mission.hold_s >= SORTIE.collect_hold_s) {
           mission.hold_s = 0;
-          mission.state = collectSample(state);
+          mission.state = collectSample(mission.state);
           markers[goal].mark.visible = false;
           markers[goal].beacon.visible = false;
           sound.beep('sample');
           const fact = SAMPLE_FACTS[goal % SAMPLE_FACTS.length];
           if (goal === 0) {
             say(`Muestra guardada. ${fact.text}`);
-            say(`Espera… detecto un frente de polvo. Llega en ${SORTIE.storm_delay_s} segundos. Vamos por la segunda y volvemos a la cápsula.`);
+            say(`Espera… detecto un frente de polvo. Llega en ${SORTIE.storm_delay_s} segundos. Vamos por la segunda y nos refugiamos en la base.`);
             sound.beep('warning');
           } else {
-            say('¡La tenemos! Vuelve a la cápsula, yo te sigo.');
+            say('¡La tenemos! A la base, detrás de la cápsula. Sigue la marca de la brújula.');
           }
           drilling = false;
         }
@@ -192,14 +237,28 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
       });
       const now = mission.state;
       homeMark.visible = now.phase === 'return';
-      if (homeMark.visible) homeMark.position.set(home.x_m, groundAt(home.x_m, home.z_m) + 5 + bob_m, home.z_m);
+      if (homeMark.visible) homeMark.position.set(base_m[0], groundAt(base_m[0], base_m[1]) + 8 + bob_m, base_m[1]);
 
       // Visor: qué hacer, a qué distancia y, si toca, la cuenta atrás.
-      const where = goal === 'home' ? 'Vuelve a la cápsula' : goal === 0 ? 'Sigue al rover hasta la primera roca' : 'Corre a la segunda roca';
-      const near = goal !== 'home' && distance_m <= SORTIE.collect_reach_m;
+      const where = goal === 'home' ? 'Refúgiate en la base' : goal === 0 ? 'Sigue al rover hasta la primera roca' : 'Corre a la segunda roca';
+      const near = goal !== 'home' && distance_m <= SORTIE.collect_reach_m && canCollect(now);
+      // Teclas en grande según lo que toca aprender en cada tramo.
+      const needsJump = now.phase === 'to_first' && !now.jumped;
+      let keys = null;
+      let detail = `${where} · ${distance_m.toFixed(0)} m`;
+      if (near) {
+        detail = 'Toma la muestra';
+        keys = [['E', 'mantener pulsada']];
+      } else if (needsJump && distance_m <= SORTIE.jump_hint_m) {
+        detail = `Salta para llegar a la roca · ${distance_m.toFixed(0)} m`;
+        keys = [['Espacio', 'saltar']];
+      } else if (now.phase === 'to_first') {
+        keys = [['Shift', 'correr']];
+      }
       hud.setSortie({
         title: `Primer contacto · muestra ${Math.min(now.collected + 1, 2)} de 2`,
-        detail: near ? 'Mantén E para tomar la muestra' : `${where} · ${distance_m.toFixed(0)} m`,
+        detail,
+        keys,
         countdown_s: now.storm_in_s !== null && !now.storm ? now.storm_in_s : null,
         storm: now.storm,
         hold: near ? mission.hold_s / SORTIE.collect_hold_s : 0,

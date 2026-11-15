@@ -20,7 +20,7 @@ function readMuted() {
  *   resume()                 arranca el audio (hace falta un gesto del usuario antes)
  *   update(delta_s, state)   state: { walking_m (metros andados en el cuadro), running,
  *                            heart_bpm, wind (0..1), vehicle_speed_ms (o null), falling (bool),
- *                            drilling (bool) }
+ *                            drilling (bool), agitation (0..1: respiración agitada y latido) }
  *   beep(kind)               'sample' | 'warning' | 'tick' | 'done' | 'low'
  *   thud()                   golpe del aterrizaje
  *   setMuted(bool), isMuted(), toggleMuted(), suspend()
@@ -34,6 +34,8 @@ export function createSound() {
   let muted = readMuted();
   let strideLeft_m = STRIDE_M;
   let breathPhase = 0;
+  let gustPhase = 0;
+  let beatLeft_s = 0;
 
   function build() {
     ctx = new AudioContextClass();
@@ -65,6 +67,8 @@ export function createSound() {
 
     const wind = chain(noise(), 'bandpass', 320, 0.6);
     const breath = chain(noise(), 'bandpass', 900, 1.4);
+    // Arena contra el casco: ruido agudo que solo se oye en la tormenta.
+    const sand = chain(noise(), 'highpass', 3200, 0.7);
     // Motor eléctrico: dos ondas cerca una de otra, para que zumbe.
     const motorGain = ctx.createGain();
     motorGain.gain.value = 0;
@@ -92,7 +96,7 @@ export function createSound() {
     drill.connect(drillFilter).connect(drillGain).connect(master);
     drill.start();
 
-    nodes = { buffer, wind, breath, motorGain, motorA, motorB, drillGain };
+    nodes = { buffer, wind, breath, sand, motorGain, motorA, motorB, drillGain };
   }
 
   const ready = () => Boolean(ctx) && ctx.state === 'running';
@@ -165,15 +169,31 @@ export function createSound() {
       if (!ready()) return;
       // Viento: un fondo suave siempre; la tormenta y la caída lo suben y lo agudizan.
       const wind = Math.min(1, Math.max(state.wind ?? 0, state.falling ? 0.55 : 0));
-      glide(nodes.wind.gain.gain, 0.035 + wind * 0.5, 0.6);
-      glide(nodes.wind.filter.frequency, 280 + wind * 700, 0.6);
+      // Ráfagas: en la tormenta el viento sube y baja, no es un soplido plano.
+      gustPhase += delta_s;
+      const gust = 0.7 + 0.3 * Math.sin(gustPhase * 1.7) * Math.sin(gustPhase * 0.61 + 1.3);
+      glide(nodes.wind.gain.gain, 0.035 + wind * 0.62 * gust, 0.4);
+      glide(nodes.wind.filter.frequency, 280 + wind * 800 * gust, 0.4);
+      glide(nodes.sand.gain.gain, wind > 0.25 ? (wind - 0.25) * 0.16 * gust : 0, 0.3);
+
+      // Agitación (la tormenta encima): respiración más rápida y fuerte, y el latido.
+      const agitation = Math.min(Math.max(state.agitation ?? 0, 0), 1);
 
       // Respiración: el ritmo sigue al pulso del modelo (unas 4 pulsaciones por respiración).
-      const breaths_hz = Math.min(Math.max((state.heart_bpm ?? 70) / 60 / 4, 0.2), 0.75);
+      const breaths_hz = Math.min(Math.max((state.heart_bpm ?? 70) / 60 / 4, 0.2), 0.75) * (1 + agitation * 0.9);
       breathPhase = (breathPhase + delta_s * breaths_hz) % 1;
       const inhale = breathPhase < 0.42;
       const swell = Math.sin(Math.PI * (inhale ? breathPhase / 0.42 : (breathPhase - 0.42) / 0.58));
-      glide(nodes.breath.gain.gain, swell * (inhale ? 0.1 : 0.075), 0.05);
+      glide(nodes.breath.gain.gain, swell * (inhale ? 0.16 : 0.12) * (1 + agitation * 0.9), 0.05);
+      if (agitation > 0.3) {
+        beatLeft_s -= delta_s;
+        if (beatLeft_s <= 0) {
+          // Latido doble, más rápido cuanto mayor la agitación.
+          beatLeft_s = 60 / (95 + agitation * 55);
+          tone(52, 0, 0.16, 0.22 * agitation);
+          tone(46, 0.14, 0.18, 0.15 * agitation);
+        }
+      }
       glide(nodes.breath.filter.frequency, inhale ? 1250 : 720, 0.08);
 
       // Pasos: uno cada STRIDE_M metros andados.

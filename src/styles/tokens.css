@@ -44,11 +44,11 @@
   /* Tipografía */
   --font-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  --text-xs: 11px;
-  --text-sm: 12px;
-  --text-md: 13px;
-  --text-lg: 15px;
-  --text-xl: 20px;
+  --text-xs: 12px;
+  --text-sm: 13.5px;
+  --text-md: 15px;
+  --text-lg: 17px;
+  --text-xl: 22px;
 
   /* Espaciado y forma */
   --space-1: 4px;
@@ -58,8 +58,8 @@
   --space-5: 24px;
   --radius-sm: 3px;
   --radius-md: 6px;
-  --panel-width: 288px;
-  --bar-height: 48px;
+  --panel-width: 328px;
+  --bar-height: 52px;
   --blur: blur(10px);
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 }

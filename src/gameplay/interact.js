@@ -59,6 +59,13 @@ export function createInteraction({ dem, getPoints, companion, getCapsule = () =
         .sort((a, b) => a.distance_m - b.distance_m)
         .slice(0, count);
     },
+    // Solo la cápsula, sin competir con el rover ni los puntos (tutorial de la misión).
+    capsuleTarget(x_m, z_m) {
+      const capsule = getCapsule();
+      if (!capsule) return null;
+      const distance_m = Math.hypot(capsule.x_m - x_m, capsule.z_m - z_m);
+      return distance_m <= CAPSULE_REACH_M ? { type: 'capsule', distance_m, prompt: 'Inspeccionar la cápsula' } : null;
+    },
     nearest(x_m, z_m) {
       let best = null;
       for (const poi of getPoints()) {

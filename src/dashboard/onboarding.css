@@ -1,12 +1,17 @@
 .onboarding {
   position: absolute;
   left: 50%;
-  bottom: 250px;
-  width: min(380px, calc(100vw - 32px));
-  padding: var(--space-4);
+  top: calc(var(--bar-height) + var(--space-4));
+  width: min(520px, calc(100vw - 32px));
+  padding: var(--space-4) var(--space-5);
   transform: translateX(-50%);
-  border-top: 2px solid var(--accent);
-  z-index: 25;
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 6px rgba(255, 180, 92, 0.14), 0 18px 50px rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
+  z-index: 35;
 }
 
 .onboarding[hidden] {
@@ -90,4 +95,70 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   animation: onboarding-pulse 1.6s ease-in-out infinite;
+}
+
+/* Tutorial de inicio: grande y con el número del paso bien visible. */
+.onboarding-number {
+  flex: none;
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #1a0f0a;
+  font: 600 28px / 1 var(--font-mono);
+}
+
+.onboarding-body {
+  flex: 1;
+}
+
+.panel h2.onboarding-title {
+  font-size: 24px;
+}
+
+.onboarding-text {
+  font-size: 17px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.onboarding-dots i {
+  width: 34px;
+  height: 5px;
+}
+
+.onboarding .onboarding-next {
+  padding: 8px 20px;
+  font-size: var(--text-lg);
+}
+
+.onboarding-target {
+  outline-width: 3px;
+  outline-offset: 5px;
+}
+
+.onboarding-list {
+  margin: 0 0 var(--space-3);
+  padding-left: 18px;
+  font-size: 15.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.onboarding-list[hidden] {
+  display: none;
+}
+
+.onboarding-list li + li {
+  margin-top: 6px;
+}
+
+.onboarding-list strong {
+  color: var(--accent);
+}
+
+.onboarding {
+  width: min(580px, calc(100vw - 32px));
 }
