@@ -162,8 +162,10 @@ async function start() {
         dashboard.setUiVisible(true);
       }, 900);
     },
-    onComplete: () => {
+    onComplete: async () => {
+      const { dashboard } = await scenePromise;
       state.mode = 'dashboard';
+      dashboard.setUiVisible(true);
     },
   });
 

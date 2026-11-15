@@ -5,8 +5,8 @@ import './onboarding.css';
 import { on } from '../shared/state.js';
 import { tr } from '../shared/i18n.js';
 
-// v2: el tutorial cambió (indicador de aterrizaje, primer contacto); se enseña de nuevo.
-const STORAGE_KEY = 'marswalk.onboarded.v4';
+// Si el usuario activa «No volver a mostrar», se recuerda en localStorage.
+const DONT_SHOW_KEY = 'marswalk.onboarding.dont_show';
 
 // Cada paso: título, texto, lista opcional (items), elemento que se resalta (target) y el
 // evento que lo da por hecho (done); sin evento se avanza con el botón.
@@ -46,25 +46,27 @@ function el(tag, className, text) {
   return node;
 }
 
-function alreadySeen() {
+function isSuppressed() {
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === '1';
+    return window.localStorage.getItem(DONT_SHOW_KEY) === '1';
   } catch {
     return false;
   }
 }
 
-function markSeen() {
+function setSuppressed(value) {
   try {
-    window.localStorage.setItem(STORAGE_KEY, '1');
+    if (value) window.localStorage.setItem(DONT_SHOW_KEY, '1');
+    else window.localStorage.removeItem(DONT_SHOW_KEY);
   } catch {
-    // Sin almacenamiento: los pasos volverán a salir en la próxima visita.
+    // Sin almacenamiento: no se recuerda la preferencia.
   }
 }
 
 /**
  * createOnboarding(ui, { orbitControls }) -> { start(force), isOpen() }
- * start() no hace nada si ya se vio; start(true) lo repite (botón de ayuda).
+ * start() se abre al entrar al dashboard salvo si «No volver a mostrar» está activo;
+ * start(true) lo abre siempre (botón de ayuda).
  */
 export function createOnboarding(ui, { orbitControls }) {
   const card = el('aside', 'panel onboarding');
@@ -78,11 +80,20 @@ export function createOnboarding(ui, { orbitControls }) {
   const list = el('ul', 'onboarding-list');
   const dots = el('div', 'onboarding-dots');
   const actions = el('div', 'onboarding-actions');
+  const dontShowLabel = el('label', 'onboarding-dont-show');
+  const dontShowInput = el('input', 'onboarding-dont-show-input');
+  dontShowInput.type = 'checkbox';
+  dontShowLabel.append(dontShowInput, el('span', null, tr('No volver a mostrar')));
+  dontShowInput.addEventListener('change', () => {
+    setSuppressed(dontShowInput.checked);
+  });
   const skip = el('button', 'onboarding-skip', tr('Saltar'));
   skip.type = 'button';
   const next = el('button', 'onboarding-next btn-primary', tr('Siguiente'));
   next.type = 'button';
-  actions.append(skip, next);
+  const buttons = el('div', 'onboarding-buttons');
+  buttons.append(skip, next);
+  actions.append(dontShowLabel, buttons);
   const body = el('div', 'onboarding-body');
   body.append(count, title, text, list, dots, actions);
   card.append(number, body);
@@ -91,6 +102,7 @@ export function createOnboarding(ui, { orbitControls }) {
   let step = -1;
   let shownAt_ms = 0;
   let highlighted = null;
+  let autoStarted = false;
 
   function highlight(selector) {
     highlighted?.classList.remove('onboarding-target');
@@ -131,7 +143,7 @@ export function createOnboarding(ui, { orbitControls }) {
     step = -1;
     card.hidden = true;
     highlight(null);
-    markSeen();
+    setSuppressed(dontShowInput.checked);
   }
 
   function advance(from) {
@@ -169,7 +181,12 @@ export function createOnboarding(ui, { orbitControls }) {
   return {
     isOpen: () => step >= 0,
     start(force = false) {
-      if (step >= 0 || (!force && alreadySeen())) return;
+      if (step >= 0) return;
+      if (!force) {
+        if (autoStarted || isSuppressed()) return;
+        autoStarted = true;
+      }
+      dontShowInput.checked = isSuppressed();
       // Durante la guía el Plan de EVA empieza plegado; el paso que lo explica lo abre.
       const plan = ui.querySelector('.route-panel');
       if (plan) plan.open = false;

@@ -96,6 +96,7 @@ export const EN = Object.freeze({
   'Siguiente': 'Next',
   'Primeros pasos · {} de {}': 'First steps · {} of {}',
   'Entendido': 'Got it',
+  'No volver a mostrar': 'Do not show again',
 
   // ---- Tripulación
   'Baja': 'Low',

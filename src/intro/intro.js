@@ -481,6 +481,10 @@ export function startIntro(container, { waitReady, onRevealStart, onComplete } =
 
   function startZoomToJezero() {
     if (destroyed || zoomState) return;
+    if (!drawPlanet) {
+      triggerDashboardReveal();
+      return;
+    }
     root.classList.add('is-zooming-jezero');
     // Girar suavemente hacia la longitud de Jezero (~77.58° E en el mapa Viking).
     const baseTarget = 2.22;
