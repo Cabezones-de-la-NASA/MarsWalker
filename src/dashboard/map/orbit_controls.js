@@ -19,7 +19,7 @@ export function createOrbitControls(camera, domElement, dem) {
   controls.maxPolarAngle = Math.PI / 2 - 0.03; // nunca por debajo del horizonte
 
   controls.target.set(0, dem.sampleElevation_m(0, 0), 0);
-  camera.position.set(0, controls.target.y + span_m * 0.55, span_m * 0.75);
+  camera.position.set(0, controls.target.y + span_m * 0.95, span_m * 0.02);
   controls.update();
 
   function update() {

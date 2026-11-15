@@ -2,7 +2,7 @@
 // Lo usan el dashboard y el gameplay. Devuelve datos crudos; el DEM se arma con
 // createDem de src/models/terrain/ en quien lo consume.
 
-export const DEFAULT_DATASET_ID = 'jezero_ctx';
+export const DEFAULT_DATASET_ID = 'hirise_jezero';
 
 const DATASET_ID_PATTERN = /^[a-z0-9_]+$/;
 

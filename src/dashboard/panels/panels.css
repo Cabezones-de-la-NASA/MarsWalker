@@ -5,6 +5,16 @@
   inset: 0;
   pointer-events: none;
   z-index: 5;
+  opacity: 1;
+  transition: opacity 1.4s var(--ease);
+}
+
+.dashboard-ui.is-intro-hidden {
+  opacity: 0;
+}
+
+.dashboard-ui.is-intro-hidden * {
+  pointer-events: none !important;
 }
 
 .dashboard-ui[hidden] {
