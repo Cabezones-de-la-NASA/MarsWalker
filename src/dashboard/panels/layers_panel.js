@@ -1,0 +1,86 @@
+// Panel de capas: casilla, opacidad y leyenda (unidad y rango) por capa.
+import './panels.css';
+import { RISK_COLORS } from '../layers/layer_defs.js';
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+const rgb = (color) => `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+
+function buildLegend(layer) {
+  const legend = el('div', 'layer-legend');
+  if (layer.kind === 'ramp') {
+    const bar = el('div', 'legend-bar');
+    const stops = layer.ramp.map(([t, color]) => `${rgb(color)} ${t * 100}%`).join(', ');
+    bar.style.background = `linear-gradient(to right, ${stops})`;
+    const ends = el('div', 'legend-ends');
+    const unit = layer.unit === '°' ? '°' : '';
+    ends.append(el('span', null, `${layer.range[0]}${unit}`), el('span', null, `${layer.range[1]}${unit}`));
+    legend.append(bar, ends);
+    if (layer.unit !== '°') legend.append(el('div', 'legend-unit', layer.unit));
+  } else if (layer.kind === 'bands') {
+    for (const { band, label } of layer.bands) {
+      const row = el('div', 'legend-band');
+      const swatch = el('span', 'legend-swatch');
+      swatch.style.background = rgb(RISK_COLORS[band]);
+      row.append(swatch, el('span', null, label));
+      legend.append(row);
+    }
+    legend.append(el('div', 'legend-unit', `${layer.unit}, de ${layer.range[0]} a ${layer.range[1]}`));
+  }
+  return legend;
+}
+
+export function createLayersPanel(container, compositor) {
+  const panel = el('section', 'panel layers-panel');
+  panel.append(el('h2', null, 'Capas'));
+
+  for (const layer of compositor.getLayers()) {
+    const item = el('div', 'layer-item');
+    item.dataset.layer = layer.id;
+
+    const head = el('label', 'layer-head');
+    const checkbox = el('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = layer.visible;
+    head.append(checkbox, el('span', 'layer-name', layer.label));
+    if (layer.simulated) {
+      const badge = el('span', 'layer-badge', 'simulada');
+      badge.title = 'Aproximación generada desde pendiente y elevación. No es un dato real.';
+      head.append(badge);
+    }
+
+    const opacityRow = el('label', 'layer-opacity');
+    const slider = el('input');
+    slider.type = 'range';
+    slider.min = '0';
+    slider.max = '100';
+    slider.value = String(Math.round(layer.opacity * 100));
+    const value = el('span', 'layer-opacity-value', `${slider.value} %`);
+    opacityRow.append(el('span', null, 'Opacidad'), slider, value);
+
+    checkbox.addEventListener('change', () => {
+      compositor.setLayer(layer.id, { visible: checkbox.checked });
+    });
+    slider.addEventListener('input', () => {
+      value.textContent = `${slider.value} %`;
+      compositor.setLayer(layer.id, { opacity: Number(slider.value) / 100 });
+    });
+
+    item.append(head, opacityRow);
+    if (layer.kind !== 'image') item.append(buildLegend(layer));
+    if (layer.simulated) {
+      item.append(
+        el('div', 'layer-note', 'Simulada desde pendiente y elevación: no es un dato de misión.'),
+      );
+    }
+    panel.append(item);
+  }
+
+  container.append(panel);
+  return panel;
+}
