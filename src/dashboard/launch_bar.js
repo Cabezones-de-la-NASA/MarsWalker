@@ -21,9 +21,9 @@ function el(tag, className, text) {
 }
 
 /**
- * createLaunchBar(ui, { dem, onExplore }) -> { element, setLanding(x_m, z_m, dragging), setClick(text) }
+ * createLaunchBar(ui, { dem, onExplore, onLanding }) -> { element, setLanding(x_m, z_m, dragging), setClick(text) }
  */
-export function createLaunchBar(ui, { dem, onExplore }) {
+export function createLaunchBar(ui, { dem, onExplore, onLanding }) {
   const bar = el('section', 'launch-bar');
 
   const fact = el('button', 'launch-fact');
@@ -89,6 +89,13 @@ export function createLaunchBar(ui, { dem, onExplore }) {
   const exploreLabel = el('span', null, 'Explorar Marte');
   explore.append(el('span', 'launch-button-icon', '▶'), exploreLabel);
   explore.addEventListener('click', onExplore);
+  // Repite la bajada en paracaídas (la primera vez sale sola).
+  const landingButton = el('button', 'launch-landing-button', '🪂 Aterrizaje realista');
+  landingButton.type = 'button';
+  landingButton.title = 'Bajar en paracaídas hasta el indicador';
+  landingButton.addEventListener('click', onLanding);
+  const buttons = el('div', 'launch-buttons');
+  buttons.append(explore, landingButton);
 
   const status = el('div', 'launch-status');
   status.setAttribute('role', 'status');
@@ -96,7 +103,7 @@ export function createLaunchBar(ui, { dem, onExplore }) {
   const click = el('div', 'launch-click');
   status.append(landing, click);
 
-  bar.append(factWrap, explore, status);
+  bar.append(factWrap, buttons, status);
   ui.append(bar);
 
   return {

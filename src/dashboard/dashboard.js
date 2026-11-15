@@ -209,7 +209,14 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
   });
 
   // Barra de lanzamiento e indicador de aterrizaje arrastrable.
-  const launchBar = createLaunchBar(ui, { dem, onExplore: () => emit('mode:request', 'gameplay') });
+  const launchBar = createLaunchBar(ui, {
+    dem,
+    onExplore: () => emit('mode:request', 'gameplay'),
+    onLanding() {
+      state.landingRequested = true;
+      emit('mode:request', 'gameplay');
+    },
+  });
   const dropPin = createDropPin({
     scene: world.scene, camera: world.camera, domElement: world.renderer.domElement, mesh: terrain.mesh, dem,
     controls: orbit.controls,

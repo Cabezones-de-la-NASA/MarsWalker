@@ -361,3 +361,18 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
+
+.launch-buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.dashboard-ui .launch-landing-button {
+  padding: 10px var(--space-4);
+  border-radius: 999px;
+  font-size: var(--text-md);
+  background: var(--surface-1);
+  border: 1px solid var(--line-strong);
+  pointer-events: auto;
+}

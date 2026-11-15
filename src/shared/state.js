@@ -14,6 +14,8 @@ export const state = {
   clickMode: 'route',
   // Jugar con realismo: tiempo real, solo a pie, sin rover de compañía ni camioneta.
   realism: false,
+  // El mapa pide repetir el aterrizaje en paracaídas en la próxima bajada.
+  landingRequested: false,
 };
 
 const handlers = new Map();

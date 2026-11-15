@@ -171,6 +171,17 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   const fps = el('div', 'hud-fps');
   help.append(fps);
 
+  // ---- Aterrizaje en paracaídas
+  const landingBox = el('section', 'hud-landing');
+  landingBox.hidden = true;
+  const landingAltitude = el('strong', null, '—');
+  const landingInfo = el('div', 'hud-landing-info');
+  const landingBar = el('div', 'hud-bar');
+  const landingFill = el('i');
+  landingBar.append(landingFill);
+  const landingSpeed = el('div', 'hud-landing-speed');
+  landingBox.append(el('span', 'hud-landing-title', 'Aterrizaje en paracaídas'), landingAltitude, landingInfo, landingBar, landingSpeed);
+
   const reticle = el('div', 'hud-reticle');
   const prompt = el('div', 'hud-prompt');
   prompt.hidden = true;
@@ -224,7 +235,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   box.append(controls);
   menu.append(box);
 
-  hud.append(vitals, nav, compass, heading, clock, vehicleBadge, mission, help, reticle, prompt, card, menu);
+  hud.append(vitals, nav, compass, heading, clock, vehicleBadge, mission, help, landingBox, reticle, prompt, card, menu);
   container.append(hud);
 
   return {
@@ -248,6 +259,18 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
       clock.classList.toggle('is-paused', scale === 0);
     },
     // Tab: muestra u oculta la telemetría completa.
+    // fall: { altitude_m, speed_ms, remaining_s, progress, scale } o null al tocar suelo.
+    setLanding(fall) {
+      landingBox.hidden = !fall;
+      hud.classList.toggle('is-landing', Boolean(fall));
+      if (!fall) return;
+      landingAltitude.textContent = `${fall.altitude_m.toFixed(0)} m`;
+      const real_s = fall.remaining_s / fall.scale;
+      const eta = real_s >= 60 ? `${Math.floor(real_s / 60)} min ${String(Math.round(real_s % 60)).padStart(2, '0')} s` : `${real_s.toFixed(0)} s`;
+      landingInfo.textContent = `sobre el suelo · bajando a ${fall.speed_ms.toFixed(1)} m/s · tocas suelo en ${eta}`;
+      landingFill.style.transform = `scaleX(${fall.progress})`;
+      landingSpeed.replaceChildren(el('kbd', null, 'T'), `acelerar la caída · ahora ${fall.scale}×`);
+    },
     // Con realismo el tiempo queda fijo en 1× y no hay vehículos.
     setRealism(on) {
       hud.classList.toggle('is-realism', on);
