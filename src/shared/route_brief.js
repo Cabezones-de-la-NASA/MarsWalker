@@ -8,7 +8,7 @@ const ALGORITHM_NAMES = {
   qaoa: tr('Corredor inspirado en QAOA (algoritmo clásico que explora un corredor de rutas en rondas)'),
 };
 
-const fixed = (value, digits = 0) => (Number.isFinite(value) ? value.toFixed(digits) : 'sin dato');
+const fixed = (value, digits = 0) => (Number.isFinite(value) ? value.toFixed(digits) : tr('sin dato'));
 
 /**
  * buildRouteBrief({ algorithm, metrics, unsafe_segments, o2_capacity_l, dimensions, comparison }) -> texto
@@ -22,7 +22,7 @@ export function buildRouteBrief({ algorithm, metrics, unsafe_segments = 0, o2_ca
   const lines = [tr('RUTA CALCULADA')];
   lines.push(tr`Forma de planificar: ${ALGORITHM_NAMES[algorithm] ?? algorithm}.`);
   if (dimensions?.length) lines.push(tr`Métricas de salud activas: ${dimensions.join(', ')}.`);
-  lines.push(`Distancia: ${fixed(metrics.distance_m)} m.`);
+  lines.push(tr`Distancia: ${fixed(metrics.distance_m)} m.`);
   if (Number.isFinite(metrics.time_s)) lines.push(tr`Tiempo caminando: ${fixed(metrics.time_s / 60)} min.`);
   const share = Number.isFinite(o2_capacity_l) && o2_capacity_l > 0
     ? tr` (${fixed((metrics.oxygen_l / o2_capacity_l) * 100)} % del tanque de ${fixed(o2_capacity_l)} L)` : '';
@@ -34,7 +34,7 @@ export function buildRouteBrief({ algorithm, metrics, unsafe_segments = 0, o2_ca
     lines.push(tr('COMPARACIÓN entre la ruta clásica (ahorra oxígeno) y la de salud:'));
     for (const [key, label, unit] of [
       ['distance_m', tr('Distancia'), 'm'], ['time_h', tr('Tiempo'), 'h'], ['o2_used_l', tr('Oxígeno'), 'L'],
-      ['peak_metabolic_w', tr('Pico de esfuerzo'), 'W'], ['peak_heart_rate_bpm', tr('Pico de pulso'), 'lpm'],
+      ['peak_metabolic_w', tr('Pico de esfuerzo'), 'W'], ['peak_heart_rate_bpm', tr('Pico de pulso'), tr('lpm')],
       ['minutes_over_sustainable', tr('Minutos por encima del ritmo sostenible'), 'min'],
     ]) {
       const item = comparison[key];

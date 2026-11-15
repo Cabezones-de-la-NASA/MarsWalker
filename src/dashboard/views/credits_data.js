@@ -19,7 +19,7 @@ export const CREDIT_GROUPS = [
     items: [
       { id: 'D1', name: 'Mars 2020 TRN CTX DTM Mosaic, 20 m/px (DOI 10.5066/P906QQT8)', url: 'https://astrogeology.usgs.gov/search/map/mars_2020_terrain_relative_navigation_ctx_dtm_mosaic', use: tr('DEM del dataset jezero_ctx.') },
       { id: 'D2', name: tr('Mars 2020 Science Investigation CTX DEM Mosaic'), url: 'https://astrogeology.usgs.gov/search/map/mars_2020_science_investigation_ctx_dem_mosaic', use: tr('DEM del cráter completo. Aún no se usa.') },
-      { id: 'D3', name: tr('DTM HiRISE DTEEC_045994_1985_046060_1985_U01 (USGS/UA)'), url: 'https://hirise.lpl.arizona.edu/ESP_045994_1985', use: 'Zona hirise_jezero: ventana de 2 km a 1 m/px, preparada por el equipo.' },
+      { id: 'D3', name: tr('DTM HiRISE DTEEC_045994_1985_046060_1985_U01 (USGS/UA)'), url: 'https://hirise.lpl.arizona.edu/ESP_045994_1985', use: tr('Zona hirise_jezero: ventana de 2 km a 1 m/px, preparada por el equipo.') },
       { id: 'D4', name: tr('Mars 2020 TRN CTX Orthorectified Image Mosaic'), url: 'https://astrogeology.usgs.gov/search/map/mars_2020_terrain_relative_navigation_context_camera_orthorectified_image_mosaic', use: tr('Textura base. Aún no se usa: el mapa muestra un sombreado calculado.') },
       { id: 'D5', name: tr('Topographic Slopes of Mars 2020 Landing Site, Jezero West'), url: 'https://astrogeology.usgs.gov/search/map/topographic_slopes_of_mars_2020_landing_site_jezero_west', use: tr('Validación de la pendiente M1.') },
       { id: 'D6', name: tr('MEDA, clima de Perseverance (PDS)'), url: 'https://pds-geosciences.wustl.edu/missions/mars2020/', use: tr('Ajuste de M17. Aún no se usa con datos reales.') },
@@ -29,7 +29,7 @@ export const CREDIT_GROUPS = [
     title: tr('Constantes planetarias (2.3)'),
     items: [
       { id: 'F2', name: tr('NASA Science · Mars Facts'), url: 'https://science.nasa.gov/mars/facts/', use: tr('Radio, día, año, inclinación, distancia al Sol, temperaturas y lunas.') },
-      { id: '', name: tr('NASA Mars Fact Sheet'), url: 'https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html', use: 'Gravedad, 3.71 m/s².' },
+      { id: '', name: tr('NASA Mars Fact Sheet'), url: 'https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html', use: tr('Gravedad, 3.71 m/s².') },
     ],
   },
   {

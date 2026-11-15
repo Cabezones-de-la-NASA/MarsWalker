@@ -40,13 +40,13 @@ export const LAYER_DEFS = [
   },
   {
     id: 'risk',
-    label: 'Riesgo (M2)',
+    label: tr('Riesgo (M2)'),
     kind: 'bands',
     unit: tr('índice'),
     range: [0, 1],
     bands: [
       { band: 'low', label: tr('menor que 0.45') },
-      { band: 'medium', label: '0.45 a 0.85' },
+      { band: 'medium', label: tr('0.45 a 0.85') },
       { band: 'high', label: tr('0.85 o más') },
     ],
     defaultVisible: false,

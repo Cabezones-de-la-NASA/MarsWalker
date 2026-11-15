@@ -3,7 +3,15 @@
 // Código puro (sin DOM ni red). Lo usa el chat del rover, tanto con LLM como sin él.
 import { tr } from './i18n.js';
 
-const fixed = (value, digits = 0) => (Number.isFinite(value) ? value.toFixed(digits) : 'sin dato');
+const fixed = (value, digits = 0) => (Number.isFinite(value) ? value.toFixed(digits) : tr('sin dato'));
+const STATUS_LABELS = {
+  nominal: tr('nominal'),
+  low_o2: tr('oxígeno bajo'),
+  elevated: tr('elevado'),
+  at_risk_over_sustainable: tr('en riesgo: sobre el ritmo sostenible'),
+  critical: tr('crítico'),
+};
+const PHASE_LABELS = { day: tr('día'), twilight: tr('crepúsculo'), night: tr('noche') };
 
 /**
  * buildRoverContext(snapshot, facts) -> texto para el LLM.
@@ -19,7 +27,7 @@ const fixed = (value, digits = 0) => (Number.isFinite(value) ? value.toFixed(dig
  * facts: [{ text, source }]
  */
 export function buildRoverContext(snapshot, facts = []) {
-  const lines = ['CONTEXTO'];
+  const lines = [tr('CONTEXTO')];
   const { zone, position_m, vitals, environment, progress, nearby = [] } = snapshot;
   if (zone) lines.push(tr`Zona: ${zone.label} (modelo de elevación de ${fixed(zone.resolution_m, 0)} m por píxel).`);
   if (position_m) {
@@ -33,12 +41,12 @@ export function buildRoverContext(snapshot, facts = []) {
     lines.push(
       tr`Astronauta: oxígeno ${fixed(vitals.o2_l)} L (${fixed(vitals.o2_fraction * 100)} % del tanque), ` +
       tr`autonomía ${fixed(vitals.autonomy_h, 1)} h, pulso ${fixed(vitals.heart_rate_bpm)} lpm, ` +
-      tr`temperatura corporal ${fixed(vitals.core_temp_c, 1)} °C, estado ${vitals.status ?? 'sin dato'}.`,
+      tr`temperatura corporal ${fixed(vitals.core_temp_c, 1)} °C, estado ${STATUS_LABELS[vitals.status] ?? vitals.status ?? tr('sin dato')}.`,
     );
   }
   if (environment) {
     lines.push(
-      tr`Entorno: hora solar local ${fixed(environment.ltst_h, 1)} h, ${environment.phase ?? 'sin dato'}, ` +
+      tr`Entorno: hora solar local ${fixed(environment.ltst_h, 1)} h, ${PHASE_LABELS[environment.phase] ?? environment.phase ?? tr('sin dato')}, ` +
       tr`temperatura ambiente ${fixed(environment.ambient_temp_c)} °C, polvo τ ${fixed(environment.dust_tau, 1)}` +
       `${environment.storm ? tr(', tormenta de polvo activa') : ''}.`,
     );
@@ -58,7 +66,7 @@ export function buildRoverContext(snapshot, facts = []) {
   if (nearby.length) {
     lines.push(tr('Puntos de interés cercanos:'));
     for (const poi of nearby) {
-      lines.push(`- ${poi.name} (${poi.type}), a ${fixed(poi.distance_m)} m. ${poi.description ?? ''}`.trim());
+      lines.push(tr`- ${poi.name} (${poi.type}), a ${fixed(poi.distance_m)} m. ${poi.description ?? ''}`.trim());
     }
   }
   if (facts.length) {

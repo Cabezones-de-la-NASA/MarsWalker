@@ -17,7 +17,7 @@ const MIN_READ_MS = 2500;
 
 const STEPS = [
   {
-    title: 'Bienvenido a Marte',
+    title: tr('Bienvenido a Marte'),
     text: tr('Este es el cráter Jezero. Arrastra para girar el mapa y usa la rueda para acercarte.'),
     done: 'orbit',
   },
@@ -33,7 +33,7 @@ const STEPS = [
     done: 'route:computed',
   },
   {
-    title: 'Ahora, a caminarlo',
+    title: tr('Ahora, a caminarlo'),
     text: tr('Arrastra el indicador naranja a donde quieras aterrizar y pulsa el botón grande. Un rover te acompañará.'),
     target: '.explore-button',
   },

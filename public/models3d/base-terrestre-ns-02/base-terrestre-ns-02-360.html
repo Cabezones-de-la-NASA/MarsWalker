@@ -152,6 +152,56 @@ const select = $("angles");
 const rotationButton = $("spin");
 const zoomText = $("zoom-value");
 const status = $("status");
+const lang = (() => {
+  try {
+    const chosen = new URLSearchParams(location.search).get("lang") || localStorage.getItem("marswalk.lang");
+    return chosen === "es" || chosen === "en" ? chosen : "en";
+  } catch {
+    return "en";
+  }
+})();
+const EN_360 = {
+  "Base terrestre NS-02 · Visor 360°": "NS-02 ground base · 360° viewer",
+  "Base terrestre NS-02": "NS-02 ground base",
+  "Visor 3D de la base terrestre NS-02": "3D viewer of the NS-02 ground base",
+  "Modelo tridimensional de la base terrestre": "3D model of the ground base",
+  "Tu navegador necesita WebGL 2 para el visor tridimensional.": "Your browser needs WebGL 2 for the 3D viewer.",
+  "Cargando el modelo…": "Loading the model…",
+  "Vista": "View",
+  "Tres cuartos": "Three-quarter",
+  "Frontal": "Front",
+  "Trasera": "Rear",
+  "Lateral izquierda": "Left side",
+  "Lateral derecha": "Right side",
+  "Superior": "Top",
+  "Inferior": "Bottom",
+  "Libre": "Free",
+  "Giro automático": "Auto-rotate",
+  "Pausar giro": "Pause rotation",
+  "Controles de zoom": "Zoom controls",
+  "Alejar": "Zoom out",
+  "Nivel de zoom": "Zoom level",
+  "Acercar": "Zoom in",
+  "Restablecer": "Reset",
+  "Arrastra para girar. Usa la rueda para acercar o alejar y Mayús + arrastrar para desplazar.": "Drag to rotate. Use the scroll wheel to zoom in or out and Shift + drag to pan.",
+  "Arrastra con un dedo para girar. Usa dos dedos para acercar o desplazar.": "Drag with one finger to rotate. Use two fingers to zoom or pan.",
+  "Activa WebGL 2 para abrir el visor.": "Enable WebGL 2 to open the viewer.",
+  "Se perdió la conexión gráfica. Recarga esta página para seguir.": "Graphics context lost. Reload this page to continue.",
+  "Error al dibujar el modelo.": "Error drawing the model.",
+  "No se pudo mostrar el modelo. Abre el archivo en un navegador con WebGL 2.": "Could not display the model. Open the file in a browser with WebGL 2.",
+};
+const t360 = text => (lang === "en" ? (EN_360[text] ?? text) : text);
+if (lang === "en") {
+  document.documentElement.lang = "en";
+  document.title = t360(document.title);
+  for (const node of document.querySelectorAll("h1, #status, label[for='angles'], #angles option, #spin, #reset, .hint-desktop, .hint-touch")) {
+    node.textContent = t360(node.textContent.trim());
+  }
+  canvas.textContent = t360(canvas.textContent.trim());
+  for (const node of document.querySelectorAll("[aria-label]")) {
+    node.setAttribute("aria-label", t360(node.getAttribute("aria-label")));
+  }
+}
 
 const vertexSource = `#version 300 es
 layout(location=0) in vec3 position;
@@ -308,7 +358,7 @@ const unit=v=>v.map(n=>n/Math.hypot(...v));
 
 async function start(){
   const gl=canvas.getContext("webgl2",{antialias:true,alpha:true});
-  if(!gl)throw Error("Activa WebGL 2 para abrir el visor.");
+  if(!gl)throw Error(t360("Activa WebGL 2 para abrir el visor."));
   const program=programFor(gl);
   const asset=openGLB();
   await texturesFor(gl,asset);
@@ -379,7 +429,7 @@ async function start(){
     state.spin=enabled;
     previousTime=null;
     rotationButton.setAttribute("aria-pressed",String(enabled));
-    rotationButton.textContent=enabled?"Pausar giro":"Giro automático";
+    rotationButton.textContent=enabled?t360("Pausar giro"):t360("Giro automático");
     if(enabled)select.value="free";
     requestFrame();
   }
@@ -470,18 +520,18 @@ async function start(){
   canvas.addEventListener("webglcontextlost",event=>{
     event.preventDefault();
     state.spin=false;
-    status.textContent="Se perdió la conexión gráfica. Recarga esta página para seguir.";
+    status.textContent=t360("Se perdió la conexión gráfica. Recarga esta página para seguir.");
     status.hidden=false;
   });
   new ResizeObserver(requestFrame).observe(canvas);
   frame(0);
-  if(gl.getError()!==gl.NO_ERROR)throw Error("Error al dibujar el modelo.");
+  if(gl.getError()!==gl.NO_ERROR)throw Error(t360("Error al dibujar el modelo."));
   status.hidden=true;
 }
 
 start().catch(error=>{
   console.error(error);
-  status.textContent="No se pudo mostrar el modelo. Abre el archivo en un navegador con WebGL 2.";
+  status.textContent=t360("No se pudo mostrar el modelo. Abre el archivo en un navegador con WebGL 2.");
 });
 </script>
 </body>

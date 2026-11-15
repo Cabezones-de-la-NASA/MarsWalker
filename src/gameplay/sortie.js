@@ -27,7 +27,8 @@ const ROCK_RADIUS_M = 1.8;
 const ROCK_HEIGHT_M = 1.2;
 
 // Datos con fuente sobre las rocas de Jezero, para cuando se toma cada muestra.
-const SAMPLE_FACTS = MARS_FACTS.filter((fact) => /núcleo de roca|campo de rocas/.test(fact.text));
+export const SAMPLE_FACT_RE = /núcleo de roca|rock core|campo de rocas|field of boulders/;
+export const SAMPLE_FACTS = MARS_FACTS.filter((fact) => SAMPLE_FACT_RE.test(fact.text));
 
 const formatClock = (seconds) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 
@@ -136,7 +137,7 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
     // Hacia dónde hay que ir ahora, para la marca de la brújula -> { x_m, z_m, label } o null.
     goal() {
       if (!mission?.goal_m) return null;
-      const label = { intro: tr('Cápsula'), to_first: 'Roca 1', to_second: 'Roca 2', return: tr('Base') }[mission.state.phase];
+      const label = { intro: tr('Cápsula'), to_first: tr('Roca 1'), to_second: tr('Roca 2'), return: tr('Base') }[mission.state.phase];
       return { x_m: mission.goal_m[0], z_m: mission.goal_m[1], label };
     },
     station,

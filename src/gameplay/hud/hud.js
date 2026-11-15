@@ -118,7 +118,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   // ---- Brújula
   const compass = el('div', 'hud-compass');
   const strip = el('div', 'hud-compass-strip');
-  const names = { 0: 'N', 90: 'E', 180: 'S', 270: 'O' };
+  const names = { 0: 'N', 90: 'E', 180: 'S', 270: tr('O') };
   for (let deg = -360; deg <= 720; deg += 15) {
     const norm = ((deg % 360) + 360) % 360;
     const mark = el('span', names[norm] ? 'cardinal' : null, names[norm] ?? String(norm));
@@ -163,7 +163,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   objective.append(el('small', null, tr('Objetivo más cercano')), objectiveName, objectiveDistance);
   mission.append(objective);
   const objectives = row(mission, tr('Objetivos'));
-  const walked = row(mission, 'A pie');
+  const walked = row(mission, tr('A pie'));
   const driven = row(mission, tr('En camioneta'));
   const samples = row(mission, tr('Muestras'));
   const elapsed = row(mission, tr('Tiempo de EVA'));
@@ -291,7 +291,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   );
   // Volúmenes: ambiente, respiración y efectos.
   const volumeBox = el('div', 'hud-volumes');
-  for (const [channel, label] of [['ambience', tr('Ambiente')], ['breath', tr('Respiración')], ['effects', 'Efectos y avisos']]) {
+  for (const [channel, label] of [['ambience', tr('Ambiente')], ['breath', tr('Respiración')], ['effects', tr('Efectos y avisos')]]) {
     const row = el('label', 'hud-volume', label);
     const slider = el('input');
     slider.type = 'range';
@@ -330,8 +330,8 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   box.append(langLabel);
   const controls = el('dl', 'hud-controls');
   for (const [keys, text] of [
-    ['W A S D', tr('Moverse')], [tr('Ratón'), tr('Mirar')], ['Shift', tr('Correr')], ['Space', tr('Saltar')],
-    ['E', tr('Interactuar')], ['R (mantener)', tr('Hablarle al rover')], ['Enter', tr('Escribirle al rover')], ['F', tr('Subir o bajar de la camioneta')],
+    ['W A S D', tr('Moverse')], [tr('Ratón'), tr('Mirar')], ['Shift', tr('Correr')], ['Space', tr('saltar').replace(/^./, (c) => c.toUpperCase())],
+    ['E', tr('Interactuar')], [tr('R (mantener)'), tr('Hablarle al rover')], ['Enter', tr('Escribirle al rover')], ['F', tr('Subir o bajar de la camioneta')],
     ['G', tr('Traer la camioneta a tu lado')],
     ['T', tr('Velocidad del tiempo')], ['Tab', tr('Telemetría completa')], ['M', tr('Sonido sí o no')],
     ['V', tr('Primera o tercera persona')], ['Esc', tr('Este menú')],
@@ -394,7 +394,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
     },
     setTimeScale(scale) {
       scaleSelect.value = String(scale);
-      clockScale.textContent = scale === 0 ? 'tiempo en pausa' : scale === 1 ? 'tiempo real' : tr`tiempo ${scale}×`;
+      clockScale.textContent = scale === 0 ? tr('tiempo en pausa') : scale === 1 ? tr('tiempo real') : tr`tiempo ${scale}×`;
       clock.classList.toggle('is-paused', scale === 0);
       const level = speedTiers.indexOf(scale);
       clockTiers.replaceChildren(...speedTiers.map((_, index) => el('i', index <= level ? 'is-on' : null)));
@@ -533,7 +533,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
         const last = fall.scales?.[fall.scales.length - 1];
         landingSpeed.replaceChildren(
           tr('Pulsa '), el('kbd', null, 'T'),
-          fall.scale === last ? 'para volver a la velocidad normal' : tr('para acelerar la caída'),
+          fall.scale === last ? tr('para volver a la velocidad normal') : tr('para acelerar la caída'),
         );
         landingTiers.replaceChildren(...(fall.scales ?? []).map((scale) => {
           const tier = el('span', scale === fall.scale ? 'is-on' : scale < fall.scale ? 'is-done' : null, `${scale}×`);
@@ -655,8 +655,8 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
         if (flag === 'dehydration_warning' && flags.dehydration_critical) continue;
         alerts.append(el('li', null, text));
       }
-      objectives.value.textContent = `${data.visited} de ${data.objectives}`;
-      samples.value.textContent = `${data.samples} de ${data.sampleSites}`;
+      objectives.value.textContent = tr`${data.visited} de ${data.objectives}`;
+      samples.value.textContent = tr`${data.samples} de ${data.sampleSites}`;
       elapsed.value.textContent = formatDuration(data.elapsed_s / 3600);
 
       reticle.hidden = !data.firstPerson;

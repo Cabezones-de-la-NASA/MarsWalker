@@ -11,7 +11,7 @@ import { drawElevationProfile } from './elevation_profile.js';
 import { explainRoute } from '../../shared/rover_llm.js';
 import { buildRouteBrief } from '../../shared/route_brief.js';
 import { defaultConfig } from '../../models/physiology/defaults.js';
-import { tr } from '../../shared/i18n.js';
+import { tr, trData } from '../../shared/i18n.js';
 
 const ALGORITHMS = [
   { id: 'astar', label: tr('Ahorra oxígeno'), sub: tr('A* clásico: el menor gasto de O₂'), title: tr('Ruta clásica: menor coste de oxígeno (M3 y M4)') },
@@ -37,7 +37,7 @@ const COMPARE_ROWS = [
   ['time_h', tr('Tiempo'), 'h', 2],
   ['o2_used_l', 'O₂', 'L', 0],
   ['peak_metabolic_w', tr('Pico de gasto'), 'W', 0],
-  ['peak_heart_rate_bpm', tr('Pico de pulso'), 'lpm', 0],
+  ['peak_heart_rate_bpm', tr('Pico de pulso'), tr('lpm'), 0],
   ['minutes_over_sustainable', tr('Sobre el límite'), 'min', 0],
 ];
 
@@ -371,7 +371,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
     if (message.type !== 'route' || message.id !== requestId) return; // respuesta vieja
     if (message.result.failed) {
       clearRoute();
-      status.textContent = tr`No se pudo calcular la ruta. ${tr(message.result.error)}`;
+      status.textContent = tr`No se pudo calcular la ruta. ${trData(message.result.error)}`;
       return;
     }
     route = message.result;
@@ -392,7 +392,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
       (unsafe > 0 ? tr` Cruza ${unsafe} tramo(s) de más de 25°.` : '');
     // Veredicto en una frase; los números completos quedan en el detalle.
     verdict.textContent =
-      `${metricValues.distance.textContent}${Number.isFinite(m.time_s) ? ` en ${formatTime(m.time_s)}` : ''}, ` +
+      `${metricValues.distance.textContent}${Number.isFinite(m.time_s) ? tr` en ${formatTime(m.time_s)}` : ''}, ` +
       tr`${m.oxygen_l.toFixed(0)} L de oxígeno. ` +
       (m.max_slope_deg > 25
         ? tr`Ojo: hay pendientes de hasta ${m.max_slope_deg.toFixed(0)}°, por encima del límite seguro de 25°.`
@@ -433,7 +433,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
     status.textContent = tr('Comparando…');
     const result = await compare();
     if (result.failed) {
-      status.textContent = tr(result.error);
+      status.textContent = trData(result.error);
       return;
     }
     // La ruta del algoritmo elegido queda como principal y la otra como referencia.

@@ -13,7 +13,7 @@ import {
   MAX_DUST_TAU, NOMINAL_DUST_TAU, STORM_DUST_TAU, sampleDust, stormTransition,
 } from '../../models/environment/dust_storm.js';
 
-const PHASE_LABELS = { day: tr('día'), twilight: tr('crepúsculo'), night: 'noche' };
+const PHASE_LABELS = { day: tr('día'), twilight: tr('crepúsculo'), night: tr('noche') };
 const DUST_LABELS = {
   calm: tr('Calma'), haze: tr('Polvo en suspensión'), approaching: tr('Frente en camino'), crossing: tr('Frente de polvo'),
   active: tr('Tormenta activa'), settling: tr('Polvo en suspensión tras el frente'),
@@ -80,7 +80,7 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
   }
   addSlider('ltst_h', tr('Hora local'), 0, 23.75, 0.25, formatHour);
   addSlider('ls_deg', tr('Estación (Ls)'), 0, 359, 1, (v) => `${v.toFixed(0)}°`);
-  addSlider('dust_tau', 'Polvo (τ)', 0, MAX_DUST_TAU, 0.1, (v) => v.toFixed(1));
+  addSlider('dust_tau', tr('Polvo (τ)'), 0, MAX_DUST_TAU, 0.1, (v) => v.toFixed(1));
 
   // --- Lecturas
   const readings = el('dl', 'env-readings');

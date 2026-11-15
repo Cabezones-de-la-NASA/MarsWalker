@@ -10,7 +10,8 @@ const POI_REACH_M = 12;
 const ROCK_REACH_M = 2.6;
 const CAPSULE_REACH_M = 5.5;
 // Datos (con fuente) que vienen a cuento junto a la cápsula: atmósfera y gravedad.
-const CAPSULE_FACTS = MARS_FACTS.filter((fact) => /atmósfera|gravedad en la superficie/.test(fact.text));
+export const CAPSULE_FACT_RE = /atmósfera|atmosphere|gravedad en la superficie|Gravity on the surface/;
+export const CAPSULE_FACTS = MARS_FACTS.filter((fact) => CAPSULE_FACT_RE.test(fact.text));
 
 const POI_KIND = { shelter: tr('Refugio'), sampling: tr('Punto de muestreo'), hazard: tr('Zona de peligro') };
 

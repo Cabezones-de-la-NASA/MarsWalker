@@ -156,7 +156,7 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
         url.searchParams.set('dataset', id);
         window.location.href = url.toString();
       },
-      qualityOptions: Object.values(QUALITY_PROFILES).map((profile) => [profile.id, profile.label]),
+      qualityOptions: Object.values(QUALITY_PROFILES).map((profile) => [profile.id, tr(profile.label)]),
       quality: world.quality.id,
       detachQuality: true,
       // El perfil gráfico se aplica al recargar: cambia el renderer y las mallas.

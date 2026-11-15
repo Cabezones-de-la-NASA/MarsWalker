@@ -71,7 +71,7 @@ export function createLayersPanel(container, compositor) {
     if (layer.kind === 'ramp' || layer.kind === 'bands') item.append(buildLegend(layer));
     if (layer.kind === 'file') {
       // Capa de datos reales: unidad, rango y fuente, tal como los declara la zona.
-      const range = layer.range ? `de ${layer.range[0]} a ${layer.range[1]}` : tr('rango no declarado');
+      const range = layer.range ? tr`de ${layer.range[0]} a ${layer.range[1]}` : tr('rango no declarado');
       item.append(el('div', 'layer-legend', `${layer.unit ?? tr('unidad no declarada')}, ${range}`));
       if (layer.source) item.append(el('div', 'layer-legend', tr`Fuente: ${layer.source}`));
     }

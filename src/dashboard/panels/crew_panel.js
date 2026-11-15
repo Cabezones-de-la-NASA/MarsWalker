@@ -5,7 +5,7 @@ import { defaultConfig, FITNESS_TABLE } from '../../models/physiology/defaults.j
 import { vo2max_mlkgmin, sustainable_w, hrMax_bpm } from '../../models/physiology/cardio.js';
 import { sustainableSpeed_ms, MAX_CREW, MIN_SPEED_MS } from '../../models/physiology/group.js';
 import { marsMetabolic_w } from '../../models/physiology/metabolic.js';
-import { tr } from '../../shared/i18n.js';
+import { tr, trData } from '../../shared/i18n.js';
 
 const FITNESS_LABELS = { baja: tr('Baja'), nominal: tr('Nominal'), buena: tr('Buena'), elite: tr('Élite') };
 const COMPARE_ROWS = [
@@ -13,14 +13,14 @@ const COMPARE_ROWS = [
   ['distance_m', tr('Distancia'), 'm', 0],
   ['o2_used_l', tr('O₂ consumido (quien más gasta)'), 'L', 1],
   ['peak_metabolic_w', tr('Pico metabólico'), 'W', 0],
-  ['peak_heart_rate_bpm', tr('Pico de pulso'), 'lpm', 0],
+  ['peak_heart_rate_bpm', tr('Pico de pulso'), tr('lpm'), 0],
   ['peak_core_temp_c', tr('Pico de temperatura'), '°C', 2],
   ['minutes_over_sustainable', tr('Minutos sobre el ritmo sostenible'), 'min', 1],
 ];
 const STATUS_LABELS = {
-  nominal: 'nominal',
+  nominal: tr('nominal'),
   low_o2: tr('oxígeno bajo'),
-  elevated: 'elevado',
+  elevated: tr('elevado'),
   at_risk_over_sustainable: tr('en riesgo: sobre el ritmo sostenible'),
   critical: tr('crítico'),
 };
@@ -47,9 +47,9 @@ export function createCrewPanel({ routePanel }) {
   const table = el('table', 'crew-table');
   const head = el('tr');
   for (const [label, numeric] of [
-    [tr('Nombre'), false], [tr('Rol'), false], ['Masa (kg)', false], [tr('Edad'), false], [tr('Sexo'), false],
+    [tr('Nombre'), false], [tr('Rol'), false], [tr('Masa (kg)'), false], [tr('Edad'), false], [tr('Sexo'), false],
     [tr('Condición'), false], [tr('VO₂máx (mL/kg/min)'), true], [tr('FC máx (lpm)'), true],
-    ['M sostenible (W)', true], [tr('Ritmo sostenible (m/s)'), true], ['', false],
+    [tr('M sostenible (W)'), true], [tr('Ritmo sostenible (m/s)'), true], ['', false],
   ]) {
     head.append(el('th', numeric ? 'num' : null, label));
   }
@@ -194,7 +194,7 @@ export function createCrewPanel({ routePanel }) {
     compareButton.disabled = false;
     if (result.failed) {
       compareTable.hidden = true;
-      compareStatus.textContent = tr(result.error);
+      compareStatus.textContent = trData(result.error);
       return;
     }
     compareStatus.textContent = '';

@@ -3,9 +3,16 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { EN, EN_PATTERNS } from '../src/shared/i18n_en.js';
-import { tr, translate, trData, getLang, LANGUAGES } from '../src/shared/i18n.js';
+import { tr, translate, trData, getLang, setLang, LANGUAGES } from '../src/shared/i18n.js';
 import { MARS_FACTS } from '../src/shared/mars_facts.js';
 import { QAOA_NOTICE } from '../src/models/routing/qaoa_inspired.js';
+import { CREDIT_GROUPS } from '../src/dashboard/views/credits_data.js';
+import { LAYER_DEFS } from '../src/dashboard/layers/layer_defs.js';
+import { buildFormulaCards } from '../src/dashboard/views/formulas_data.js';
+import { DEFAULT_CREW } from '../src/dashboard/default_crew.js';
+import { defaultConfig } from '../src/models/physiology/defaults.js';
+import { CAPSULE_FACT_RE } from '../src/gameplay/interact.js';
+import { SAMPLE_FACT_RE } from '../src/gameplay/sortie.js';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 
@@ -85,7 +92,7 @@ test('idiomas: no falta la traducción de ningún texto del código', () => {
   }
   assert.deepEqual(missing, []);
   // Textos que llegan por variable (no los ve el rastreo de arriba).
-  for (const key of [QAOA_NOTICE, 'El punto de inicio está fuera del mapa.', 'Tú', 'Rover']) assert.ok(key in EN, key);
+  for (const key of [QAOA_NOTICE, 'El punto de inicio está fuera del mapa.', 'Tú', 'Rover', 'Bajo', 'Medio', 'Alto', 'baja', 'nominal', 'buena', 'elite']) assert.ok(key in EN, key);
   // Y los marcadores {} cuadran: la traducción no pide más valores de los que hay.
   for (const [key, value] of Object.entries(EN)) {
     const slots = (text) => (text.match(/\{\d*\}/g) ?? []).length;
@@ -120,4 +127,40 @@ test('idiomas: los datos de Marte y los puntos de interés se traducen enteros',
   assert.ok(EN_PATTERNS.length > 0);
   assert.equal(trData('Objetivo 3', 'en'), 'Objective 3');
   assert.equal(trData('Mi roca favorita', 'en'), 'Mi roca favorita'); // nombres del usuario: intactos
+  assert.equal(
+    trData('No hay camino entre los dos puntos sin cruzar pendientes de más de 25°.', 'en'),
+    'There is no path between the two points without crossing slopes steeper than 25°.',
+  );
+
+  // Regexp de datos en cápsula y muestras: funcionan tanto en español como en inglés.
+  const englishFacts = MARS_FACTS.map((fact) => ({ ...fact, text: translate(fact.text, [], 'en') }));
+  assert.ok(MARS_FACTS.some((f) => CAPSULE_FACT_RE.test(f.text)));
+  assert.ok(englishFacts.some((f) => CAPSULE_FACT_RE.test(f.text)));
+  assert.ok(MARS_FACTS.some((f) => SAMPLE_FACT_RE.test(f.text)));
+  assert.ok(englishFacts.some((f) => SAMPLE_FACT_RE.test(f.text)));
+
+  // Capas y créditos corregidos presentes en EN.
+  const riskLayer = LAYER_DEFS.find((l) => l.id === 'risk');
+  assert.ok(riskLayer.label in EN);
+  for (const b of riskLayer.bands) assert.ok(b.label in EN, b.label);
+  for (const group of CREDIT_GROUPS) {
+    assert.ok(group.title in EN, group.title);
+    for (const item of group.items) {
+      assert.ok(item.use in EN, item.use);
+    }
+  }
+
+  // Tarjetas de fórmulas en inglés sin restos en español.
+  const previousLang = getLang();
+  try {
+    setLang('en');
+    const cfg = defaultConfig();
+    const cards = DEFAULT_CREW.flatMap((_, index) => buildFormulaCards(DEFAULT_CREW, index, cfg, { slope_deg: 5, eva_hours: 4, ambient_temp_c: -60 }));
+    const serialized = JSON.stringify(cards);
+    for (const leaked of ['traje', 'M_Marte', 'M_reposo', 'g_T', 'D_previa', 'F_carrera', 'edad', 'condición', 'mujer', 'hombre', 'buena', 'declive', 'alertas', 'iteraciones', 'Swain y', ' L/h a ']) {
+      assert.ok(!serialized.includes(leaked), `Fórmula en inglés aún contiene ${JSON.stringify(leaked)}`);
+    }
+  } finally {
+    setLang(previousLang);
+  }
 });
