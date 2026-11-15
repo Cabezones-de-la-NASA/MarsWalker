@@ -12,7 +12,7 @@ import { drawElevationProfile } from './elevation_profile.js';
 const ALGORITHMS = [
   { id: 'astar', label: 'Ahorra oxígeno', sub: 'A* clásico: el menor gasto de O₂', title: 'Ruta clásica: menor coste de oxígeno (M3 y M4)' },
   { id: 'health', label: 'Cuida al astronauta', sub: 'Tú eliges qué pesa: pulso, calor, pendiente…', title: 'Ruta por salud: coste con las métricas elegidas (M14)' },
-  { id: 'qaoa', label: 'Corredor inspirado en QAOA', sub: 'Heurística clásica, no computación cuántica', title: `Inspirado en QAOA. ${QAOA_NOTICE}` },
+  { id: 'qaoa', label: 'Corredor inspirado en QAOA', sub: 'Versión clásica de un algoritmo cuántico de optimización', title: QAOA_NOTICE },
 ];
 
 // Dimensiones de M14, en el orden de la ficha.

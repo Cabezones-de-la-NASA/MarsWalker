@@ -135,16 +135,6 @@
 }
 
 /* ---- Lectura del clic y avisos ---- */
-.readout {
-  position: absolute;
-  left: 50%;
-  bottom: var(--space-3);
-  transform: translateX(-50%);
-  padding: 6px var(--space-3);
-  font: var(--text-sm) var(--font-mono);
-  white-space: nowrap;
-}
-
 .load-error {
   position: absolute;
   top: 50%;
@@ -497,8 +487,7 @@
 }
 
 .dock > .panel,
-.dock > div > .panel,
-.readout {
+.dock > div > .panel {
   animation: panel-in 0.42s var(--ease) both;
 }
 

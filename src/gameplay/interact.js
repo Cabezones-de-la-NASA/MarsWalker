@@ -91,7 +91,11 @@ export function createInteraction({ dem, getPoints, companion }) {
           }
         }
         lines.push(`Fuente: ${poi.source}`);
-        return { kind: POI_KIND[poi.type] ?? 'Punto de interés', title: poi.name, lines };
+        // La misma imagen de referencia que muestra el mapa, con su crédito.
+        const image = poi.image_src
+          ? { src: poi.image_src, credit: poi.image_credit ?? null, alt: `Imagen de referencia de ${poi.name}` }
+          : null;
+        return { kind: POI_KIND[poi.type] ?? 'Punto de interés', title: poi.name, lines, image };
       }
       const { rock } = target;
       const slope_deg = sampleSlope_deg(dem, rock.x_m, rock.z_m);

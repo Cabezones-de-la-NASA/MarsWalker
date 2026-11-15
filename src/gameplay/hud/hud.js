@@ -163,7 +163,8 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   helpLine(['Shift'], 'correr');
   helpLine(['Space'], 'saltar');
   helpLine(['E'], 'interactuar · hablar con el rover');
-  helpLine(['F'], 'camioneta');
+  helpLine(['F'], 'subir o bajar de la camioneta');
+  helpLine(['G'], 'traer la camioneta');
   helpLine(['T'], 'velocidad del tiempo');
   helpLine(['V'], 'cambiar vista');
   helpLine(['Esc'], 'menú');
@@ -212,6 +213,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   for (const [keys, text] of [
     ['W A S D', 'Moverse'], ['Ratón', 'Mirar'], ['Shift', 'Correr'], ['Space', 'Saltar'],
     ['E', 'Interactuar y hablar con el rover'], ['F', 'Subir o bajar de la camioneta'],
+    ['G', 'Traer la camioneta a tu lado'],
     ['T', 'Velocidad del tiempo'], ['Tab', 'Telemetría completa'],
     ['V', 'Primera o tercera persona'], ['Esc', 'Este menú'],
   ]) {
@@ -250,8 +252,18 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
       return hud.classList.toggle('is-detailed');
     },
     // lines: textos; kind: etiqueta corta sobre el título.
-    showCard({ kind, title, lines }) {
+    // image (opcional): { src, credit, alt }; solo se aceptan enlaces https.
+    showCard({ kind, title, lines, image }) {
       card.replaceChildren(el('h2', 'hud-title', kind), el('h3', null, title));
+      if (image?.src?.startsWith('https://')) {
+        const picture = el('img', 'hud-card-image');
+        picture.alt = image.alt ?? '';
+        picture.referrerPolicy = 'no-referrer';
+        picture.addEventListener('error', () => picture.remove());
+        picture.src = image.src;
+        card.append(picture);
+        if (image.credit) card.append(el('div', 'hud-card-credit', `Crédito: ${image.credit}`));
+      }
       for (const line of lines) card.append(el('p', null, line));
       card.hidden = false;
     },

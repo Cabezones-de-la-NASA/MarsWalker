@@ -6,6 +6,7 @@ import { sampleSlope_deg, riskIndex, riskBand, MAX_SAFE_SLOPE_DEG } from '../mod
 
 // [diseño] Cada cuántos segundos cambia el dato de Marte.
 const FACT_SECONDS = 11;
+const FACT_KEY = 'marswalk.facts_open';
 const RISK_TEXT = {
   low: ['terreno seguro', 'is-ok'],
   medium: ['terreno con pendiente', 'is-warn'],
@@ -20,7 +21,7 @@ function el(tag, className, text) {
 }
 
 /**
- * createLaunchBar(ui, { dem, onExplore }) -> { element, setLanding(x_m, z_m, dragging) }
+ * createLaunchBar(ui, { dem, onExplore }) -> { element, setLanding(x_m, z_m, dragging), setClick(text) }
  */
 export function createLaunchBar(ui, { dem, onExplore }) {
   const bar = el('section', 'launch-bar');
@@ -41,6 +42,40 @@ export function createLaunchBar(ui, { dem, onExplore }) {
     void fact.offsetWidth;
     fact.classList.add('is-in');
   }
+  // Se puede plegar: queda un botón "?" que lo vuelve a abrir. Se recuerda entre visitas.
+  const factWrap = el('div', 'launch-fact-wrap');
+  const closeFact = el('button', 'launch-fact-close', '×');
+  closeFact.type = 'button';
+  closeFact.title = 'Ocultar los datos de Marte';
+  closeFact.setAttribute('aria-label', 'Ocultar los datos de Marte');
+  const openFact = el('button', 'launch-fact-open', '?');
+  openFact.type = 'button';
+  openFact.title = '¿Sabías que…? Ver datos de Marte';
+  openFact.setAttribute('aria-label', 'Ver datos de Marte');
+  factWrap.append(fact, closeFact, openFact);
+  function setFactOpen(open, remember = true) {
+    fact.hidden = !open;
+    closeFact.hidden = !open;
+    openFact.hidden = open;
+    if (!remember) return;
+    try {
+      window.localStorage.setItem(FACT_KEY, open ? '1' : '0');
+    } catch {
+      // Sin almacenamiento: no se recuerda.
+    }
+  }
+  closeFact.addEventListener('click', () => setFactOpen(false));
+  openFact.addEventListener('click', () => {
+    setFactOpen(true);
+    showFact();
+  });
+  let startOpen = true;
+  try {
+    startOpen = window.localStorage.getItem(FACT_KEY) !== '0';
+  } catch {
+    // Sin almacenamiento: empieza abierto.
+  }
+  setFactOpen(startOpen, false);
   let timer = window.setInterval(showFact, FACT_SECONDS * 1000);
   fact.addEventListener('click', () => {
     window.clearInterval(timer);
@@ -54,14 +89,21 @@ export function createLaunchBar(ui, { dem, onExplore }) {
   explore.append(el('span', 'launch-button-icon', '▶'), el('span', null, 'Explorar Marte'));
   explore.addEventListener('click', onExplore);
 
+  const status = el('div', 'launch-status');
+  status.setAttribute('role', 'status');
   const landing = el('div', 'launch-landing');
-  landing.setAttribute('role', 'status');
+  const click = el('div', 'launch-click');
+  status.append(landing, click);
 
-  bar.append(fact, explore, landing);
+  bar.append(factWrap, explore, status);
   ui.append(bar);
 
   return {
     element: bar,
+    // Lectura del último clic en el terreno (coordenadas, elevación y pendiente).
+    setClick(text) {
+      click.textContent = text;
+    },
     setLanding(x_m, z_m, dragging = false) {
       const slope_deg = sampleSlope_deg(dem, x_m, z_m);
       const [text, level] = RISK_TEXT[riskBand(riskIndex(slope_deg, MAX_SAFE_SLOPE_DEG))];

@@ -1,6 +1,6 @@
 // Entrada del modo a pie: teclado y ratón.
 //   WASD movimiento · ratón cámara · Shift correr · Space salto · E interactuar
-//   V cambiar perspectiva · F subir o bajar de la camioneta · T velocidad del tiempo
+//   V cambiar perspectiva · F subir o bajar de la camioneta · G traerla · T velocidad del tiempo
 //   Tab telemetría completa · Esc menú (libera el cursor)
 
 const MOVE_KEYS = {
@@ -17,7 +17,7 @@ const MOVE_KEYS = {
  *   setEnabled(bool), requestPointerLock(), hasPointerLock(), dispose()
  */
 export function createInput(domElement, {
-  onInteract, onToggleView, onMenu, onPointerLockChange, onVehicle, onTimeScale, onDetails,
+  onInteract, onToggleView, onMenu, onPointerLockChange, onVehicle, onSummonVehicle, onTimeScale, onDetails,
 }) {
   const pressed = new Set();
   const state = { forward: 0, right: 0, run: false, jump: false };
@@ -51,6 +51,7 @@ export function createInput(domElement, {
     if (event.code === 'KeyE') onInteract?.();
     if (event.code === 'KeyV') onToggleView?.();
     if (event.code === 'KeyF') onVehicle?.();
+    if (event.code === 'KeyG') onSummonVehicle?.();
     if (event.code === 'KeyT') onTimeScale?.();
     if (event.code === 'Tab') {
       event.preventDefault();

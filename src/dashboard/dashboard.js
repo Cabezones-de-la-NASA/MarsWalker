@@ -110,12 +110,12 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
   engineerBody.append(engineerLinks);
   createLayersPanel(engineerBody, compositor);
 
-  const readout = el('div', 'panel readout', 'Haz clic sobre el terreno');
-  ui.append(readout);
+  // La lectura del último clic sale en la barra de lanzamiento, junto al aterrizaje.
   on('terrain:click', ({ x_m, z_m, elevation_m, slope_deg }) => {
-    readout.textContent =
-      `x ${x_m.toFixed(1)} m · z ${z_m.toFixed(1)} m · ` +
-      `elevación ${elevation_m.toFixed(1)} m · pendiente ${slope_deg.toFixed(2)}°`;
+    launchBar.setClick(
+      `Último clic: x ${x_m.toFixed(1)} m · z ${z_m.toFixed(1)} m · ` +
+      `elevación ${elevation_m.toFixed(1)} m · pendiente ${slope_deg.toFixed(2)}°`,
+    );
   });
 
   const routeLine = createRouteRibbon(world.scene, dem);

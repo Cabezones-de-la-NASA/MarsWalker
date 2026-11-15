@@ -41,7 +41,7 @@ const FOLLOW_VEHICLE = Object.freeze({
 });
 // [diseño] Velocidades del tiempo respecto al real: 0 es pausa. Al bajar a la superficie
 // el tiempo corre solo a DEFAULT_TIME_SCALE.
-const TIME_SCALES = [0, 1, 4, 16, 60];
+const TIME_SCALES = [0, 1, 4, 16, 60, 120, 200, 300];
 const DEFAULT_TIME_SCALE = 4;
 const HUD_REFRESH_S = 0.15;
 
@@ -209,6 +209,11 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     rig.setVisible(!driving && !followCamera.isFirstPerson());
     hud.hideCard();
   }
+  function truckDistance_m() {
+    const parked = truck.state();
+    return Math.hypot(parked.x_m - player.x_m, parked.z_m - player.z_m);
+  }
+  const formatDistance = (d_m) => (d_m >= 1000 ? `${(d_m / 1000).toFixed(1)} km` : `${d_m.toFixed(0)} m`);
   function toggleVehicle() {
     if (driving) {
       // Baja a la izquierda de la camioneta, sin atravesar rocas ni la base.
@@ -239,6 +244,10 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     },
     onVehicle() {
       if (active && !paused) toggleVehicle();
+    },
+    // G trae la camioneta junto al astronauta, esté donde esté.
+    onSummonVehicle() {
+      if (active && !paused && !driving && !chatOpen) placeVehicle();
     },
     // T pasa a la siguiente velocidad del tiempo (la pausa se elige en el menú).
     onTimeScale() {
@@ -305,13 +314,12 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   }
   placeVehicle();
 
-  // Si en el mapa se arrastra el indicador de aterrizaje, el astronauta, el rover y la
-  // camioneta se mudan con él.
+  // Si en el mapa se arrastra el indicador de aterrizaje, el astronauta y el rover se
+  // mudan con él. La camioneta no: se queda donde se dejó hasta que se la llame con G.
   on('astronaut:moved', (position_m) => {
     if (active) return;
     spawn(position_m);
     placeCompanion();
-    placeVehicle();
   });
 
   world.onFrame((delta_s) => {
@@ -394,6 +402,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
         } else {
           if (target) prompts.push(['E', target.prompt]);
           if (truck.canBoard(player.x_m, player.z_m)) prompts.push(['F', 'Subir a la camioneta']);
+          else prompts.push(['G', `Traer la camioneta (está a ${formatDistance(truckDistance_m())})`]);
         }
       }
       hud.setPrompts(prompts);
@@ -439,9 +448,6 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       paused = false;
       if (driving) setDriving(false);
       spawn(state.astronaut_position_m ?? [0, 0]);
-      // La camioneta espera cerca del punto de aterrizaje.
-      const parked = truck.state();
-      if (!parked || Math.hypot(parked.x_m - player.x_m, parked.z_m - player.z_m) > 40) placeVehicle();
       setTimeScale(DEFAULT_TIME_SCALE);
       // Si el astronauta se movió en el mapa, el rover reaparece a su lado.
       const rover = companion.position();
