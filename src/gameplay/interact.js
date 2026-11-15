@@ -2,22 +2,28 @@
 // recoger muestra) y las rocas.
 import { rocksNear, BLOCKING_RADIUS_M } from '../world/rock_field.js';
 import { sampleSlope_deg } from '../models/terrain/slope.js';
+import { MARS_FACTS } from '../shared/mars_facts.js';
 
 // [diseño] Distancias de interacción, en metros.
 const POI_REACH_M = 12;
 const ROCK_REACH_M = 2.6;
+const CAPSULE_REACH_M = 5.5;
+// Datos (con fuente) que vienen a cuento junto a la cápsula: atmósfera y gravedad.
+const CAPSULE_FACTS = MARS_FACTS.filter((fact) => /atmósfera|gravedad en la superficie/.test(fact.text));
 
 const POI_KIND = { shelter: 'Refugio', sampling: 'Punto de muestreo', hazard: 'Zona de peligro' };
 
 /**
- * createInteraction({ dem, getPoints, companion }) ->
- *   nearest(x_m, z_m) -> { type: 'rover' | 'poi' | 'rock', prompt, ... } o null
+ * createInteraction({ dem, getPoints, companion, getCapsule }) ->
+ *   getCapsule() -> { x_m, z_m } de la cápsula del aterrizaje, o null si no hay
+ *   nearest(x_m, z_m) -> { type: 'rover' | 'poi' | 'capsule' | 'rock', prompt, ... } o null
  *   use(target) -> { kind, title, lines } para la tarjeta del visor (puntos y rocas; con el
  *                  rover se conversa: lo abre el modo a pie)
  *   progress() -> { samples, sampleSites, visited, objectives }
  * getPoints: puntos de la zona más la base y los objetivos propios (pueden cambiar).
  */
-export function createInteraction({ dem, getPoints, companion }) {
+export function createInteraction({ dem, getPoints, companion, getCapsule = () => null }) {
+  let capsuleFact = 0;
   const collected = new Set();
   const visited = new Set();
 
@@ -65,12 +71,17 @@ export function createInteraction({ dem, getPoints, companion }) {
           };
         }
       }
-      // El rover tiene prioridad si está más cerca que el punto de interés.
+      // Entre el punto de interés, el rover y la cápsula gana lo que esté más cerca.
       if (companion?.canTalk(x_m, z_m)) {
         const position = companion.position();
         const distance_m = Math.hypot(position.x_m - x_m, position.z_m - z_m);
-        if (!best || distance_m < best.distance_m) {
-          return { type: 'rover', distance_m, prompt: 'Hablar con el rover' };
+        if (!best || distance_m < best.distance_m) best = { type: 'rover', distance_m, prompt: 'Hablar con el rover' };
+      }
+      const capsule = getCapsule();
+      if (capsule) {
+        const distance_m = Math.hypot(capsule.x_m - x_m, capsule.z_m - z_m);
+        if (distance_m <= CAPSULE_REACH_M && (!best || distance_m < best.distance_m)) {
+          best = { type: 'capsule', distance_m, prompt: 'Inspeccionar la cápsula' };
         }
       }
       if (best) return best;
@@ -78,6 +89,19 @@ export function createInteraction({ dem, getPoints, companion }) {
       return rock ? { type: 'rock', rock, distance_m: rock.distance_m, prompt: 'Inspeccionar roca' } : null;
     },
     use(target) {
+      if (target.type === 'capsule') {
+        const fact = CAPSULE_FACTS[capsuleFact % CAPSULE_FACTS.length];
+        capsuleFact += 1;
+        return {
+          kind: 'Cápsula de descenso',
+          title: 'Así llegaste hasta aquí',
+          lines: [
+            fact.text,
+            'Tu bajada lenta en paracaídas es una licencia del juego: la cápsula y su descenso no reproducen una misión real.',
+            `Fuente del dato: ${fact.source}`,
+          ],
+        };
+      }
       if (target.type === 'poi') {
         const { poi } = target;
         visited.add(poi.id);
