@@ -1,9 +1,10 @@
 // Web Worker: calcula la ruta fuera del hilo principal para no congelar la cámara.
 // Mensajes de entrada:
 //   { type: 'init', metadata, heights_m }          arma el DEM y la malla de búsqueda una vez
-//   { type: 'route', id, algorithm, start_m, goal_m, config, crew, preset }
+//   { type: 'route', id, algorithm, start_m, goal_m, config, crew, dimensions }
+//     dimensions: métricas activas de M14 (lista) para la ruta por salud
 //     algorithm: 'astar' (M4) | 'health' (M14) | 'qaoa' (M15)
-//   { type: 'compare', id, start_m, goal_m, crew, preset }   clásica contra salud
+//   { type: 'compare', id, start_m, goal_m, crew, dimensions }   clásica contra salud
 // Mensajes de salida: { type: 'route', id, result, elapsed_ms } y { type: 'compare', id, result }
 import { createDem } from '../../models/terrain/dem.js';
 import { computeRoute, buildSearchGrid } from '../../models/routing/astar_o2.js';
@@ -33,7 +34,7 @@ self.onmessage = (event) => {
       const classic = computeRoute({ dem, start_m, goal_m, config: { grid } });
       if (classic.failed) throw new Error(classic.error);
       const health = computeHealthRoute({
-        dem, start_m, goal_m, group: makeGroup(), dimensions: message.preset, options: { grid },
+        dem, start_m, goal_m, group: makeGroup(), dimensions: message.dimensions, options: { grid },
       });
       if (health.failed) throw new Error(health.error);
       // El grupo final y el resumen no viajan al hilo principal: solo los números.
@@ -63,7 +64,7 @@ self.onmessage = (event) => {
       } else if (message.algorithm === 'health') {
         const group = createGroup(message.crew, defaultConfig());
         result = computeHealthRoute({
-          dem, start_m, goal_m, group, dimensions: message.preset, options: { grid },
+          dem, start_m, goal_m, group, dimensions: message.dimensions, options: { grid },
         });
         if (!result.failed) {
           // El tiempo sale de caminar la ruta con el grupo (M13), no de una velocidad fija.

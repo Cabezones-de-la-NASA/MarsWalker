@@ -1,0 +1,65 @@
+/* Tokens de diseño de MarsWalk. La paleta repite la de src/world/palette.js. */
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+:root {
+  /* Marte */
+  --mars-orange: #c65b27;
+  --oxide-orange: #a94324;
+  --rust-red: #87351f;
+  --terracotta: #b9673e;
+  --burnt-sienna: #71351f;
+  --dust-brown: #563323;
+  --dusty-peach: #d98a61;
+  --pale-ochre: #e5a36f;
+  --mars-haze: #b96c4c;
+  --solar-amber: #ffd29a;
+  --hud-amber: #ffb45c;
+  --hud-cream: #f4e8d7;
+
+  /* Superficies de la interfaz: casi negras, teñidas de óxido */
+  --surface-0: #0f0907;
+  --surface-1: rgba(20, 12, 9, 0.82);
+  --surface-2: rgba(38, 22, 15, 0.9);
+  --surface-solid: #170e0a;
+  --line: rgba(255, 180, 92, 0.22);
+  --line-strong: rgba(255, 180, 92, 0.5);
+
+  /* Texto */
+  --text: var(--hud-cream);
+  --text-muted: #c4ad99;
+  --text-dim: #8f7a6a;
+  --accent: var(--hud-amber);
+  --accent-strong: var(--mars-orange);
+
+  /* Estados */
+  --ok: #7fd6a4;
+  --warn: #ffcf6b;
+  --danger: #ff7a66;
+  --info: #7fc4e8;
+
+  /* Tipografía */
+  --font-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-lg: 15px;
+  --text-xl: 20px;
+
+  /* Espaciado y forma */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --panel-width: 288px;
+  --bar-height: 48px;
+  --blur: blur(10px);
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}

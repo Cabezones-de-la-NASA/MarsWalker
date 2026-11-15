@@ -2,6 +2,7 @@
 // Todo el texto entra con textContent; nada de poi.json se interpreta como HTML.
 import './poi_popup.css';
 import { POI_STYLES } from './poi_markers.js';
+import { emit } from '../../shared/state.js';
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -83,6 +84,11 @@ export function createPoiPopup(container) {
       ? `Distancia al astronauta: ${formatDistance(distance_m(astronaut_position_m, poi.position_m))} (en línea recta)`
       : 'Distancia al astronauta: sin astronauta en el mapa';
     popup.append(distance);
+
+    const routeButton = el('button', 'poi-route btn-primary', 'Ruta hasta aquí');
+    routeButton.type = 'button';
+    routeButton.addEventListener('click', () => emit('route:goal', poi.position_m));
+    popup.append(routeButton);
 
     popup.append(el('div', 'poi-source', `Fuente: ${poi.source}`));
     popup.hidden = false;

@@ -70,7 +70,8 @@ def _check_metadata(meta, folder_name, errors):
     elif shape_ok and _is_number(meta.get("resolution_m")):
         rows, cols = meta["shape"]
         expected = [cols * meta["resolution_m"], rows * meta["resolution_m"]]
-        if any(abs(a - b) > 1e-6 * b for a, b in zip(meta["size_m"], expected)):
+        # Tolerancia de 1 en 10 000: los metadatos suelen traer el tamaño redondeado.
+        if any(abs(a - b) > 1e-4 * b for a, b in zip(meta["size_m"], expected)):
             errors.append("metadata.json: size_m %s no es columnas x resolución, filas x "
                           "resolución %s" % (meta["size_m"], expected))
     if not _is_pair(meta.get("elevation_range_m")) or \
