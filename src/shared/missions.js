@@ -48,7 +48,7 @@ export function createMissionStore({ dataset_id, datasetPoints = [], halfWidth_m
       position_m: [position_m[0], position_m[1]],
       type: 'shelter',
       description: 'Base colocada por el usuario. Sirve de refugio y de punto de partida.',
-      source: 'Punto creado por el usuario en MarsWalk; no es un dato de misión.',
+      source: 'Punto creado por el usuario en Alone in Mars; no es un dato de misión.',
       custom: true,
     };
   }
@@ -66,7 +66,7 @@ export function createMissionStore({ dataset_id, datasetPoints = [], halfWidth_m
         type === 'hazard'
           ? 'Zona marcada como peligrosa por el usuario.'
           : 'Punto de muestreo marcado por el usuario.',
-      source: 'Punto creado por el usuario en MarsWalk; no es un dato de misión.',
+      source: 'Punto creado por el usuario en Alone in Mars; no es un dato de misión.',
       custom: true,
     };
   }

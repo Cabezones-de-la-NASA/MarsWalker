@@ -31,6 +31,7 @@ import { VEHICLE } from '../models/locomotion/vehicle.js';
 import { FOLLOW } from '../models/locomotion/follow.js';
 import { memberStatus } from '../models/physiology/group.js';
 import { createStation, STATION_RADIUS_M } from '../models3d/station.js';
+import { tr } from '../shared/i18n.js';
 
 // [diseño] Margen hasta el borde del mapa, en metros.
 const MAP_MARGIN_M = 4;
@@ -164,7 +165,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   const followCamera = createFollowCamera(world.camera, groundAt);
   const vitals = createVitals({
     dem,
-    getMember: () => ({ ...(state.crew[0] ?? { name: 'Astronauta', age: 35, sex: 'female', mass_kg: 65, fitness: 'nominal', prior_dose_msv: 0 }) }),
+    getMember: () => ({ ...(state.crew[0] ?? { name: tr('Astronauta'), age: 35, sex: 'female', mass_kg: 65, fitness: 'nominal', prior_dose_msv: 0 }) }),
     getAmbientTemp_c: () => state.environment?.weather?.ambient_temp_c ?? -56,
   });
 
@@ -261,7 +262,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       history.push({ role: 'assistant', content: reply.text });
       thinking?.remove();
       if (!active) return;
-      hud.say(reply.text, 'Rover', reply.source ? `Fuente: ${reply.source}` : null);
+      hud.say(reply.text, 'Rover', reply.source ? tr`Fuente: ${reply.source}` : null);
       if (!sound.isMuted()) speech.speak(reply.text);
     } finally {
       asking = false;
@@ -270,11 +271,11 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   function startTalking() {
     if (listening || chatOpen) return;
     if (!speech.canListen) {
-      hud.say('Aquí no puedo oírte: este navegador no reconoce la voz. Pulsa Enter y escríbeme.');
+      hud.say(tr('Aquí no puedo oírte: este navegador no reconoce la voz. Pulsa Enter y escríbeme.'));
       return;
     }
     speech.cancelSpeech();
-    const bubble = hud.sayLive('Tú', 'Te escucho…');
+    const bubble = hud.sayLive('Tú', tr('Te escucho…'));
     listening = bubble;
     speech.listen({ onPartial: (text) => bubble.set(text) })
       .then((text) => {
@@ -284,12 +285,12 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
           askRoverAloud(text);
         } else {
           bubble.remove();
-          hud.say('No te oí. Mantén R mientras hablas, o pulsa Enter y escríbeme.');
+          hud.say(tr('No te oí. Mantén R mientras hablas, o pulsa Enter y escríbeme.'));
         }
       })
       .catch((error) => {
         bubble.remove();
-        hud.say(`${error.message} Pulsa Enter y escríbeme.`);
+        hud.say(tr`${error.message} Pulsa Enter y escríbeme.`);
       })
       .finally(() => {
         if (listening === bubble) listening = null;
@@ -427,7 +428,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       if (!active) return;
       const muted = sound.toggleMuted();
       if (muted) speech.cancelSpeech();
-      hud.say(muted ? 'Sonido apagado. Pulsa M para volver a oírme.' : 'Sonido activado.');
+      hud.say(muted ? tr('Sonido apagado. Pulsa M para volver a oírme.') : tr('Sonido activado.'));
     },
     onMenu() {
       if (!active || justClosedChat()) return;
@@ -682,13 +683,13 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
         if (target) prompts.push(['E', target.prompt, true]);
       } else if (!paused && !hud.isCardOpen() && !chatOpen && !landing) {
         if (driving) {
-          if (speed_ms < 2) prompts.push(['F', 'Bajar de la camioneta']);
+          if (speed_ms < 2) prompts.push(['F', tr('Bajar de la camioneta')]);
         } else {
           // El tercer valor marca lo que merece el centro de la pantalla: algo con lo
           // que interactuar. Hablar con el rover y traer la camioneta van solo al panel.
           if (target) prompts.push(['E', target.prompt, target.type !== 'rover']);
-          if (truck.canBoard(player.x_m, player.z_m)) prompts.push(['F', 'Subir a la camioneta', true]);
-          else if (truck.state()) prompts.push(['G', `Traer la camioneta (está a ${formatDistance(truckDistance_m())})`]);
+          if (truck.canBoard(player.x_m, player.z_m)) prompts.push(['F', tr('Subir a la camioneta'), true]);
+          else if (truck.state()) prompts.push(['G', tr`Traer la camioneta (está a ${formatDistance(truckDistance_m())})`]);
         }
       }
       hud.setPrompts(prompts);

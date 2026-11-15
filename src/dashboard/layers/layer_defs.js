@@ -1,5 +1,6 @@
 // Catálogo de capas que se pintan sobre el terreno, en orden de abajo hacia arriba.
 // Las rampas son listas de [posición 0..1, [r, g, b]].
+import { tr } from '../../shared/i18n.js';
 
 // [diseño] Colores de las tres bandas de riesgo de M2.
 export const RISK_COLORS = {
@@ -14,7 +15,7 @@ export const SLOPE_LAYER_MAX_DEG = 45;
 export const LAYER_DEFS = [
   {
     id: 'base',
-    label: 'Base',
+    label: tr('Base'),
     kind: 'image',
     unit: null,
     range: null,
@@ -23,7 +24,7 @@ export const LAYER_DEFS = [
   },
   {
     id: 'slope',
-    label: 'Pendiente',
+    label: tr('Pendiente'),
     kind: 'ramp',
     unit: '°',
     range: [0, SLOPE_LAYER_MAX_DEG],
@@ -41,12 +42,12 @@ export const LAYER_DEFS = [
     id: 'risk',
     label: 'Riesgo (M2)',
     kind: 'bands',
-    unit: 'índice',
+    unit: tr('índice'),
     range: [0, 1],
     bands: [
-      { band: 'low', label: 'menor que 0.45' },
+      { band: 'low', label: tr('menor que 0.45') },
       { band: 'medium', label: '0.45 a 0.85' },
-      { band: 'high', label: '0.85 o más' },
+      { band: 'high', label: tr('0.85 o más') },
     ],
     defaultVisible: false,
     defaultOpacity: 0.7,
@@ -57,7 +58,7 @@ export const LAYER_DEFS = [
   //     "unit": "J m⁻² K⁻¹ s⁻½", "range": [150, 600], "source": "…" }
   {
     id: 'crism',
-    label: 'CRISM (mineralogía)',
+    label: tr('CRISM (mineralogía)'),
     kind: 'file',
     requiresFile: true,
     unit: null,
@@ -67,7 +68,7 @@ export const LAYER_DEFS = [
   },
   {
     id: 'themis',
-    label: 'THEMIS (inercia térmica)',
+    label: tr('THEMIS (inercia térmica)'),
     kind: 'file',
     requiresFile: true,
     unit: null,

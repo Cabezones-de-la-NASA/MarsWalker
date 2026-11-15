@@ -3,6 +3,7 @@
 import './poi_popup.css';
 import { POI_STYLES } from './poi_markers.js';
 import { emit } from '../../shared/state.js';
+import { tr } from '../../shared/i18n.js';
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -46,7 +47,7 @@ export function createPoiPopup(container) {
 
     const close = el('button', 'poi-close', '×');
     close.type = 'button';
-    close.setAttribute('aria-label', 'Cerrar');
+    close.setAttribute('aria-label', tr('Cerrar'));
     close.addEventListener('click', hide);
 
     const kind = el('div', 'poi-kind', style ? style.label : poi.type);
@@ -57,7 +58,7 @@ export function createPoiPopup(container) {
     const imageSrc = poi.image_src ? safeUrl(poi.image_src) : null;
     if (imageSrc) {
       const image = el('img', 'poi-image');
-      image.alt = `Imagen de referencia de ${poi.name}`;
+      image.alt = tr`Imagen de referencia de ${poi.name}`;
       image.loading = 'lazy';
       image.referrerPolicy = 'no-referrer';
       image.addEventListener('error', () => image.remove());
@@ -66,9 +67,9 @@ export function createPoiPopup(container) {
     }
     if (pageUrl || poi.image_credit) {
       const credit = el('div', 'poi-credit');
-      if (poi.image_credit) credit.append(`Crédito: ${poi.image_credit}. `);
+      if (poi.image_credit) credit.append(tr`Crédito: ${poi.image_credit}. `);
       if (pageUrl) {
-        const link = el('a', null, 'Ver la imagen en NASA Photojournal');
+        const link = el('a', null, tr('Ver la imagen en NASA Photojournal'));
         link.href = pageUrl;
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
@@ -81,16 +82,16 @@ export function createPoiPopup(container) {
 
     const distance = el('div', 'poi-distance');
     distance.textContent = astronaut_position_m
-      ? `Distancia al astronauta: ${formatDistance(distance_m(astronaut_position_m, poi.position_m))} (en línea recta)`
-      : 'Distancia al astronauta: sin astronauta en el mapa';
+      ? tr`Distancia al astronauta: ${formatDistance(distance_m(astronaut_position_m, poi.position_m))} (en línea recta)`
+      : tr('Distancia al astronauta: sin astronauta en el mapa');
     popup.append(distance);
 
-    const routeButton = el('button', 'poi-route btn-primary', 'Ruta hasta aquí');
+    const routeButton = el('button', 'poi-route btn-primary', tr('Ruta hasta aquí'));
     routeButton.type = 'button';
     routeButton.addEventListener('click', () => emit('route:goal', poi.position_m));
     popup.append(routeButton);
 
-    popup.append(el('div', 'poi-source', `Fuente: ${poi.source}`));
+    popup.append(el('div', 'poi-source', tr`Fuente: ${poi.source}`));
     popup.hidden = false;
   }
 

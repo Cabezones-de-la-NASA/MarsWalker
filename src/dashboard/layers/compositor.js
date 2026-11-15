@@ -2,12 +2,13 @@
 // la textura del terreno. Cambiar una capa no recarga nada: solo se vuelve a pintar.
 import { LAYER_DEFS } from './layer_defs.js';
 import { buildLayerRaster, tintBaseRaster } from './rasters.js';
+import { tr } from '../../shared/i18n.js';
 
 function loadImage(url) {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error(`No se pudo cargar la capa ${url}`));
+    image.onerror = () => reject(new Error(tr`No se pudo cargar la capa ${url}`));
     image.src = url;
   });
 }
@@ -88,7 +89,7 @@ export async function createCompositor(dem, dataset) {
     },
     setLayer(id, { visible, opacity } = {}) {
       const layer = layers.find((entry) => entry.def.id === id);
-      if (!layer) throw new Error(`Capa desconocida: ${id}`);
+      if (!layer) throw new Error(tr`Capa desconocida: ${id}`);
       if (visible !== undefined) layer.visible = Boolean(visible);
       if (opacity !== undefined) layer.opacity = Math.min(Math.max(Number(opacity), 0), 1);
       render();

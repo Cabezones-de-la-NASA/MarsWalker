@@ -1,6 +1,7 @@
 // Lo que el rover sabe al responder: un resumen del estado de la caminata. (El personaje
 // lo pone el servidor, en server/lib/rover.js.)
 // Código puro (sin DOM ni red). Lo usa el chat del rover, tanto con LLM como sin él.
+import { tr } from './i18n.js';
 
 const fixed = (value, digits = 0) => (Number.isFinite(value) ? value.toFixed(digits) : 'sin dato');
 
@@ -20,48 +21,48 @@ const fixed = (value, digits = 0) => (Number.isFinite(value) ? value.toFixed(dig
 export function buildRoverContext(snapshot, facts = []) {
   const lines = ['CONTEXTO'];
   const { zone, position_m, vitals, environment, progress, nearby = [] } = snapshot;
-  if (zone) lines.push(`Zona: ${zone.label} (modelo de elevación de ${fixed(zone.resolution_m, 0)} m por píxel).`);
+  if (zone) lines.push(tr`Zona: ${zone.label} (modelo de elevación de ${fixed(zone.resolution_m, 0)} m por píxel).`);
   if (position_m) {
     lines.push(
-      `Posición: x ${fixed(position_m[0])} m (este), z ${fixed(position_m[1])} m (sur); ` +
-      `elevación ${fixed(snapshot.elevation_m, 1)} m; pendiente ${fixed(snapshot.slope_deg, 1)}° ` +
-      '(más de 25° se considera inseguro).',
+      tr`Posición: x ${fixed(position_m[0])} m (este), z ${fixed(position_m[1])} m (sur); ` +
+      tr`elevación ${fixed(snapshot.elevation_m, 1)} m; pendiente ${fixed(snapshot.slope_deg, 1)}° ` +
+      tr('(más de 25° se considera inseguro).'),
     );
   }
   if (vitals) {
     lines.push(
-      `Astronauta: oxígeno ${fixed(vitals.o2_l)} L (${fixed(vitals.o2_fraction * 100)} % del tanque), ` +
-      `autonomía ${fixed(vitals.autonomy_h, 1)} h, pulso ${fixed(vitals.heart_rate_bpm)} lpm, ` +
-      `temperatura corporal ${fixed(vitals.core_temp_c, 1)} °C, estado ${vitals.status ?? 'sin dato'}.`,
+      tr`Astronauta: oxígeno ${fixed(vitals.o2_l)} L (${fixed(vitals.o2_fraction * 100)} % del tanque), ` +
+      tr`autonomía ${fixed(vitals.autonomy_h, 1)} h, pulso ${fixed(vitals.heart_rate_bpm)} lpm, ` +
+      tr`temperatura corporal ${fixed(vitals.core_temp_c, 1)} °C, estado ${vitals.status ?? 'sin dato'}.`,
     );
   }
   if (environment) {
     lines.push(
-      `Entorno: hora solar local ${fixed(environment.ltst_h, 1)} h, ${environment.phase ?? 'sin dato'}, ` +
-      `temperatura ambiente ${fixed(environment.ambient_temp_c)} °C, polvo τ ${fixed(environment.dust_tau, 1)}` +
-      `${environment.storm ? ', tormenta de polvo activa' : ''}.`,
+      tr`Entorno: hora solar local ${fixed(environment.ltst_h, 1)} h, ${environment.phase ?? 'sin dato'}, ` +
+      tr`temperatura ambiente ${fixed(environment.ambient_temp_c)} °C, polvo τ ${fixed(environment.dust_tau, 1)}` +
+      `${environment.storm ? tr(', tormenta de polvo activa') : ''}.`,
     );
   }
   if (progress) {
     lines.push(
-      `Misión: ${progress.visited} de ${progress.objectives} objetivos visitados, ` +
-      `${progress.samples} de ${progress.sampleSites} muestras recogidas.`,
+      tr`Misión: ${progress.visited} de ${progress.objectives} objetivos visitados, ` +
+      tr`${progress.samples} de ${progress.sampleSites} muestras recogidas.`,
     );
   }
   if (Number.isFinite(snapshot.walked_m)) {
     lines.push(
-      `Recorrido: ${fixed(snapshot.walked_m)} m a pie y ${fixed(snapshot.driven_m ?? 0)} m en camioneta. ` +
-      `${snapshot.in_vehicle ? 'Ahora va en la camioneta. ' : ''}El tiempo corre a ${fixed(snapshot.time_scale ?? 1)}×.`,
+      tr`Recorrido: ${fixed(snapshot.walked_m)} m a pie y ${fixed(snapshot.driven_m ?? 0)} m en camioneta. ` +
+      tr`${snapshot.in_vehicle ? tr('Ahora va en la camioneta. ') : ''}El tiempo corre a ${fixed(snapshot.time_scale ?? 1)}×.`,
     );
   }
   if (nearby.length) {
-    lines.push('Puntos de interés cercanos:');
+    lines.push(tr('Puntos de interés cercanos:'));
     for (const poi of nearby) {
       lines.push(`- ${poi.name} (${poi.type}), a ${fixed(poi.distance_m)} m. ${poi.description ?? ''}`.trim());
     }
   }
   if (facts.length) {
-    lines.push('Datos de Marte verificados (cita la fuente si los usas):');
+    lines.push(tr('Datos de Marte verificados (cita la fuente si los usas):'));
     for (const fact of facts) lines.push(`- ${fact.text} [${fact.source}]`);
   }
   return lines.join('\n');
@@ -73,6 +74,9 @@ const STOP_WORDS = new Set([
   'los', 'las', 'del', 'una', 'uno', 'unos', 'unas', 'por', 'para', 'con', 'sin', 'hay', 'tiene', 'tienen',
   'esta', 'está', 'este', 'esto', 'son', 'eres', 'marte', 'sobre', 'dime', 'cuéntame', 'cuentame', 'algo',
   'más', 'mas', 'muy', 'aquí', 'aqui', 'hace', 'the',
+  // inglés
+  'what', 'how', 'which', 'much', 'many', 'and', 'are', 'does', 'has', 'have', 'there', 'this', 'that', 'about', 'tell',
+  'mars', 'with', 'for', 'from', 'more', 'very', 'here', 'you', 'your',
 ]);
 
 function words(text) {

@@ -3,6 +3,7 @@
 import { emit } from '../shared/state.js';
 import { BASE_URL } from '../shared/base_url.js';
 import './intro.css';
+import { tr, getLang, setLang, LANGUAGES } from '../shared/i18n.js';
 
 const MARS_VERTEX_SHADER = `#version 300 es
 void main() {
@@ -58,15 +59,15 @@ function buildIntroMarkup() {
       <img class="intro-cabin-image" src="${BASE_URL}media/referencia_ventanilla_circular.png" width="740" height="494" alt="" fetchpriority="high">
       <div class="intro-glass">
         <canvas class="intro-stars" aria-hidden="true"></canvas>
-        <canvas class="intro-mars" role="img" aria-label="Marte iluminado a través de la ventanilla de la nave"></canvas>
+        <canvas class="intro-mars" role="img" aria-label="${tr('Marte iluminado a través de la ventanilla de la nave')}"></canvas>
       </div>
     </div>
     <img class="intro-astronaut" src="${BASE_URL}media/astronauta_cabina.png" width="1024" height="1536"
-      alt="Una astronauta con casco y traje espacial mira Marte de perfil" fetchpriority="high">
+      alt="${tr('Una astronauta con casco y traje espacial mira Marte de perfil')}" fetchpriority="high">
     <div class="intro-shade" aria-hidden="true"></div>
     <button type="button" class="intro-cta" id="intro-start-trip">
-      <h1>Comenzar viaje</h1>
-      <p>Clic para continuar</p>
+      <h1>${tr('Comenzar viaje')}</h1>
+      <p>${tr('Clic para continuar')}</p>
     </button>
     <button type="button" class="intro-sound-control" id="intro-sound-control" aria-pressed="false">
       <svg class="icon-sound-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -79,13 +80,16 @@ function buildIntroMarkup() {
         <line x1="23" y1="9" x2="17" y2="15"></line>
         <line x1="17" y1="9" x2="23" y2="15"></line>
       </svg>
-      <span class="sound-label">Activar música</span>
+      <span class="sound-label">${tr('Activar música')}</span>
     </button>
-    <div class="intro-brand-mark">MarsWalk</div>
+    <div class="intro-lang" role="group" aria-label="Language / Idioma">
+      ${LANGUAGES.map(([code, name]) => `<button type="button" data-lang="${code}" aria-pressed="${code === getLang()}"${code === getLang() ? ' class="is-active"' : ''}>${name}</button>`).join('')}
+    </div>
+    <div class="intro-brand-mark">Alone in Mars</div>
     <div class="intro-transition-overlay" id="intro-transition-overlay" aria-hidden="true">
-      <div class="intro-video-loader" id="intro-video-loader" aria-live="polite">Cargando viaje...</div>
+      <div class="intro-video-loader" id="intro-video-loader" aria-live="polite">${tr('Cargando viaje...')}</div>
       <video class="intro-trip-video" id="intro-trip-video" src="${BASE_URL}media/space_mono.mp4" preload="auto" playsinline disablePictureInPicture></video>
-      <button type="button" class="intro-skip-story" id="intro-skip-story">Saltar historia</button>
+      <button type="button" class="intro-skip-story" id="intro-skip-story">${tr('Saltar historia')}</button>
     </div>
     <audio id="intro-cabin-music" src="${BASE_URL}media/musica_cabina.mpeg" autoplay loop></audio>
   `;
@@ -339,6 +343,15 @@ export function startIntro(container, { waitReady, onRevealStart, onComplete } =
   const control = root.querySelector('#intro-sound-control');
   const soundLabel = control.querySelector('.sound-label');
   const startTrip = root.querySelector('#intro-start-trip');
+  // Idioma: se elige antes de empezar; al cambiarlo se recarga para aplicarlo a todo.
+  for (const button of root.querySelectorAll('.intro-lang button')) {
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (button.dataset.lang === getLang()) return;
+      setLang(button.dataset.lang);
+      window.location.reload();
+    });
+  }
   const overlay = root.querySelector('#intro-transition-overlay');
   const video = root.querySelector('#intro-trip-video');
   const videoLoader = root.querySelector('#intro-video-loader');
@@ -354,7 +367,7 @@ export function startIntro(container, { waitReady, onRevealStart, onComplete } =
 
   function updateControl() {
     const isMuted = music.paused || music.muted;
-    soundLabel.textContent = isMuted ? 'Activar música' : 'Silenciar música';
+    soundLabel.textContent = isMuted ? tr('Activar música') : tr('Silenciar música');
     control.classList.toggle('is-unmuted', !isMuted);
     control.setAttribute('aria-pressed', String(!isMuted));
   }
@@ -371,7 +384,7 @@ export function startIntro(container, { waitReady, onRevealStart, onComplete } =
 
   function unlockAutoplay(event) {
     if (tripStarted || destroyed) return;
-    if (event.target.closest('#intro-sound-control, #intro-start-trip')) return;
+    if (event.target.closest('#intro-sound-control, #intro-start-trip, .intro-lang')) return;
     if (music.paused) {
       music.muted = false;
       startMusic();

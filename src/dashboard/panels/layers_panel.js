@@ -2,6 +2,7 @@
 import './panels.css';
 import { createPanelShell } from './panel_shell.js';
 import { RISK_COLORS } from '../layers/layer_defs.js';
+import { tr } from '../../shared/i18n.js';
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -31,13 +32,13 @@ function buildLegend(layer) {
       row.append(swatch, el('span', null, label));
       legend.append(row);
     }
-    legend.append(el('div', 'legend-unit', `${layer.unit}, de ${layer.range[0]} a ${layer.range[1]}`));
+    legend.append(el('div', 'legend-unit', tr`${layer.unit}, de ${layer.range[0]} a ${layer.range[1]}`));
   }
   return legend;
 }
 
 export function createLayersPanel(container, compositor) {
-  const shell = createPanelShell('Capas', 'layers-panel');
+  const shell = createPanelShell(tr('Capas'), 'layers-panel');
   const panel = shell.body;
 
   for (const layer of compositor.getLayers()) {
@@ -56,7 +57,7 @@ export function createLayersPanel(container, compositor) {
     slider.max = '100';
     slider.value = String(Math.round(layer.opacity * 100));
     const value = el('span', 'layer-opacity-value', `${slider.value} %`);
-    opacityRow.append(el('span', null, 'Opacidad'), slider, value);
+    opacityRow.append(el('span', null, tr('Opacidad')), slider, value);
 
     checkbox.addEventListener('change', () => {
       compositor.setLayer(layer.id, { visible: checkbox.checked });
@@ -70,9 +71,9 @@ export function createLayersPanel(container, compositor) {
     if (layer.kind === 'ramp' || layer.kind === 'bands') item.append(buildLegend(layer));
     if (layer.kind === 'file') {
       // Capa de datos reales: unidad, rango y fuente, tal como los declara la zona.
-      const range = layer.range ? `de ${layer.range[0]} a ${layer.range[1]}` : 'rango no declarado';
-      item.append(el('div', 'layer-legend', `${layer.unit ?? 'unidad no declarada'}, ${range}`));
-      if (layer.source) item.append(el('div', 'layer-legend', `Fuente: ${layer.source}`));
+      const range = layer.range ? `de ${layer.range[0]} a ${layer.range[1]}` : tr('rango no declarado');
+      item.append(el('div', 'layer-legend', `${layer.unit ?? tr('unidad no declarada')}, ${range}`));
+      if (layer.source) item.append(el('div', 'layer-legend', tr`Fuente: ${layer.source}`));
     }
     panel.append(item);
   }

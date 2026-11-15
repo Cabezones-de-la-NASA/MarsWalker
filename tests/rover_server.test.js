@@ -28,6 +28,10 @@ test('servidor del rover: el personaje lo pone el servidor y la conversación va
     messages: [{ role: 'user', content: 'a' }, { role: 'assistant', content: 'b' }, { role: 'user', content: 'c' }],
   });
   assert.ok(request.system_instruction.parts[0].text.startsWith(PERSONAS.route));
+  assert.match(request.system_instruction.parts[0].text, /Always answer in English/); // inglés por defecto
+  assert.match(toGeminiRequest({ kind: 'chat', context: 'c', lang: 'es', messages: [{ role: 'user', content: 'a' }] }).system_instruction.parts[0].text, /Responde siempre en español/);
+  assert.equal(validateRequest({ ...good, lang: 'es' }).lang, 'es');
+  assert.equal(validateRequest({ ...good, lang: 'fr' }).lang, 'en');
   assert.ok(request.system_instruction.parts[0].text.endsWith('RUTA CALCULADA'));
   assert.deepEqual(request.contents.map((item) => item.role), ['user', 'model', 'user']);
   assert.equal(request.contents[1].parts[0].text, 'b');

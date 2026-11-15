@@ -2,6 +2,7 @@
 // (secondary) y el perfil gráfico se entregan aparte para el cajón "Modo avanzado".
 import './views.css';
 import logoUrl from '../../assets/space_apps_logo.png';
+import { tr, getLang, setLang, LANGUAGES } from '../../shared/i18n.js';
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -18,10 +19,10 @@ function el(tag, className, text) {
  */
 export function createTabs(container, views, options = {}) {
   const bar = el('header', 'top-bar');
-  const brand = el('div', 'brand', 'MarsWalk');
+  const brand = el('div', 'brand', 'Alone in Mars');
   if (options.subtitle) brand.append(el('span', 'brand-sub', options.subtitle));
   const nav = el('nav', 'tab-bar');
-  nav.setAttribute('aria-label', 'Vistas');
+  nav.setAttribute('aria-label', tr('Vistas'));
   bar.append(brand, nav);
 
   const buttons = new Map();
@@ -60,7 +61,7 @@ export function createTabs(container, views, options = {}) {
   bar.append(el('div', 'top-bar-spacer'));
 
   if (options.zones && options.zones.length > 1) {
-    const label = el('label', null, 'Zona');
+    const label = el('label', null, tr('Zona'));
     const select = el('select', 'zone-select');
     for (const zone of options.zones) {
       const option = el('option', null, zone.label);
@@ -74,7 +75,7 @@ export function createTabs(container, views, options = {}) {
   }
 
   if (options.qualityOptions) {
-    const label = el('label', null, 'Gráficos');
+    const label = el('label', null, tr('Gráficos'));
     const select = el('select', 'quality-select');
     for (const [id, text] of options.qualityOptions) {
       const option = el('option', null, text);
@@ -88,18 +89,41 @@ export function createTabs(container, views, options = {}) {
     if (!options.detachQuality) bar.append(label);
   }
 
+  // Idioma: al cambiarlo se recarga la página (muchos textos se preparan al arrancar).
+  {
+    const label = el('label', null, tr('Idioma'));
+    const select = el('select', 'lang-select');
+    for (const [code, name] of LANGUAGES) {
+      const option = el('option', null, name);
+      option.value = code;
+      select.append(option);
+    }
+    select.value = getLang();
+    select.addEventListener('change', () => {
+      setLang(select.value);
+      try {
+        window.sessionStorage.setItem('marswalk_skip_intro', '1');
+      } catch {
+        // Ignorar si sessionStorage está restringido.
+      }
+      window.location.reload();
+    });
+    label.append(select);
+    bar.append(label);
+  }
+
   if (options.onHelp) {
     const help = el('button', 'help-button', '?');
     help.type = 'button';
-    help.title = 'Ver los primeros pasos';
-    help.setAttribute('aria-label', 'Ver los primeros pasos');
+    help.title = tr('Ver los primeros pasos');
+    help.setAttribute('aria-label', tr('Ver los primeros pasos'));
     help.addEventListener('click', options.onHelp);
     bar.append(help);
   }
 
   const logo = el('img', 'tab-logo');
   logo.src = logoUrl;
-  logo.alt = 'NASA Space Apps Challenge';
+  logo.alt = tr('NASA Space Apps Challenge');
   bar.append(logo);
 
   container.append(bar);

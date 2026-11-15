@@ -1,13 +1,14 @@
 // Marcadores de puntos de interés sobre el terreno.
 import * as THREE from 'three';
+import { tr } from '../../shared/i18n.js';
 
 // [diseño] Color y letra de cada tipo de punto (sección 3: shelter | sampling | hazard).
 export const POI_STYLES = {
-  shelter: { color: '#3d8bfd', letter: 'R', label: 'Refugio' },
-  sampling: { color: '#2bb673', letter: 'M', label: 'Muestreo' },
-  hazard: { color: '#e5484d', letter: '!', label: 'Peligro' },
+  shelter: { color: '#3d8bfd', letter: 'R', label: tr('Refugio') },
+  sampling: { color: '#2bb673', letter: 'M', label: tr('Muestreo') },
+  hazard: { color: '#e5484d', letter: '!', label: tr('Peligro') },
 };
-const FALLBACK_STYLE = { color: '#9aa0a6', letter: '?', label: 'Punto' };
+const FALLBACK_STYLE = { color: '#9aa0a6', letter: '?', label: tr('Punto') };
 
 // [diseño] Tamaño del marcador en pantalla (fracción del alto) y altura sobre el suelo.
 const MARKER_SCREEN_SIZE = 0.055;

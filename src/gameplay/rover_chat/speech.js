@@ -2,8 +2,11 @@
 // respuestas en alto (síntesis de voz). Las dos cosas son opcionales: si el navegador no
 // las tiene (Firefox no reconoce voz), el chat sigue funcionando con texto.
 
-// [diseño] Idioma de escucha y de lectura.
-const SPEECH_LANG = 'es-MX';
+import { getLang, tr } from '../../shared/i18n.js';
+
+// [diseño] Idioma de escucha y de lectura, según el de la página.
+const SPEECH_LANG = getLang() === 'es' ? 'es-MX' : 'en-US';
+const VOICE_PREFIX = SPEECH_LANG.slice(0, 2);
 
 /**
  * createSpeech() ->
@@ -20,7 +23,7 @@ export function createSpeech() {
   function pickVoice() {
     const voices = synth.getVoices();
     return voices.find((voice) => voice.lang === SPEECH_LANG)
-      ?? voices.find((voice) => voice.lang?.startsWith('es'))
+      ?? voices.find((voice) => voice.lang?.startsWith(VOICE_PREFIX))
       ?? null;
   }
 
@@ -29,7 +32,7 @@ export function createSpeech() {
     canSpeak: Boolean(synth && globalThis.SpeechSynthesisUtterance),
     isListening: () => Boolean(recognition),
     listen({ onPartial } = {}) {
-      if (!Recognition) return Promise.reject(new Error('Este navegador no reconoce voz.'));
+      if (!Recognition) return Promise.reject(new Error(tr('Este navegador no reconoce voz.')));
       if (recognition) recognition.abort();
       return new Promise((resolve, reject) => {
         const session = new Recognition();
@@ -49,8 +52,8 @@ export function createSpeech() {
           // 'no-speech' y 'aborted' no son fallos: simplemente no hubo frase.
           if (event.error === 'no-speech' || event.error === 'aborted') resolve('');
           else if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            reject(new Error('El navegador no dio permiso para usar el micrófono.'));
-          } else reject(new Error(`No se pudo escuchar (${event.error}).`));
+            reject(new Error(tr('El navegador no dio permiso para usar el micrófono.')));
+          } else reject(new Error(tr`No se pudo escuchar (${event.error}).`));
         };
         session.onend = () => {
           if (recognition === session) recognition = null;

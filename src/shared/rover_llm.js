@@ -6,7 +6,7 @@
 // conoce su URL, en VITE_ROVER_LLM_URL (ver .env.example y server/README.md).
 //
 // Contrato con el servidor:
-//   POST <URL>  { kind: 'chat' | 'route', context: '<texto>', messages: [{ role, content }] }
+//   POST <URL>  { kind: 'chat' | 'route', lang: 'en' | 'es', context: '<texto>', messages: [{ role, content }] }
 //   200         { text: '<respuesta>' }
 // El personaje del rover lo pone el servidor según `kind`; la web manda solo el contexto.
 //
@@ -14,7 +14,9 @@
 // src/shared/mars_facts.js en el chat; el veredicto fijo en las rutas). No se avisa en
 // pantalla: el rover simplemente contesta.
 import { MARS_FACTS } from './mars_facts.js';
+import { getLang } from './i18n.js';
 import { buildRoverContext, pickMockReply } from './rover_context.js';
+import { tr } from './i18n.js';
 
 export const ROVER_LLM_URL = import.meta.env?.VITE_ROVER_LLM_URL ?? '';
 // [diseño] Espera máxima de la respuesta y turnos de conversación que se envían.
@@ -31,12 +33,12 @@ async function requestLlm(kind, context, messages) {
     const response = await fetch(ROVER_LLM_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kind, context, messages }),
+      body: JSON.stringify({ kind, context, messages, lang: getLang() }),
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`El servidor del rover respondió ${response.status}`);
+    if (!response.ok) throw new Error(tr`El servidor del rover respondió ${response.status}`);
     const data = await response.json();
-    if (typeof data.text !== 'string' || !data.text.trim()) throw new Error('Respuesta sin texto');
+    if (typeof data.text !== 'string' || !data.text.trim()) throw new Error(tr('Respuesta sin texto'));
     return data.text.trim();
   } finally {
     clearTimeout(timer);
@@ -48,7 +50,7 @@ let fallbackIndex = 0;
 function fallbackReply(question) {
   const { fact, matched } = pickMockReply(question, MARS_FACTS, fallbackIndex);
   if (!matched) fallbackIndex += 1;
-  const lead = question && !matched ? 'De eso no tengo datos a mano, pero te cuento otra cosa. ' : '';
+  const lead = question && !matched ? tr('De eso no tengo datos a mano, pero te cuento otra cosa. ') : '';
   return { text: `${lead}${fact.text}`, source: fact.source, fromLlm: false };
 }
 
@@ -78,7 +80,7 @@ export async function askRover({ question, history = [], snapshot }) {
 export async function explainRoute(brief) {
   if (!isLlmConfigured()) return null;
   try {
-    return await requestLlm('route', brief, [{ role: 'user', content: 'Explícame esta ruta.' }]);
+    return await requestLlm('route', brief, [{ role: 'user', content: tr('Explícame esta ruta.') }]);
   } catch (error) {
     console.warn('Rover: no se pudo explicar la ruta; queda el resumen fijo.', error);
     return null;

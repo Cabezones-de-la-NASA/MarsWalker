@@ -9,6 +9,7 @@ import {
 import { LAYER_DEFS, RISK_COLORS } from './layer_defs.js';
 import { PALETTE, hexToRgb } from '../../world/palette.js';
 import { valueNoise2 } from '../../world/surface_detail.js';
+import { tr } from '../../shared/i18n.js';
 
 function clamp01(value) {
   return Math.min(Math.max(value, 0), 1);
@@ -32,7 +33,7 @@ export function rampColor(ramp, t) {
 export function buildLayerRaster(layerId, dem) {
   const def = LAYER_DEFS.find((layer) => layer.id === layerId);
   if (!def || (def.kind !== 'ramp' && def.kind !== 'bands')) {
-    throw new Error(`La capa ${layerId} no se calcula desde el DEM`);
+    throw new Error(tr`La capa ${layerId} no se calcula desde el DEM`);
   }
 
   const { rows, cols, resolution_m, size_m } = dem;

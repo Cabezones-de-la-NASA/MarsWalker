@@ -23,6 +23,7 @@ import { createFormulasView } from './views/formulas_view.js';
 import { createCreditsView } from './views/credits_view.js';
 import { QUALITY_PROFILES, saveQuality } from '../world/quality.js';
 import './panels/panels.css';
+import { tr } from '../shared/i18n.js';
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -51,8 +52,8 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
   // Modo avanzado: capas, entorno, tripulación, fórmulas y gráficos. Plegado de entrada
   // para que el mapa y la exploración manden; un clic lo abre. Siempre empieza plegado.
   const engineer = el('details', 'engineer-drawer');
-  const engineerSummary = el('summary', null, 'Modo avanzado');
-  engineerSummary.append(el('small', null, 'capas · entorno · fórmulas'));
+  const engineerSummary = el('summary', null, tr('Modo avanzado'));
+  engineerSummary.append(el('small', null, tr('capas · entorno · fórmulas')));
   const engineerBody = el('div', 'engineer-body');
   engineer.append(engineerSummary, engineerBody);
   dockLeft.append(engineer);
@@ -101,8 +102,8 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
   // La lectura del último clic sale en la barra de lanzamiento, junto al aterrizaje.
   on('terrain:click', ({ x_m, z_m, elevation_m, slope_deg }) => {
     launchBar.setClick(
-      `Último clic: x ${x_m.toFixed(1)} m · z ${z_m.toFixed(1)} m · ` +
-      `elevación ${elevation_m.toFixed(1)} m · pendiente ${slope_deg.toFixed(2)}°`,
+      tr`Último clic: x ${x_m.toFixed(1)} m · z ${z_m.toFixed(1)} m · ` +
+      tr`elevación ${elevation_m.toFixed(1)} m · pendiente ${slope_deg.toFixed(2)}°`,
     );
   });
 
@@ -133,10 +134,10 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
   const tabs = createTabs(
     ui,
     [
-      { id: 'map', label: 'Mapa' },
-      { id: 'crew', label: 'Tripulación', element: crewPanel.element, onShow: crewPanel.render, secondary: true },
-      { id: 'formulas', label: 'Fórmulas', element: formulasView.element, onShow: formulasView.render, secondary: true },
-      { id: 'credits', label: 'Créditos', element: creditsView.element },
+      { id: 'map', label: tr('Mapa') },
+      { id: 'crew', label: tr('Tripulación'), element: crewPanel.element, onShow: crewPanel.render, secondary: true },
+      { id: 'formulas', label: tr('Fórmulas'), element: formulasView.element, onShow: formulasView.render, secondary: true },
+      { id: 'credits', label: tr('Créditos'), element: creditsView.element },
     ],
     {
       zones,
@@ -175,8 +176,8 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
   const realismLabel = el('label', 'engineer-realism');
   const realismBox = el('input');
   realismBox.type = 'checkbox';
-  const realismText = el('span', null, 'Jugar con realismo');
-  realismText.append(el('small', null, 'Tiempo 1×, solo a pie, sin rover ni camioneta'));
+  const realismText = el('span', null, tr('Jugar con realismo'));
+  realismText.append(el('small', null, tr('Tiempo 1×, solo a pie, sin rover ni camioneta')));
   realismLabel.append(realismBox, realismText);
   engineerLinks.append(realismLabel);
   try {

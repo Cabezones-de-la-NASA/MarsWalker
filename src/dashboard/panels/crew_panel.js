@@ -5,23 +5,24 @@ import { defaultConfig, FITNESS_TABLE } from '../../models/physiology/defaults.j
 import { vo2max_mlkgmin, sustainable_w, hrMax_bpm } from '../../models/physiology/cardio.js';
 import { sustainableSpeed_ms, MAX_CREW, MIN_SPEED_MS } from '../../models/physiology/group.js';
 import { marsMetabolic_w } from '../../models/physiology/metabolic.js';
+import { tr } from '../../shared/i18n.js';
 
-const FITNESS_LABELS = { baja: 'Baja', nominal: 'Nominal', buena: 'Buena', elite: 'Élite' };
+const FITNESS_LABELS = { baja: tr('Baja'), nominal: tr('Nominal'), buena: tr('Buena'), elite: tr('Élite') };
 const COMPARE_ROWS = [
-  ['time_h', 'Tiempo', 'h', 2],
-  ['distance_m', 'Distancia', 'm', 0],
-  ['o2_used_l', 'O₂ consumido (quien más gasta)', 'L', 1],
-  ['peak_metabolic_w', 'Pico metabólico', 'W', 0],
-  ['peak_heart_rate_bpm', 'Pico de pulso', 'lpm', 0],
-  ['peak_core_temp_c', 'Pico de temperatura', '°C', 2],
-  ['minutes_over_sustainable', 'Minutos sobre el ritmo sostenible', 'min', 1],
+  ['time_h', tr('Tiempo'), 'h', 2],
+  ['distance_m', tr('Distancia'), 'm', 0],
+  ['o2_used_l', tr('O₂ consumido (quien más gasta)'), 'L', 1],
+  ['peak_metabolic_w', tr('Pico metabólico'), 'W', 0],
+  ['peak_heart_rate_bpm', tr('Pico de pulso'), 'lpm', 0],
+  ['peak_core_temp_c', tr('Pico de temperatura'), '°C', 2],
+  ['minutes_over_sustainable', tr('Minutos sobre el ritmo sostenible'), 'min', 1],
 ];
 const STATUS_LABELS = {
   nominal: 'nominal',
-  low_o2: 'oxígeno bajo',
+  low_o2: tr('oxígeno bajo'),
   elevated: 'elevado',
-  at_risk_over_sustainable: 'en riesgo: sobre el ritmo sostenible',
-  critical: 'crítico',
+  at_risk_over_sustainable: tr('en riesgo: sobre el ritmo sostenible'),
+  critical: tr('crítico'),
 };
 
 function el(tag, className, text) {
@@ -38,17 +39,17 @@ export function createCrewPanel({ routePanel }) {
   const inner = el('div', 'view-inner');
   view.append(inner);
   inner.append(
-    el('h1', null, 'Tripulación'),
-    el('p', null, 'De 1 a 6 personas. Los valores de la derecha se recalculan al editar. El ritmo sostenible es en llano, caminando a solas, con el traje xEMU en Marte.'),
+    el('h1', null, tr('Tripulación')),
+    el('p', null, tr('De 1 a 6 personas. Los valores de la derecha se recalculan al editar. El ritmo sostenible es en llano, caminando a solas, con el traje xEMU en Marte.')),
   );
 
   const scroll = el('div', 'table-scroll');
   const table = el('table', 'crew-table');
   const head = el('tr');
   for (const [label, numeric] of [
-    ['Nombre', false], ['Rol', false], ['Masa (kg)', false], ['Edad', false], ['Sexo', false],
-    ['Condición', false], ['VO₂máx (mL/kg/min)', true], ['FC máx (lpm)', true],
-    ['M sostenible (W)', true], ['Ritmo sostenible (m/s)', true], ['', false],
+    [tr('Nombre'), false], [tr('Rol'), false], ['Masa (kg)', false], [tr('Edad'), false], [tr('Sexo'), false],
+    [tr('Condición'), false], [tr('VO₂máx (mL/kg/min)'), true], [tr('FC máx (lpm)'), true],
+    ['M sostenible (W)', true], [tr('Ritmo sostenible (m/s)'), true], ['', false],
   ]) {
     head.append(el('th', numeric ? 'num' : null, label));
   }
@@ -60,7 +61,7 @@ export function createCrewPanel({ routePanel }) {
   inner.append(scroll);
 
   const actions = el('div', 'crew-actions');
-  const addButton = el('button', 'crew-add', 'Añadir persona');
+  const addButton = el('button', 'crew-add', tr('Añadir persona'));
   addButton.type = 'button';
   const note = el('span', 'crew-warning');
   note.setAttribute('role', 'status');
@@ -118,7 +119,7 @@ export function createCrewPanel({ routePanel }) {
     cells.sost.textContent = limit_w.toFixed(0);
     // Si ni al paso mínimo se cumple el límite, se dice en vez de mostrar 0.30 sin más.
     cells.speed.textContent =
-      atMin_w > limit_w ? `${speed_ms.toFixed(2)} (sobre su límite)` : speed_ms.toFixed(2);
+      atMin_w > limit_w ? tr`${speed_ms.toFixed(2)} (sobre su límite)` : speed_ms.toFixed(2);
     cells.speed.classList.toggle('crew-warning', atMin_w > limit_w);
     return true;
   }
@@ -131,13 +132,13 @@ export function createCrewPanel({ routePanel }) {
       const cells = { vo2: el('td', 'num'), hr: el('td', 'num'), sost: el('td', 'num'), speed: el('td', 'num') };
       const refresh = () => {
         const ok = renderComputed(member, cells);
-        note.textContent = ok ? '' : 'Masa entre 40 y 130 kg y edad entre 18 y 80 años.';
+        note.textContent = ok ? '' : tr('Masa entre 40 y 130 kg y edad entre 18 y 80 años.');
         if (ok) commit();
       };
-      const remove = el('button', 'crew-remove', 'Quitar');
+      const remove = el('button', 'crew-remove', tr('Quitar'));
       remove.type = 'button';
       remove.disabled = state.crew.length <= 1;
-      remove.setAttribute('aria-label', `Quitar a ${member.name}`);
+      remove.setAttribute('aria-label', tr`Quitar a ${member.name}`);
       remove.addEventListener('click', () => {
         state.crew.splice(index, 1);
         render();
@@ -148,7 +149,7 @@ export function createCrewPanel({ routePanel }) {
         cell(input('text', member.role ?? '', (v) => { member.role = v; commit(); }, { maxLength: 30 })),
         cell(input('number', member.mass_kg, (v) => { member.mass_kg = Number(v); refresh(); }, { min: '40', max: '130', step: '1' })),
         cell(input('number', member.age, (v) => { member.age = Number(v); refresh(); }, { min: '18', max: '80', step: '1' })),
-        cell(select([['female', 'Mujer'], ['male', 'Hombre']], member.sex, (v) => { member.sex = v; refresh(); })),
+        cell(select([['female', tr('Mujer')], ['male', tr('Hombre')]], member.sex, (v) => { member.sex = v; refresh(); })),
         cell(select(Object.keys(FITNESS_TABLE).map((k) => [k, FITNESS_LABELS[k]]), member.fitness, (v) => { member.fitness = v; refresh(); })),
         cells.vo2, cells.hr, cells.sost, cells.speed,
         cell(remove),
@@ -162,7 +163,7 @@ export function createCrewPanel({ routePanel }) {
   addButton.addEventListener('click', () => {
     if (state.crew.length >= MAX_CREW) return;
     state.crew.push({
-      name: `Tripulante ${state.crew.length + 1}`, role: '', age: 35, sex: 'female', mass_kg: 65,
+      name: tr`Tripulante ${state.crew.length + 1}`, role: '', age: 35, sex: 'female', mass_kg: 65,
       fitness: 'nominal', prior_dose_msv: 0,
     });
     render();
@@ -171,11 +172,11 @@ export function createCrewPanel({ routePanel }) {
 
   // ---- Comparación clásica contra salud
   inner.append(
-    el('h2', null, 'Comparación: ruta clásica contra ruta por salud'),
-    el('p', null, 'Calcula las dos rutas entre el inicio y el destino del panel Ruta y las camina con esta tripulación (M13). La diferencia es salud menos clásica.'),
+    el('h2', null, tr('Comparación: ruta clásica contra ruta por salud')),
+    el('p', null, tr('Calcula las dos rutas entre el inicio y el destino del panel Ruta y las camina con esta tripulación (M13). La diferencia es salud menos clásica.')),
   );
   const compareActions = el('div', 'crew-actions');
-  const compareButton = el('button', 'crew-compare', 'Comparar');
+  const compareButton = el('button', 'crew-compare', tr('Comparar'));
   compareButton.type = 'button';
   const compareStatus = el('span');
   compareStatus.setAttribute('role', 'status');
@@ -187,19 +188,19 @@ export function createCrewPanel({ routePanel }) {
   inner.append(compareActions, compareScroll);
 
   compareButton.addEventListener('click', async () => {
-    compareStatus.textContent = 'Calculando…';
+    compareStatus.textContent = tr('Calculando…');
     compareButton.disabled = true;
     const result = await routePanel.compare();
     compareButton.disabled = false;
     if (result.failed) {
       compareTable.hidden = true;
-      compareStatus.textContent = result.error;
+      compareStatus.textContent = tr(result.error);
       return;
     }
     compareStatus.textContent = '';
     compareTable.replaceChildren();
     const headRow = el('tr');
-    for (const [label, numeric] of [['', false], ['Clásica (A* O2)', true], ['Salud', true], ['Diferencia', true], ['%', true]]) {
+    for (const [label, numeric] of [['', false], [tr('Clásica (A* O2)'), true], [tr('Salud'), true], [tr('Diferencia'), true], ['%', true]]) {
       headRow.append(el('th', numeric ? 'num' : null, label));
     }
     compareTable.append(headRow);
@@ -220,7 +221,7 @@ export function createCrewPanel({ routePanel }) {
     const statusRow = el('tr');
     statusRow.dataset.metric = 'worst_status';
     statusRow.append(
-      el('td', null, 'Peor estado del grupo'),
+      el('td', null, tr('Peor estado del grupo')),
       el('td', 'num', STATUS_LABELS[result.comparison.worst_status.classic]),
       el('td', 'num', STATUS_LABELS[result.comparison.worst_status.health]),
       el('td'), el('td'),

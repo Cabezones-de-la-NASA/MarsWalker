@@ -13,6 +13,14 @@ import { startDashboard } from './dashboard/dashboard.js';
 import { createGameplay } from './gameplay/gameplay.js';
 import { startIntro } from './intro/intro.js';
 import { createMissionStore } from './shared/missions.js';
+import { getLang, trData } from './shared/i18n.js';
+
+document.documentElement.lang = getLang();
+
+// Textos de un punto de interés en el idioma actual (los datos están en español).
+const localizePoint = (point) => point && ({
+  ...point, name: trData(point.name), description: trData(point.description), source: trData(point.source),
+});
 
 // [diseño] Duración del fundido entre el mapa y la superficie, en milisegundos.
 const FADE_MS = 320;
@@ -64,6 +72,15 @@ async function initScene() {
     halfWidth_m: dem.size_m[0] / 2,
     halfDepth_m: dem.size_m[1] / 2,
   });
+
+  // El resto de la aplicación ve los puntos y los nombres de zona ya traducidos. Lo que
+  // se guarda en el navegador (base y objetivos propios) sigue como se creó.
+  const rawMission = { getPoints: mission.getPoints, getBase: mission.getBase, getObjectives: mission.getObjectives };
+  mission.getPoints = () => rawMission.getPoints().map(localizePoint);
+  mission.getBase = () => localizePoint(rawMission.getBase());
+  mission.getObjectives = () => rawMission.getObjectives().map(localizePoint);
+  dataset.metadata.label = trData(dataset.metadata.label);
+  for (const zone of zones) zone.label = trData(zone.label);
 
   const dashboard = await startDashboard(document.body, { world, dem, dataset, terrain, mission, zones });
   const gameplay = createGameplay(document.body, { world, dem, dataset, terrain, rocks, dust, mission });

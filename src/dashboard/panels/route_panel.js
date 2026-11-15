@@ -11,33 +11,34 @@ import { drawElevationProfile } from './elevation_profile.js';
 import { explainRoute } from '../../shared/rover_llm.js';
 import { buildRouteBrief } from '../../shared/route_brief.js';
 import { defaultConfig } from '../../models/physiology/defaults.js';
+import { tr } from '../../shared/i18n.js';
 
 const ALGORITHMS = [
-  { id: 'astar', label: 'Ahorra oxígeno', sub: 'A* clásico: el menor gasto de O₂', title: 'Ruta clásica: menor coste de oxígeno (M3 y M4)' },
-  { id: 'health', label: 'Cuida al astronauta', sub: 'Tú eliges qué pesa: pulso, calor, pendiente…', title: 'Ruta por salud: coste con las métricas elegidas (M14)' },
-  { id: 'qaoa', label: 'Corredor inspirado en QAOA', sub: 'Versión clásica de un algoritmo cuántico de optimización', title: QAOA_NOTICE },
+  { id: 'astar', label: tr('Ahorra oxígeno'), sub: tr('A* clásico: el menor gasto de O₂'), title: tr('Ruta clásica: menor coste de oxígeno (M3 y M4)') },
+  { id: 'health', label: tr('Cuida al astronauta'), sub: tr('Tú eliges qué pesa: pulso, calor, pendiente…'), title: tr('Ruta por salud: coste con las métricas elegidas (M14)') },
+  { id: 'qaoa', label: tr('Corredor inspirado en QAOA'), sub: tr('Versión clásica de un algoritmo cuántico de optimización'), title: tr(QAOA_NOTICE) },
 ];
 
 // Dimensiones de M14, en el orden de la ficha.
 const DIMENSIONS = [
-  ['slope', 'Pendiente'],
-  ['metabolic', 'Gasto metabólico'],
-  ['heart_rate', 'Pulso'],
-  ['oxygen', 'Oxígeno'],
-  ['thermal', 'Temperatura'],
-  ['hydration', 'Hidratación'],
-  ['radiation', 'Radiación'],
+  ['slope', tr('Pendiente')],
+  ['metabolic', tr('Gasto metabólico')],
+  ['heart_rate', tr('Pulso')],
+  ['oxygen', tr('Oxígeno')],
+  ['thermal', tr('Temperatura')],
+  ['hydration', tr('Hidratación')],
+  ['radiation', tr('Radiación')],
 ];
-const PRESET_LABELS = { clasico: 'Clásico', cientifico: 'Científico', balanceado: 'Balanceado', seguridad: 'Seguridad' };
+const PRESET_LABELS = { clasico: tr('Clásico'), cientifico: tr('Científico'), balanceado: tr('Balanceado'), seguridad: tr('Seguridad') };
 
 // Filas de la comparación: [clave de simulateRoute, etiqueta, unidad, decimales].
 const COMPARE_ROWS = [
-  ['distance_m', 'Distancia', 'm', 0],
-  ['time_h', 'Tiempo', 'h', 2],
+  ['distance_m', tr('Distancia'), 'm', 0],
+  ['time_h', tr('Tiempo'), 'h', 2],
   ['o2_used_l', 'O₂', 'L', 0],
-  ['peak_metabolic_w', 'Pico de gasto', 'W', 0],
-  ['peak_heart_rate_bpm', 'Pico de pulso', 'lpm', 0],
-  ['minutes_over_sustainable', 'Sobre el límite', 'min', 0],
+  ['peak_metabolic_w', tr('Pico de gasto'), 'W', 0],
+  ['peak_heart_rate_bpm', tr('Pico de pulso'), 'lpm', 0],
+  ['minutes_over_sustainable', tr('Sobre el límite'), 'min', 0],
 ];
 
 // [diseño] Espera tras el último cambio antes de recalcular sola la ruta, en milisegundos.
@@ -54,7 +55,7 @@ function el(tag, className, text) {
 }
 
 function formatPoint(point_m) {
-  return point_m ? `x ${point_m[0].toFixed(0)}  z ${point_m[1].toFixed(0)} m` : 'haz clic en el mapa';
+  return point_m ? `x ${point_m[0].toFixed(0)}  z ${point_m[1].toFixed(0)} m` : tr('haz clic en el mapa');
 }
 
 function formatTime(time_s) {
@@ -66,8 +67,8 @@ function formatTime(time_s) {
 //   getCrew: tripulación actual, para la ruta por salud
 //   getPoints: puntos de interés de la zona más la base y los objetivos propios
 export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, getPoints }) {
-  const shell = createPanelShell('Plan de EVA', 'route-panel');
-  shell.body.append(el('div', 'route-section', '1 · Marca inicio y destino en el mapa'));
+  const shell = createPanelShell(tr('Plan de EVA'), 'route-panel');
+  shell.body.append(el('div', 'route-section', tr('1 · Marca inicio y destino en el mapa')));
   const panel = shell.body;
 
   // --- Inicio y destino: el clic en el mapa fija el punto resaltado.
@@ -75,11 +76,11 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
   let target = 'start';
   const pointRows = {};
   const pointLabels = {};
-  for (const [key, label] of [['start', 'Inicio'], ['goal', 'Destino']]) {
+  for (const [key, label] of [['start', tr('Inicio')], ['goal', tr('Destino')]]) {
     const rowEl = el('button', `route-point-row route-point-${key}`);
     rowEl.type = 'button';
     rowEl.dataset.pick = key;
-    rowEl.title = `Fijar el ${label.toLowerCase()} con el próximo clic en el mapa`;
+    rowEl.title = tr`Fijar el ${label.toLowerCase()} con el próximo clic en el mapa`;
     pointLabels[key] = el('span', 'route-point', formatPoint(null));
     rowEl.append(el('i', 'route-dot'), el('span', 'route-point-name', label), pointLabels[key]);
     rowEl.addEventListener('click', () => setTarget(key));
@@ -87,20 +88,20 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
     panel.append(rowEl);
   }
   const quick = el('div', 'route-row route-quick');
-  const fromAstronaut = el('button', 'route-from-astronaut', 'Astronauta');
+  const fromAstronaut = el('button', 'route-from-astronaut', tr('Astronauta'));
   fromAstronaut.type = 'button';
-  fromAstronaut.title = 'Usar la posición del astronauta como inicio';
-  const toShelter = el('button', 'route-to-shelter', 'Refugio');
+  fromAstronaut.title = tr('Usar la posición del astronauta como inicio');
+  const toShelter = el('button', 'route-to-shelter', tr('Refugio'));
   toShelter.type = 'button';
-  toShelter.title = 'Usar el refugio más cercano como destino';
-  const clearButton = el('button', 'route-clear', 'Borrar');
+  toShelter.title = tr('Usar el refugio más cercano como destino');
+  const clearButton = el('button', 'route-clear', tr('Borrar'));
   clearButton.type = 'button';
   quick.append(fromAstronaut, toShelter, clearButton);
   const hint = el('div', 'route-hint');
   panel.append(quick, hint);
 
   // --- Algoritmo
-  panel.append(el('div', 'route-section', '2 · Elige cómo planificar'));
+  panel.append(el('div', 'route-section', tr('2 · Elige cómo planificar')));
   const segmented = el('div', 'route-cards');
   segmented.setAttribute('role', 'radiogroup');
   let algorithm = 'astar';
@@ -116,14 +117,14 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
     algoButtons[item.id] = button;
     segmented.append(button);
   }
-  const notice = el('div', 'route-notice', QAOA_NOTICE);
+  const notice = el('div', 'route-notice', tr(QAOA_NOTICE));
   notice.hidden = true;
   panel.append(segmented, notice);
 
   // --- Métricas de la ruta por salud (M14): casillas y preajustes.
   const healthBox = el('div', 'route-health');
   healthBox.hidden = true;
-  healthBox.append(el('div', 'route-section', 'Métricas que cuentan'));
+  healthBox.append(el('div', 'route-section', tr('Métricas que cuentan')));
   const chips = el('div', 'route-chips');
   for (const key of Object.keys(PRESETS)) {
     const chip = el('button', 'chip', PRESET_LABELS[key]);
@@ -154,23 +155,23 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
 
   // --- Acciones
   const actions = el('div', 'route-row route-actions');
-  const computeButton = el('button', 'route-compute btn-primary', 'Calcular');
+  const computeButton = el('button', 'route-compute btn-primary', tr('Calcular'));
   computeButton.type = 'button';
-  const compareButton = el('button', 'route-compare', 'Comparar');
+  const compareButton = el('button', 'route-compare', tr('Comparar'));
   compareButton.type = 'button';
-  const exportButton = el('button', 'route-export', 'Exportar');
+  const exportButton = el('button', 'route-export', tr('Exportar'));
   exportButton.type = 'button';
   actions.append(computeButton, compareButton, exportButton);
   const status = el('div', 'route-status');
   status.setAttribute('role', 'status');
   const verdict = el('div', 'route-verdict');
-  panel.append(el('div', 'route-section', '3 · Tu ruta'), actions, status, verdict);
+  panel.append(el('div', 'route-section', tr('3 · Tu ruta')), actions, status, verdict);
 
   // --- Métricas
   const metrics = el('dl', 'route-metrics');
   const metricValues = {};
   for (const [key, label] of [
-    ['distance', 'Distancia'], ['oxygen', 'O₂'], ['slope', 'Pendiente máxima'], ['risk', 'Riesgo'], ['time', 'Tiempo'],
+    ['distance', tr('Distancia')], ['oxygen', 'O₂'], ['slope', tr('Pendiente máxima')], ['risk', tr('Riesgo')], ['time', tr('Tiempo')],
   ]) {
     const value = el('dd', null, '—');
     value.dataset.metric = key;
@@ -178,7 +179,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
     metrics.append(el('dt', null, label), value);
   }
   const detail = el('details', 'route-detail');
-  detail.append(el('summary', null, 'Ver los números y el perfil'), metrics);
+  detail.append(el('summary', null, tr('Ver los números y el perfil')), metrics);
   panel.append(detail);
 
   // --- Comparación: las dos rutas a la vez en el mapa y sus cifras lado a lado.
@@ -186,8 +187,8 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
   compareBox.hidden = true;
   const legend = el('div', 'route-legend');
   legend.append(
-    el('i', 'route-swatch route-swatch-classic'), el('span', null, 'Clásica'),
-    el('i', 'route-swatch route-swatch-health'), el('span', null, 'Salud'),
+    el('i', 'route-swatch route-swatch-classic'), el('span', null, tr('Clásica')),
+    el('i', 'route-swatch route-swatch-health'), el('span', null, tr('Salud')),
   );
   const compareTable = el('table', 'route-compare-table');
   compareBox.append(legend, compareTable);
@@ -195,7 +196,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
 
   // --- Perfil de elevación
   const profile = el('canvas', 'route-profile');
-  detail.append(profile, el('div', 'route-hint', 'Perfil de elevación. En rojo, tramos de más de 25°.'));
+  detail.append(profile, el('div', 'route-hint', tr('Perfil de elevación. En rojo, tramos de más de 25°.')));
   // El perfil se dibuja al abrir el detalle: plegado, el lienzo no tiene tamaño.
   detail.addEventListener('toggle', () => {
     if (detail.open) drawElevationProfile(profile, route ? buildElevationProfile(dem, route.path_m) : null);
@@ -240,7 +241,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
   function setTarget(key) {
     target = key;
     for (const [name, rowEl] of Object.entries(pointRows)) rowEl.classList.toggle('is-target', name === key);
-    hint.textContent = `El próximo clic en el mapa fija el ${key === 'start' ? 'inicio' : 'destino'}.`;
+    hint.textContent = tr`El próximo clic en el mapa fija el ${key === 'start' ? tr('inicio') : tr('destino')}.`;
   }
 
   function refresh() {
@@ -287,11 +288,11 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
     if (!points.start || !points.goal) return;
     if (algorithm === 'health' && activeDimensions().length === 0) {
       clearRoute();
-      status.textContent = 'Marca al menos una métrica para la ruta por salud.';
+      status.textContent = tr('Marca al menos una métrica para la ruta por salud.');
       return;
     }
     requestId += 1;
-    status.textContent = 'Calculando…';
+    status.textContent = tr('Calculando…');
     worker.postMessage({
       type: 'route', id: requestId, algorithm, dimensions: activeDimensions(), crew: getCrew(),
       start_m: points.start, goal_m: points.goal, config: {},
@@ -307,8 +308,8 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
     healthBox.hidden = id !== 'health';
     notice.hidden = id !== 'qaoa';
     compareButton.title = id === 'health'
-      ? 'Dibuja también la ruta clásica y compara las dos'
-      : 'Dibuja también la ruta por salud y compara las dos';
+      ? tr('Dibuja también la ruta clásica y compara las dos')
+      : tr('Dibuja también la ruta por salud y compara las dos');
     status.textContent = '';
     clearRoute();
     scheduleCompute();
@@ -349,7 +350,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
     const from_m = points.start ?? state.astronaut_position_m ?? [0, 0];
     const shelter = nearestShelter(getPoints(), from_m);
     if (!shelter) {
-      status.textContent = 'Esta zona no tiene ningún refugio.';
+      status.textContent = tr('Esta zona no tiene ningún refugio.');
       return;
     }
     setPoint('goal', shelter.position_m);
@@ -370,7 +371,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
     if (message.type !== 'route' || message.id !== requestId) return; // respuesta vieja
     if (message.result.failed) {
       clearRoute();
-      status.textContent = `No se pudo calcular la ruta. ${message.result.error}`;
+      status.textContent = tr`No se pudo calcular la ruta. ${tr(message.result.error)}`;
       return;
     }
     route = message.result;
@@ -387,15 +388,15 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
     emit('route:computed', route);
     const unsafe = drawElevationProfile(profile, buildElevationProfile(dem, route.path_m));
     status.textContent =
-      `Ruta calculada en ${message.elapsed_ms.toFixed(0)} ms.` +
-      (unsafe > 0 ? ` Cruza ${unsafe} tramo(s) de más de 25°.` : '');
+      tr`Ruta calculada en ${message.elapsed_ms.toFixed(0)} ms.` +
+      (unsafe > 0 ? tr` Cruza ${unsafe} tramo(s) de más de 25°.` : '');
     // Veredicto en una frase; los números completos quedan en el detalle.
     verdict.textContent =
       `${metricValues.distance.textContent}${Number.isFinite(m.time_s) ? ` en ${formatTime(m.time_s)}` : ''}, ` +
-      `${m.oxygen_l.toFixed(0)} L de oxígeno. ` +
+      tr`${m.oxygen_l.toFixed(0)} L de oxígeno. ` +
       (m.max_slope_deg > 25
-        ? `Ojo: hay pendientes de hasta ${m.max_slope_deg.toFixed(0)}°, por encima del límite seguro de 25°.`
-        : `Pendiente máxima de ${m.max_slope_deg.toFixed(0)}°: dentro del límite seguro.`);
+        ? tr`Ojo: hay pendientes de hasta ${m.max_slope_deg.toFixed(0)}°, por encima del límite seguro de 25°.`
+        : tr`Pendiente máxima de ${m.max_slope_deg.toFixed(0)}°: dentro del límite seguro.`);
     explain({ algorithm, metrics: m, unsafe_segments: unsafe, dimensions: algorithm === 'health' ? activeDimensionLabels() : null });
     refresh();
   });
@@ -406,12 +407,12 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
     if (!points.start || !points.goal) {
       return Promise.resolve({
         failed: true,
-        error: 'Elige primero un inicio y un destino en el panel Ruta (pestaña Mapa).',
+        error: tr('Elige primero un inicio y un destino en el panel Ruta (pestaña Mapa).'),
       });
     }
     const dimensions = activeDimensions();
     if (dimensions.length === 0) {
-      return Promise.resolve({ failed: true, error: 'Marca al menos una métrica para la ruta por salud.' });
+      return Promise.resolve({ failed: true, error: tr('Marca al menos una métrica para la ruta por salud.') });
     }
     compareId += 1;
     const id = compareId;
@@ -429,10 +430,10 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
   }
 
   compareButton.addEventListener('click', async () => {
-    status.textContent = 'Comparando…';
+    status.textContent = tr('Comparando…');
     const result = await compare();
     if (result.failed) {
-      status.textContent = result.error;
+      status.textContent = tr(result.error);
       return;
     }
     // La ruta del algoritmo elegido queda como principal y la otra como referencia.
@@ -442,7 +443,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
     legend.classList.toggle('health-primary', healthIsPrimary);
     compareTable.replaceChildren();
     const head = el('tr');
-    for (const text of ['', 'Clásica', 'Salud', 'Dif.']) head.append(el('th', null, text));
+    for (const text of ['', tr('Clásica'), tr('Salud'), tr('Dif.')]) head.append(el('th', null, text));
     compareTable.append(head);
     for (const [key, label, unit, digits] of COMPARE_ROWS) {
       const item = result.comparison[key];
@@ -458,7 +459,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
       compareTable.append(rowEl);
     }
     compareBox.hidden = false;
-    status.textContent = 'Las dos rutas están en el mapa. La diferencia es salud menos clásica.';
+    status.textContent = tr('Las dos rutas están en el mapa. La diferencia es salud menos clásica.');
     // Con las dos rutas delante, el rover dice cuál conviene.
     if (route) {
       explain({

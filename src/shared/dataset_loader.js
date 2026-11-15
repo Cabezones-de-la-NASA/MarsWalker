@@ -5,6 +5,7 @@
 // createDem de src/models/terrain/ en quien lo consume.
 
 import { BASE_URL } from './base_url.js';
+import { tr } from './i18n.js';
 
 export const DEFAULT_DATASET_ID = 'hirise_jezero';
 const DATASET_ID_PATTERN = /^[a-z0-9_]+$/;
@@ -18,7 +19,7 @@ export function datasetIdFromUrl(search = window.location.search) {
 async function fetchOk(url) {
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`No se pudo cargar ${url} (HTTP ${response.status})`);
+    throw new Error(tr`No se pudo cargar ${url} (HTTP ${response.status})`);
   }
   return response;
 }
@@ -47,7 +48,7 @@ export async function loadDatasetIndex() {
 // poi es el contenido de poi.json, o null si el dataset no lo trae.
 export async function loadDataset(dataset_id) {
   if (!DATASET_ID_PATTERN.test(dataset_id)) {
-    throw new Error(`dataset_id no válido: ${dataset_id}`);
+    throw new Error(tr`dataset_id no válido: ${dataset_id}`);
   }
 
   const baseUrl = `${BASE_URL}data/${dataset_id}/`;
@@ -56,7 +57,7 @@ export async function loadDataset(dataset_id) {
 
   // El servidor de desarrollo responde index.html cuando la carpeta no existe.
   if (!(metadataResponse.headers.get('content-type') || '').includes('json')) {
-    throw new Error(`No existe el dataset "${dataset_id}" en public/data/`);
+    throw new Error(tr`No existe el dataset "${dataset_id}" en public/data/`);
   }
 
   const metadata = await metadataResponse.json();

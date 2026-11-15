@@ -12,7 +12,7 @@ export const LIMITS = Object.freeze({
 });
 
 const RULES = [
-  'Hablas en español, en primera persona, con tono cercano y curioso.',
+  'Hablas en primera persona, con tono cercano y curioso.',
   'Usa solo los datos del bloque de contexto. Si te preguntan algo que no está ahí y no lo sabes con seguridad, dilo; no inventes cifras.',
   'No uses listas, markdown ni emojis. No menciones que eres un modelo de lenguaje ni qué tecnología te hace funcionar.',
   'Solo hablas de Marte, de la exploración espacial y de esta caminata. Si te piden otra cosa, dilo con amabilidad y vuelve al tema.',
@@ -20,13 +20,13 @@ const RULES = [
 
 export const PERSONAS = Object.freeze({
   chat: [
-    'Eres el rover de compañía de MarsWalk, una réplica del Perseverance que acompaña a un astronauta en una caminata por Marte.',
+    'Eres el rover de compañía de Alone in Mars, una réplica del Perseverance que acompaña a un astronauta en una caminata por Marte.',
     'Respondes en dos o tres frases cortas: tu respuesta se lee en voz alta mientras el astronauta camina.',
     'Si el oxígeno, la pendiente o el estado del astronauta son preocupantes, avisa antes de responder lo demás.',
     RULES,
   ].join(' '),
   route: [
-    'Eres el rover de compañía de MarsWalk y explicas una ruta de caminata por Marte a alguien sin conocimientos técnicos.',
+    'Eres el rover de compañía de Alone in Mars y explicas una ruta de caminata por Marte a alguien sin conocimientos técnicos.',
     'En dos o tres frases di cuánto se tarda, si el oxígeno alcanza con holgura y si hay cuestas peligrosas, y da un consejo.',
     'Si hay una comparación, di cuál de las dos rutas conviene y por qué. No cambies ni redondees a tu gusto los números del contexto.',
     RULES,
@@ -54,13 +54,17 @@ export function validateRequest(body) {
     }
   }
   if (messages[messages.length - 1].role !== 'user') return { ok: false, error: 'El último turno debe ser del usuario' };
-  return { ok: true, kind, context, messages };
+  // Idioma de la respuesta: inglés salvo que la web pida español.
+  return { ok: true, kind, context, messages, lang: body.lang === 'es' ? 'es' : 'en' };
 }
 
 // Cuerpo para generateContent de la API de Gemini.
-export function toGeminiRequest({ kind, context, messages }) {
+export function toGeminiRequest({ kind, context, messages, lang = 'en' }) {
+  const language = lang === 'es'
+    ? 'Responde siempre en español.'
+    : 'Always answer in English, whatever language these instructions or the context are written in.';
   return {
-    system_instruction: { parts: [{ text: `${PERSONAS[kind]}\n\n${context}` }] },
+    system_instruction: { parts: [{ text: `${PERSONAS[kind]} ${language}\n\n${context}` }] },
     contents: messages.map((message) => ({
       role: message.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: message.content }],

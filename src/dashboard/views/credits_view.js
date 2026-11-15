@@ -1,6 +1,7 @@
 // Vista "Créditos": todas las fuentes de la sección 2 del documento del proyecto.
 import logoUrl from '../../assets/space_apps_logo.png';
 import { CREDIT_GROUPS, NASA_DISCLAIMER } from './credits_data.js';
+import { tr } from '../../shared/i18n.js';
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -16,8 +17,8 @@ export function createCreditsView() {
 
   const logo = el('img', 'credits-logo');
   logo.src = logoUrl;
-  logo.alt = 'NASA Space Apps Challenge';
-  inner.append(el('h1', null, 'Créditos'), logo, el('p', null, NASA_DISCLAIMER));
+  logo.alt = tr('NASA Space Apps Challenge');
+  inner.append(el('h1', null, tr('Créditos')), logo, el('p', null, NASA_DISCLAIMER));
 
   for (const group of CREDIT_GROUPS) {
     inner.append(el('h2', null, group.title));

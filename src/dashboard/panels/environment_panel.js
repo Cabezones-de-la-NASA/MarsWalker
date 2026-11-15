@@ -5,11 +5,12 @@ import { createPanelShell } from './panel_shell.js';
 import { state, on, emit } from '../../shared/state.js';
 import { createSimClock } from '../../shared/sim_clock.js';
 import { solarState, sunDirection, JEZERO_LAT_DEG } from '../../models/environment/solar.js';
+import { tr } from '../../shared/i18n.js';
 import {
   weatherState, nearestShelter, NOMINAL_DUST_TAU, STORM_DUST_TAU,
 } from '../../models/environment/weather.js';
 
-const PHASE_LABELS = { day: 'día', twilight: 'crepúsculo', night: 'noche' };
+const PHASE_LABELS = { day: tr('día'), twilight: tr('crepúsculo'), night: tr('noche') };
 // [diseño] Segundos simulados por tick del reloj.
 const CLOCK_DT_S = 20;
 // [diseño] Ticks por cuadro al pulsar "Reproducir tiempo" en el mapa (120 s simulados).
@@ -30,7 +31,7 @@ function formatHour(ltst_h) {
 
 // deps: { world, routePanel, getPoints }
 export function createEnvironmentPanel(container, { world, routePanel, getPoints }) {
-  const shell = createPanelShell('Entorno', 'environment-panel');
+  const shell = createPanelShell(tr('Entorno'), 'environment-panel');
   const panel = shell.body;
 
   // --- Controles
@@ -55,20 +56,20 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
     panel.append(row);
     sliders[key] = { input, value, format };
   }
-  addSlider('ltst_h', 'Hora local', 0, 23.75, 0.25, formatHour);
-  addSlider('ls_deg', 'Estación (Ls)', 0, 359, 1, (v) => `${v.toFixed(0)}°`);
+  addSlider('ltst_h', tr('Hora local'), 0, 23.75, 0.25, formatHour);
+  addSlider('ls_deg', tr('Estación (Ls)'), 0, 359, 1, (v) => `${v.toFixed(0)}°`);
   addSlider('dust_tau', 'Polvo (τ)', 0, 5, 0.1, (v) => v.toFixed(1));
 
   // --- Lecturas
   const readings = el('dl', 'env-readings');
   const values = {};
   for (const [key, label] of [
-    ['sun', 'Sol'],
-    ['phase', 'Fase'],
-    ['irradiance', 'Irradiancia en superficie'],
-    ['distance', 'Distancia al Sol'],
-    ['temperature', 'Temperatura'],
-    ['wind', 'Viento'],
+    ['sun', tr('Sol')],
+    ['phase', tr('Fase')],
+    ['irradiance', tr('Irradiancia en superficie')],
+    ['distance', tr('Distancia al Sol')],
+    ['temperature', tr('Temperatura')],
+    ['wind', tr('Viento')],
   ]) {
     const value = el('dd');
     value.dataset.reading = key;
@@ -79,9 +80,9 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
 
   // --- Acciones
   const actions = el('div', 'env-actions');
-  const playButton = el('button', 'env-play', 'Reproducir tiempo');
+  const playButton = el('button', 'env-play', tr('Reproducir tiempo'));
   playButton.type = 'button';
-  const stormButton = el('button', 'env-storm', 'Simular tormenta');
+  const stormButton = el('button', 'env-storm', tr('Simular tormenta'));
   stormButton.type = 'button';
   actions.append(playButton, stormButton);
   const status = el('div', 'env-note');
@@ -89,7 +90,7 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
   panel.append(
     actions,
     status,
-    el('div', 'env-note', 'Viento: ningún modelo del proyecto lo calcula todavía. Temperatura: modelo de diseño (M17), sin ajustar con datos de MEDA.'),
+    el('div', 'env-note', tr('Viento: ningún modelo del proyecto lo calcula todavía. Temperatura: modelo de diseño (M17), sin ajustar con datos de MEDA.')),
   );
   container.append(shell.root);
 
@@ -119,12 +120,12 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
       input.value = String(env[key]);
       value.textContent = format(env[key]);
     }
-    values.sun.textContent = `altura ${sun.elevation_deg.toFixed(1)}°, acimut ${sun.azimuth_deg.toFixed(0)}°`;
+    values.sun.textContent = tr`altura ${sun.elevation_deg.toFixed(1)}°, acimut ${sun.azimuth_deg.toFixed(0)}°`;
     values.phase.textContent = PHASE_LABELS[sun.phase];
     values.irradiance.textContent = `${sun.surface_w_m2.toFixed(0)} W/m²`;
-    values.distance.textContent = `${sun.sun_distance_au.toFixed(3)} UA`;
+    values.distance.textContent = tr`${sun.sun_distance_au.toFixed(3)} UA`;
     values.temperature.textContent = `${weather.ambient_temp_c.toFixed(1)} °C`;
-    values.wind.textContent = 'sin dato';
+    values.wind.textContent = tr('sin dato');
 
     // Luz, cielo y bruma de la escena: dirección del Sol de M16 y polvo de M17.
     world.setEnvironment({
@@ -145,7 +146,7 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
     env.dust_tau = dust_tau;
     env.storm = storm;
     stormButton.classList.toggle('is-active', storm);
-    stormButton.textContent = storm ? 'Terminar tormenta' : 'Simular tormenta';
+    stormButton.textContent = storm ? tr('Terminar tormenta') : tr('Simular tormenta');
     update();
   });
   // En la superficie el tiempo corre solo: el modo a pie avisa de cuántos segundos
@@ -156,14 +157,14 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
   playButton.addEventListener('click', () => {
     playing = !playing;
     playButton.classList.toggle('is-active', playing);
-    playButton.textContent = playing ? 'Pausar tiempo' : 'Reproducir tiempo';
+    playButton.textContent = playing ? tr('Pausar tiempo') : tr('Reproducir tiempo');
   });
 
   stormButton.addEventListener('click', () => {
     env.storm = !env.storm;
     env.dust_tau = env.storm ? STORM_DUST_TAU : NOMINAL_DUST_TAU;
     stormButton.classList.toggle('is-active', env.storm);
-    stormButton.textContent = env.storm ? 'Terminar tormenta' : 'Simular tormenta';
+    stormButton.textContent = env.storm ? tr('Terminar tormenta') : tr('Simular tormenta');
     update();
     if (!env.storm) {
       status.textContent = '';
@@ -175,18 +176,18 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
     const from_m = routePanel.getStart() ?? state.astronaut_position_m;
     const shelter = from_m ? nearestShelter(points, from_m) : null;
     if (!shelter) {
-      status.textContent = 'Tormenta activa. Esta zona no tiene refugio: coloca una base en el panel Misión.';
+      status.textContent = tr('Tormenta activa. Esta zona no tiene refugio: coloca una base en el panel Misión.');
       return;
     }
     if (Math.hypot(shelter.position_m[0] - from_m[0], shelter.position_m[1] - from_m[1]) < 1) {
       status.textContent =
-        `Tormenta activa. El astronauta ya está en ${shelter.name}. Para trazar una evacuación, elige un inicio en el panel Ruta.`;
+        tr`Tormenta activa. El astronauta ya está en ${shelter.name}. Para trazar una evacuación, elige un inicio en el panel Ruta.`;
       return;
     }
     routePanel.setAlgorithm('astar');
     routePanel.setPoints([...from_m], [...shelter.position_m]);
     routePanel.compute();
-    status.textContent = `Tormenta activa. Ruta de evacuación a ${shelter.name} trazada con A* O2.`;
+    status.textContent = tr`Tormenta activa. Ruta de evacuación a ${shelter.name} trazada con A* O2.`;
   });
 
   update();

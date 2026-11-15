@@ -1,5 +1,6 @@
 // Perfil de elevación en canvas. Los tramos de más de 25° se pintan en rojo.
 import { MAX_SAFE_SLOPE_DEG } from '../../models/terrain/slope.js';
+import { tr } from '../../shared/i18n.js';
 
 const COLOR_SAFE = '#4cc9f0';
 const COLOR_UNSAFE = '#e5484d';
@@ -20,7 +21,7 @@ export function drawElevationProfile(canvas, samples) {
 
   if (!samples || samples.length < 2) {
     ctx.textAlign = 'center';
-    ctx.fillText('Sin ruta', width_px / 2, height_px / 2);
+    ctx.fillText(tr('Sin ruta'), width_px / 2, height_px / 2);
     return 0;
   }
 

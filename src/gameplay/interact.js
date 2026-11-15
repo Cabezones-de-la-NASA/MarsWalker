@@ -3,6 +3,7 @@
 import { rocksNear, BLOCKING_RADIUS_M } from '../world/rock_field.js';
 import { sampleSlope_deg } from '../models/terrain/slope.js';
 import { MARS_FACTS } from '../shared/mars_facts.js';
+import { tr } from '../shared/i18n.js';
 
 // [diseño] Distancias de interacción, en metros.
 const POI_REACH_M = 12;
@@ -11,7 +12,7 @@ const CAPSULE_REACH_M = 5.5;
 // Datos (con fuente) que vienen a cuento junto a la cápsula: atmósfera y gravedad.
 const CAPSULE_FACTS = MARS_FACTS.filter((fact) => /atmósfera|gravedad en la superficie/.test(fact.text));
 
-const POI_KIND = { shelter: 'Refugio', sampling: 'Punto de muestreo', hazard: 'Zona de peligro' };
+const POI_KIND = { shelter: tr('Refugio'), sampling: tr('Punto de muestreo'), hazard: tr('Zona de peligro') };
 
 /**
  * createInteraction({ dem, getPoints, companion, getCapsule }) ->
@@ -64,7 +65,7 @@ export function createInteraction({ dem, getPoints, companion, getCapsule = () =
       const capsule = getCapsule();
       if (!capsule) return null;
       const distance_m = Math.hypot(capsule.x_m - x_m, capsule.z_m - z_m);
-      return distance_m <= CAPSULE_REACH_M ? { type: 'capsule', distance_m, prompt: 'Inspeccionar la cápsula' } : null;
+      return distance_m <= CAPSULE_REACH_M ? { type: 'capsule', distance_m, prompt: tr('Inspeccionar la cápsula') } : null;
     },
     nearest(x_m, z_m) {
       let best = null;
@@ -74,7 +75,7 @@ export function createInteraction({ dem, getPoints, companion, getCapsule = () =
           const canSample = poi.type === 'sampling' && !collected.has(poi.id);
           best = {
             type: 'poi', poi, distance_m,
-            prompt: canSample ? `Recoger muestra en ${poi.name}` : `Inspeccionar ${poi.name}`,
+            prompt: canSample ? tr`Recoger muestra en ${poi.name}` : tr`Inspeccionar ${poi.name}`,
           };
         }
       }
@@ -82,30 +83,30 @@ export function createInteraction({ dem, getPoints, companion, getCapsule = () =
       if (companion?.canTalk(x_m, z_m)) {
         const position = companion.position();
         const distance_m = Math.hypot(position.x_m - x_m, position.z_m - z_m);
-        if (!best || distance_m < best.distance_m) best = { type: 'rover', distance_m, prompt: 'Pedirle un dato al rover' };
+        if (!best || distance_m < best.distance_m) best = { type: 'rover', distance_m, prompt: tr('Pedirle un dato al rover') };
       }
       const capsule = getCapsule();
       if (capsule) {
         const distance_m = Math.hypot(capsule.x_m - x_m, capsule.z_m - z_m);
         if (distance_m <= CAPSULE_REACH_M && (!best || distance_m < best.distance_m)) {
-          best = { type: 'capsule', distance_m, prompt: 'Inspeccionar la cápsula' };
+          best = { type: 'capsule', distance_m, prompt: tr('Inspeccionar la cápsula') };
         }
       }
       if (best) return best;
       const rock = rocksNear(dem, x_m, z_m, ROCK_REACH_M).find((r) => r.radius_m >= BLOCKING_RADIUS_M);
-      return rock ? { type: 'rock', rock, distance_m: rock.distance_m, prompt: 'Inspeccionar roca' } : null;
+      return rock ? { type: 'rock', rock, distance_m: rock.distance_m, prompt: tr('Inspeccionar roca') } : null;
     },
     use(target) {
       if (target.type === 'capsule') {
         const fact = CAPSULE_FACTS[capsuleFact % CAPSULE_FACTS.length];
         capsuleFact += 1;
         return {
-          kind: 'Cápsula de descenso',
-          title: 'Así llegaste hasta aquí',
+          kind: tr('Cápsula de descenso'),
+          title: tr('Así llegaste hasta aquí'),
           lines: [
             fact.text,
-            'Tu bajada lenta en paracaídas es una licencia del juego: la cápsula y su descenso no reproducen una misión real.',
-            `Fuente del dato: ${fact.source}`,
+            tr('Tu bajada lenta en paracaídas es una licencia del juego: la cápsula y su descenso no reproducen una misión real.'),
+            tr`Fuente del dato: ${fact.source}`,
           ],
         };
       }
@@ -115,27 +116,27 @@ export function createInteraction({ dem, getPoints, companion, getCapsule = () =
         const lines = [poi.description];
         if (poi.type === 'sampling') {
           if (collected.has(poi.id)) {
-            lines.push('Muestra ya recogida en este punto.');
+            lines.push(tr('Muestra ya recogida en este punto.'));
           } else {
             collected.add(poi.id);
-            lines.push('Muestra recogida.');
+            lines.push(tr('Muestra recogida.'));
           }
         }
-        lines.push(`Fuente: ${poi.source}`);
+        lines.push(tr`Fuente: ${poi.source}`);
         // La misma imagen de referencia que muestra el mapa, con su crédito.
         const image = poi.image_src
-          ? { src: poi.image_src, credit: poi.image_credit ?? null, alt: `Imagen de referencia de ${poi.name}` }
+          ? { src: poi.image_src, credit: poi.image_credit ?? null, alt: tr`Imagen de referencia de ${poi.name}` }
           : null;
-        return { kind: POI_KIND[poi.type] ?? 'Punto de interés', title: poi.name, lines, image };
+        return { kind: POI_KIND[poi.type] ?? tr('Punto de interés'), title: poi.name, lines, image };
       }
       const { rock } = target;
       const slope_deg = sampleSlope_deg(dem, rock.x_m, rock.z_m);
       return {
-        kind: 'Roca',
-        title: `Bloque de ${(rock.radius_m * 2).toFixed(1)} m`,
+        kind: tr('Roca'),
+        title: tr`Bloque de ${(rock.radius_m * 2).toFixed(1)} m`,
         lines: [
-          `El terreno aquí tiene ${slope_deg.toFixed(1)}° de pendiente según el DEM.`,
-          'Esta roca es decorativa: su posición y tamaño se generan para dar escala al paisaje y no provienen de datos de la superficie.',
+          tr`El terreno aquí tiene ${slope_deg.toFixed(1)}° de pendiente según el DEM.`,
+          tr('Esta roca es decorativa: su posición y tamaño se generan para dar escala al paisaje y no provienen de datos de la superficie.'),
         ],
       };
     },

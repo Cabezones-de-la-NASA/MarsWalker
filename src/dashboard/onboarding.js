@@ -3,6 +3,7 @@
 // Cada paso se completa solo al hacer lo que pide; también se puede saltar.
 import './onboarding.css';
 import { on } from '../shared/state.js';
+import { tr } from '../shared/i18n.js';
 
 // v2: el tutorial cambió (indicador de aterrizaje, primer contacto); se enseña de nuevo.
 const STORAGE_KEY = 'marswalk.onboarded.v4';
@@ -17,23 +18,23 @@ const MIN_READ_MS = 2500;
 const STEPS = [
   {
     title: 'Bienvenido a Marte',
-    text: 'Este es el cráter Jezero. Arrastra para girar el mapa y usa la rueda para acercarte.',
+    text: tr('Este es el cráter Jezero. Arrastra para girar el mapa y usa la rueda para acercarte.'),
     done: 'orbit',
   },
   {
-    title: 'Llegar pronto, y llegar vivo',
-    text: 'Aquí el oxígeno se acaba y las cuestas agotan. Haz clic en dos puntos del mapa y te trazamos el camino. Puedes pedirlo de tres maneras:',
+    title: tr('Llegar pronto, y llegar vivo'),
+    text: tr('Aquí el oxígeno se acaba y las cuestas agotan. Haz clic en dos puntos del mapa y te trazamos el camino. Puedes pedirlo de tres maneras:'),
     items: [
-      ['Ahorra oxígeno', 'el camino que menos aire gasta.'],
-      ['Cuida al astronauta', 'evita lo que más cansa o pone en riesgo.'],
-      ['Corredor', 'prueba muchos caminos parecidos y se queda con el mejor (idea tomada de un algoritmo cuántico).'],
+      [tr('Ahorra oxígeno'), tr('el camino que menos aire gasta.')],
+      [tr('Cuida al astronauta'), tr('evita lo que más cansa o pone en riesgo.')],
+      [tr('Corredor'), tr('prueba muchos caminos parecidos y se queda con el mejor (idea tomada de un algoritmo cuántico).')],
     ],
     target: '.route-cards',
     done: 'route:computed',
   },
   {
     title: 'Ahora, a caminarlo',
-    text: 'Arrastra el indicador naranja a donde quieras aterrizar y pulsa el botón grande. Un rover te acompañará.',
+    text: tr('Arrastra el indicador naranja a donde quieras aterrizar y pulsa el botón grande. Un rover te acompañará.'),
     target: '.explore-button',
   },
 ];
@@ -69,7 +70,7 @@ export function createOnboarding(ui, { orbitControls }) {
   const card = el('aside', 'panel onboarding');
   card.hidden = true;
   card.setAttribute('role', 'dialog');
-  card.setAttribute('aria-label', 'Primeros pasos');
+  card.setAttribute('aria-label', tr('Primeros pasos'));
   const number = el('div', 'onboarding-number');
   const count = el('div', 'onboarding-count');
   const title = el('h2', 'onboarding-title');
@@ -77,9 +78,9 @@ export function createOnboarding(ui, { orbitControls }) {
   const list = el('ul', 'onboarding-list');
   const dots = el('div', 'onboarding-dots');
   const actions = el('div', 'onboarding-actions');
-  const skip = el('button', 'onboarding-skip', 'Saltar');
+  const skip = el('button', 'onboarding-skip', tr('Saltar'));
   skip.type = 'button';
-  const next = el('button', 'onboarding-next btn-primary', 'Siguiente');
+  const next = el('button', 'onboarding-next btn-primary', tr('Siguiente'));
   next.type = 'button';
   actions.append(skip, next);
   const body = el('div', 'onboarding-body');
@@ -102,7 +103,7 @@ export function createOnboarding(ui, { orbitControls }) {
     shownAt_ms = performance.now();
     turned_rad = 0;
     const current = STEPS[index];
-    count.textContent = `Primeros pasos · ${index + 1} de ${STEPS.length}`;
+    count.textContent = tr`Primeros pasos · ${index + 1} de ${STEPS.length}`;
     number.textContent = String(index + 1);
     title.textContent = current.title;
     text.textContent = current.text;
@@ -117,7 +118,7 @@ export function createOnboarding(ui, { orbitControls }) {
     const host = current.target ? ui.querySelector(current.target)?.closest('details') : null;
     if (host) host.open = true;
     dots.replaceChildren(...STEPS.map((_, i) => el('i', i === index ? 'is-on' : i < index ? 'is-done' : null)));
-    next.textContent = index === STEPS.length - 1 ? 'Entendido' : 'Siguiente';
+    next.textContent = index === STEPS.length - 1 ? tr('Entendido') : tr('Siguiente');
     highlight(current.target);
     card.hidden = false;
     // Reinicia la animación de entrada en cada paso.

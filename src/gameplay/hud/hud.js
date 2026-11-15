@@ -2,29 +2,30 @@
 // (fisiología M5 a M12, terreno M1, entorno M16 y M17). Lo que ningún modelo calcula
 // aparece como "sin dato".
 import './hud.css';
+import { tr, getLang, setLang, LANGUAGES } from '../../shared/i18n.js';
 
 const STATUS = {
-  nominal: ['Nominal', 'is-ok'],
-  low_o2: ['Oxígeno bajo', 'is-warn'],
-  elevated: ['Esfuerzo elevado', 'is-warn'],
-  at_risk_over_sustainable: ['Sobre el ritmo sostenible', 'is-warn'],
-  critical: ['Crítico', 'is-danger'],
+  nominal: [tr('Nominal'), 'is-ok'],
+  low_o2: [tr('Oxígeno bajo'), 'is-warn'],
+  elevated: [tr('Esfuerzo elevado'), 'is-warn'],
+  at_risk_over_sustainable: [tr('Sobre el ritmo sostenible'), 'is-warn'],
+  critical: [tr('Crítico'), 'is-danger'],
 };
 
 // Aviso de cada bandera de member.js.
 const ALERTS = {
-  o2_depleted: 'Oxígeno agotado',
-  o2_low: 'Oxígeno por debajo del 10 %',
-  over_sustainable: 'Gasto por encima del ritmo sostenible',
-  hr_above_85pct: 'Pulso por encima del 85 % del máximo',
-  thermal_critical: 'Temperatura corporal crítica',
-  thermal_warning: 'Temperatura corporal alta',
-  dehydration_critical: 'Deshidratación crítica',
-  dehydration_warning: 'Deshidratación',
-  career_dose_exceeded: 'Dosis de carrera superada',
+  o2_depleted: tr('Oxígeno agotado'),
+  o2_low: tr('Oxígeno por debajo del 10 %'),
+  over_sustainable: tr('Gasto por encima del ritmo sostenible'),
+  hr_above_85pct: tr('Pulso por encima del 85 % del máximo'),
+  thermal_critical: tr('Temperatura corporal crítica'),
+  thermal_warning: tr('Temperatura corporal alta'),
+  dehydration_critical: tr('Deshidratación crítica'),
+  dehydration_warning: tr('Deshidratación'),
+  career_dose_exceeded: tr('Dosis de carrera superada'),
 };
 
-const PHASES = { day: 'día', twilight: 'crepúsculo', night: 'noche' };
+const PHASES = { day: tr('día'), twilight: tr('crepúsculo'), night: tr('noche') };
 const COMPASS_PX_PER_DEG = 3;
 // La marca del objetivo no se sale de la brújula: más allá de esto se queda en el borde.
 const COMPASS_EDGE_PX = 190;
@@ -71,7 +72,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
 
   // ---- Constantes vitales
   const vitals = el('section', 'hud-block hud-vitals');
-  vitals.append(el('h2', 'hud-title', 'Soporte vital'));
+  vitals.append(el('h2', 'hud-title', tr('Soporte vital')));
   const o2 = el('div', 'hud-o2');
   const o2Big = el('div', 'hud-o2-big');
   const o2Value = el('span', null, '—');
@@ -82,37 +83,37 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   o2.append(o2Big, o2Bar);
   vitals.append(o2);
   const fields = {
-    autonomy: row(vitals, 'Autonomía'),
+    autonomy: row(vitals, tr('Autonomía')),
   };
   // Lo que sigue es telemetría para curiosos: se despliega con Tab.
   const vitalsMore = el('div', 'hud-more');
   vitals.append(vitalsMore);
   Object.assign(fields, {
-    heart: row(vitalsMore, 'Pulso'),
-    temp: row(vitalsMore, 'Temp. corporal'),
-    hydration: row(vitalsMore, 'Deshidratación'),
-    radiation: row(vitalsMore, 'Radiación'),
-    metabolic: row(vitalsMore, 'Gasto'),
+    heart: row(vitalsMore, tr('Pulso')),
+    temp: row(vitalsMore, tr('Temp. corporal')),
+    hydration: row(vitalsMore, tr('Deshidratación')),
+    radiation: row(vitalsMore, tr('Radiación')),
+    metabolic: row(vitalsMore, tr('Gasto')),
   });
   const vitalsNote = el('div', 'hud-note');
   vitalsMore.append(vitalsNote);
   const moreHint = el('div', 'hud-more-hint');
-  moreHint.append(el('kbd', null, 'Tab'), 'telemetría completa');
+  moreHint.append(el('kbd', null, tr('Tab')), tr('telemetría completa'));
   vitals.append(moreHint);
 
   // ---- Navegación (telemetría: solo con Tab)
   const nav = el('section', 'hud-block hud-nav hud-detail-only');
-  nav.append(el('h2', 'hud-title', 'Navegación'));
+  nav.append(el('h2', 'hud-title', tr('Navegación')));
   Object.assign(fields, {
-    coords: row(nav, 'Posición'),
-    elevation: row(nav, 'Elevación'),
-    slope: row(nav, 'Pendiente'),
-    speed: row(nav, 'Velocidad'),
-    distance: row(nav, 'Recorrido'),
-    ambient: row(nav, 'Ambiente'),
-    wind: row(nav, 'Viento'),
+    coords: row(nav, tr('Posición')),
+    elevation: row(nav, tr('Elevación')),
+    slope: row(nav, tr('Pendiente')),
+    speed: row(nav, tr('Velocidad')),
+    distance: row(nav, tr('Recorrido')),
+    ambient: row(nav, tr('Ambiente')),
+    wind: row(nav, tr('Viento')),
   });
-  fields.wind.value.textContent = 'sin dato';
+  fields.wind.value.textContent = tr('sin dato');
 
   // ---- Brújula
   const compass = el('div', 'hud-compass');
@@ -146,24 +147,24 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   const vehicleBadge = el('div', 'hud-vehicle');
   vehicleBadge.hidden = true;
   const vehicleSpeed = el('strong', null, '0');
-  vehicleBadge.append(el('span', 'hud-vehicle-title', 'En camioneta'), vehicleSpeed, el('small', null, 'km/h'),
-    el('span', 'hud-vehicle-note', 'Estos kilómetros no cuentan como caminata'));
+  vehicleBadge.append(el('span', 'hud-vehicle-title', tr('En camioneta')), vehicleSpeed, el('small', null, tr('km/h')),
+    el('span', 'hud-vehicle-note', tr('Estos kilómetros no cuentan como caminata')));
 
   // ---- Misión
   const mission = el('section', 'hud-block hud-mission');
-  mission.append(el('h2', 'hud-title', 'Estado de misión'));
+  mission.append(el('h2', 'hud-title', tr('Estado de misión')));
   const status = el('div', 'hud-status', '—');
   const alerts = el('ul', 'hud-alerts');
   const objective = el('div', 'hud-objective');
   const objectiveName = el('span', 'hud-objective-name', '—');
   const objectiveDistance = el('strong', null, '');
-  objective.append(el('small', null, 'Objetivo más cercano'), objectiveName, objectiveDistance);
+  objective.append(el('small', null, tr('Objetivo más cercano')), objectiveName, objectiveDistance);
   mission.append(objective);
-  const objectives = row(mission, 'Objetivos');
+  const objectives = row(mission, tr('Objetivos'));
   const walked = row(mission, 'A pie');
-  const driven = row(mission, 'En camioneta');
-  const samples = row(mission, 'Muestras');
-  const elapsed = row(mission, 'Tiempo de EVA');
+  const driven = row(mission, tr('En camioneta'));
+  const samples = row(mission, tr('Muestras'));
+  const elapsed = row(mission, tr('Tiempo de EVA'));
   mission.append(status, alerts);
 
   // ---- Ayuda
@@ -178,23 +179,23 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
     line.append(text);
     help.append(line);
   };
-  helpLine(['W', 'A', 'S', 'D'], 'moverse');
-  helpLine(['Shift'], 'correr');
-  helpLine(['Space'], 'saltar');
-  helpLine(['E'], 'interactuar');
-  helpLine(['R'], 'mantén para hablarle al rover');
-  helpLine(['Enter'], 'escribirle al rover');
-  helpLine(['F'], 'subir o bajar de la camioneta');
-  helpLine(['G'], 'traer la camioneta');
-  helpLine(['T'], 'velocidad del tiempo');
-  helpLine(['M'], 'sonido sí o no');
-  helpLine(['V'], 'cambiar vista');
-  helpLine(['Esc'], 'menú');
+  helpLine(['W', 'A', 'S', 'D'], tr('moverse'));
+  helpLine(['Shift'], tr('correr'));
+  helpLine(['Space'], tr('saltar'));
+  helpLine(['E'], tr('interactuar'));
+  helpLine(['R'], tr('mantén para hablarle al rover'));
+  helpLine(['Enter'], tr('escribirle al rover'));
+  helpLine(['F'], tr('subir o bajar de la camioneta'));
+  helpLine(['G'], tr('traer la camioneta'));
+  helpLine(['T'], tr('velocidad del tiempo'));
+  helpLine(['M'], tr('sonido sí o no'));
+  helpLine(['V'], tr('cambiar vista'));
+  helpLine(['Esc'], tr('menú'));
   const fps = el('div', 'hud-fps');
   help.append(fps);
   // Con la lista plegada queda solo esta pista.
   const helpHint = el('div', 'hud-help-hint');
-  helpHint.append(el('kbd', null, 'R'), 'mantén para hablarle al rover', el('br'), el('kbd', null, 'Tab'), 'controles y telemetría');
+  helpHint.append(el('kbd', null, 'R'), tr('mantén para hablarle al rover'), el('br'), el('kbd', null, tr('Tab')), tr('controles y telemetría'));
   help.append(helpHint);
 
   // ---- Aterrizaje en paracaídas
@@ -208,7 +209,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   const landingSpeed = el('div', 'hud-landing-speed');
   const landingTiers = el('div', 'hud-tiers');
   let landingSignature = '';
-  landingBox.append(el('span', 'hud-landing-title', 'Aterrizaje en paracaídas'), landingAltitude, landingInfo, landingBar, landingSpeed, landingTiers);
+  landingBox.append(el('span', 'hud-landing-title', tr('Aterrizaje en paracaídas')), landingAltitude, landingInfo, landingBar, landingSpeed, landingTiers);
 
   // ---- Misión guiada: qué hacer ahora, cuenta atrás de la tormenta y barra al recoger
   const sortieBox = el('section', 'hud-sortie');
@@ -232,7 +233,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   function addBubble(who) {
     const root = el('div', who === 'Tú' ? 'hud-bubble is-user' : 'hud-bubble');
     const text = el('p');
-    root.append(el('span', 'hud-bubble-who', who), text);
+    root.append(el('span', 'hud-bubble-who', tr(who)), text);
     feed.append(root);
     while (feed.children.length > FEED_MAX) feed.firstChild.remove();
     return {
@@ -261,22 +262,22 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   menu.hidden = true;
   const box = el('div', 'hud-menu-box');
   box.setAttribute('role', 'dialog');
-  box.setAttribute('aria-label', 'Menú');
-  box.append(el('h2', null, 'En pausa'));
+  box.setAttribute('aria-label', tr('Menú'));
+  box.append(el('h2', null, tr('En pausa')));
   const actions = el('div', 'hud-menu-actions');
-  const resume = el('button', 'btn-primary hud-resume', 'Continuar');
+  const resume = el('button', 'btn-primary hud-resume', tr('Continuar'));
   resume.type = 'button';
   resume.addEventListener('click', () => onResume());
-  const exit = el('button', 'hud-exit', 'Volver al mapa');
+  const exit = el('button', 'hud-exit', tr('Volver al mapa'));
   exit.type = 'button';
   exit.addEventListener('click', () => onExit());
   actions.append(resume, exit);
   box.append(actions);
 
-  const scaleLabel = el('label', null, 'Velocidad del tiempo');
+  const scaleLabel = el('label', null, tr('Velocidad del tiempo'));
   const scaleSelect = el('select', 'hud-time-scale');
   for (const scale of timeScales) {
-    const option = el('option', null, scale === 0 ? 'En pausa' : scale === 1 ? 'Tiempo real' : `${scale}× más rápido`);
+    const option = el('option', null, scale === 0 ? tr('En pausa') : scale === 1 ? tr('Tiempo real') : tr`${scale}× más rápido`);
     option.value = String(scale);
     scaleSelect.append(option);
   }
@@ -284,11 +285,11 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   scaleLabel.append(scaleSelect);
   box.append(
     scaleLabel,
-    el('div', 'hud-note', 'La velocidad del tiempo mueve el Sol y el clima de Marte. El oxígeno y el resto de la fisiología van siempre en tiempo real. También se cambia con la tecla T. Con "Jugar con realismo" (Modo avanzado, en el mapa) el tiempo queda en 1×.'),
+    el('div', 'hud-note', tr('La velocidad del tiempo mueve el Sol y el clima de Marte. El oxígeno y el resto de la fisiología van siempre en tiempo real. También se cambia con la tecla T. Con "Jugar con realismo" (Modo avanzado, en el mapa) el tiempo queda en 1×.')),
   );
   // Volúmenes: ambiente, respiración y efectos.
   const volumeBox = el('div', 'hud-volumes');
-  for (const [channel, label] of [['ambience', 'Ambiente'], ['breath', 'Respiración'], ['effects', 'Efectos y avisos']]) {
+  for (const [channel, label] of [['ambience', tr('Ambiente')], ['breath', tr('Respiración')], ['effects', 'Efectos y avisos']]) {
     const row = el('label', 'hud-volume', label);
     const slider = el('input');
     slider.type = 'range';
@@ -304,14 +305,34 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
     row.append(slider, value);
     volumeBox.append(row);
   }
-  box.append(el('h3', 'hud-menu-heading', 'Sonido'), volumeBox);
+  box.append(el('h3', 'hud-menu-heading', tr('Sonido')), volumeBox);
+  // Idioma: recarga la página y vuelve al mapa.
+  const langLabel = el('label', null, tr('Idioma'));
+  const langSelect = el('select', 'hud-lang');
+  for (const [code, name] of LANGUAGES) {
+    const option = el('option', null, name);
+    option.value = code;
+    langSelect.append(option);
+  }
+  langSelect.value = getLang();
+  langSelect.addEventListener('change', () => {
+    setLang(langSelect.value);
+    try {
+      window.sessionStorage.setItem('marswalk_skip_intro', '1');
+    } catch {
+      // Ignorar si sessionStorage está restringido.
+    }
+    window.location.reload();
+  });
+  langLabel.append(langSelect);
+  box.append(langLabel);
   const controls = el('dl', 'hud-controls');
   for (const [keys, text] of [
-    ['W A S D', 'Moverse'], ['Ratón', 'Mirar'], ['Shift', 'Correr'], ['Space', 'Saltar'],
-    ['E', 'Interactuar'], ['R (mantener)', 'Hablarle al rover'], ['Enter', 'Escribirle al rover'], ['F', 'Subir o bajar de la camioneta'],
-    ['G', 'Traer la camioneta a tu lado'],
-    ['T', 'Velocidad del tiempo'], ['Tab', 'Telemetría completa'], ['M', 'Sonido sí o no'],
-    ['V', 'Primera o tercera persona'], ['Esc', 'Este menú'],
+    ['W A S D', tr('Moverse')], [tr('Ratón'), tr('Mirar')], ['Shift', tr('Correr')], ['Space', tr('Saltar')],
+    ['E', tr('Interactuar')], ['R (mantener)', tr('Hablarle al rover')], ['Enter', tr('Escribirle al rover')], ['F', tr('Subir o bajar de la camioneta')],
+    ['G', tr('Traer la camioneta a tu lado')],
+    ['T', tr('Velocidad del tiempo')], ['Tab', tr('Telemetría completa')], ['M', tr('Sonido sí o no')],
+    ['V', tr('Primera o tercera persona')], ['Esc', tr('Este menú')],
   ]) {
     const dt = el('dt');
     dt.append(el('kbd', null, keys));
@@ -371,12 +392,12 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
     },
     setTimeScale(scale) {
       scaleSelect.value = String(scale);
-      clockScale.textContent = scale === 0 ? 'tiempo en pausa' : scale === 1 ? 'tiempo real' : `tiempo ${scale}×`;
+      clockScale.textContent = scale === 0 ? 'tiempo en pausa' : scale === 1 ? 'tiempo real' : tr`tiempo ${scale}×`;
       clock.classList.toggle('is-paused', scale === 0);
       const level = speedTiers.indexOf(scale);
       clockTiers.replaceChildren(...speedTiers.map((_, index) => el('i', index <= level ? 'is-on' : null)));
-      clockTiers.title = level >= 0 ? `Nivel ${level + 1} de ${speedTiers.length}` : '';
-      clockKey.title = level === speedTiers.length - 1 ? 'T vuelve a tiempo real' : 'T acelera el tiempo';
+      clockTiers.title = level >= 0 ? tr`Nivel ${level + 1} de ${speedTiers.length}` : '';
+      clockKey.title = level === speedTiers.length - 1 ? tr('T vuelve a tiempo real') : tr('T acelera el tiempo');
     },
     // Tab: muestra u oculta la telemetría completa.
     // target: { offset_deg (de -180 a 180 respecto a donde se mira), label } o null.
@@ -419,8 +440,8 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
       sortieStorm.hidden = sortie.countdown_s === null && !sortie.storm;
       sortieStorm.classList.toggle('is-here', sortie.storm);
       sortieStorm.textContent = sortie.storm
-        ? 'Tormenta de polvo encima'
-        : sortie.countdown_s !== null ? `Tormenta en ${Math.ceil(sortie.countdown_s)} s` : '';
+        ? tr('Tormenta de polvo encima')
+        : sortie.countdown_s !== null ? tr`Tormenta en ${Math.ceil(sortie.countdown_s)} s` : '';
     },
     // El rover dice algo: una burbuja a la derecha que se apaga sola.
     // who: quién habla ('Rover' o 'Tú'); note: línea pequeña opcional (la fuente del dato).
@@ -451,7 +472,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
       const field = el('input', 'hud-line');
       field.type = 'text';
       field.maxLength = 300;
-      field.placeholder = 'Escríbele al rover… (Enter envía, Esc cancela)';
+      field.placeholder = tr('Escríbele al rover… (Enter envía, Esc cancela)');
       field.autocomplete = 'off';
       const close = (callback, value) => {
         if (!line) return;
@@ -496,7 +517,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
       landingAltitude.textContent = `${fall.altitude_m.toFixed(0)} m`;
       const real_s = fall.remaining_s / fall.scale;
       const eta = real_s >= 60 ? `${Math.floor(real_s / 60)} min ${String(Math.round(real_s % 60)).padStart(2, '0')} s` : `${real_s.toFixed(0)} s`;
-      landingInfo.textContent = `sobre el suelo · bajando a ${fall.speed_ms.toFixed(1)} m/s · tocas suelo en ${eta}`;
+      landingInfo.textContent = tr`sobre el suelo · bajando a ${fall.speed_ms.toFixed(1)} m/s · tocas suelo en ${eta}`;
       landingFill.style.transform = `scaleX(${fall.progress})`;
       // Tecla y niveles: se ve cuál está puesto y si aún queda uno más rápido.
       const signature = `${fall.scale}|${(fall.scales ?? []).join(',')}`;
@@ -504,8 +525,8 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
         landingSignature = signature;
         const last = fall.scales?.[fall.scales.length - 1];
         landingSpeed.replaceChildren(
-          'Pulsa ', el('kbd', null, 'T'),
-          fall.scale === last ? 'para volver a la velocidad normal' : 'para acelerar la caída',
+          tr('Pulsa '), el('kbd', null, 'T'),
+          fall.scale === last ? 'para volver a la velocidad normal' : tr('para acelerar la caída'),
         );
         landingTiers.replaceChildren(...(fall.scales ?? []).map((scale) => {
           const tier = el('span', scale === fall.scale ? 'is-on' : scale < fall.scale ? 'is-done' : null, `${scale}×`);
@@ -518,7 +539,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
       hud.classList.toggle('is-realism', on);
       scaleSelect.disabled = on;
       clockKey.hidden = on;
-      if (on) clockScale.textContent = 'realismo · tiempo real';
+      if (on) clockScale.textContent = tr('realismo · tiempo real');
     },
     toggleDetails() {
       return hud.classList.toggle('is-detailed');
@@ -534,11 +555,11 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
         picture.addEventListener('error', () => picture.remove());
         picture.src = image.src;
         card.append(picture);
-        if (image.credit) card.append(el('div', 'hud-card-credit', `Crédito: ${image.credit}`));
+        if (image.credit) card.append(el('div', 'hud-card-credit', tr`Crédito: ${image.credit}`));
       }
       for (const line of lines) card.append(el('p', null, line));
       const closeHint = el('div', 'hud-card-close');
-      closeHint.append(el('kbd', null, 'E'), 'cerrar');
+      closeHint.append(el('kbd', null, 'E'), tr('cerrar'));
       card.append(closeHint);
       card.hidden = false;
     },
@@ -565,21 +586,21 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
       setLevel(o2Bar, flags.o2_depleted ? 'danger' : flags.o2_low ? 'warn' : null);
 
       fields.autonomy.value.textContent = formatDuration(v.autonomy_h);
-      fields.heart.value.textContent = `${v.heart_rate_bpm.toFixed(0)} lpm`;
+      fields.heart.value.textContent = tr`${v.heart_rate_bpm.toFixed(0)} lpm`;
       setLevel(fields.heart.line, flags.hr_above_85pct ? 'warn' : null);
       fields.temp.value.textContent = `${v.core_temp_c.toFixed(1)} °C`;
       setLevel(fields.temp.line, flags.thermal_critical ? 'danger' : flags.thermal_warning ? 'warn' : null);
       fields.hydration.value.textContent = `${v.dehydration_pct.toFixed(2)} %`;
       setLevel(fields.hydration.line, flags.dehydration_critical ? 'danger' : flags.dehydration_warning ? 'warn' : null);
-      fields.radiation.value.textContent = `${v.dose_usv.toFixed(2)} µSv`;
+      fields.radiation.value.textContent = tr`${v.dose_usv.toFixed(2)} µSv`;
       setLevel(fields.radiation.line, flags.career_dose_exceeded ? 'danger' : null);
       fields.metabolic.value.textContent = v.metabolic_w > 0 ? `${v.metabolic_w.toFixed(0)} W` : '—';
       setLevel(fields.metabolic.line, flags.over_sustainable ? 'warn' : null);
       vitalsNote.textContent = data.running
-        ? 'Al correr, el gasto es una extrapolación: el modelo M5 está medido caminando.'
+        ? tr('Al correr, el gasto es una extrapolación: el modelo M5 está medido caminando.')
         : data.vehicle?.driving
-          ? 'En la camioneta el gasto es el de estar quieto.'
-          : 'Radiación: solo rayos cósmicos de fondo; las tormentas solares no están modeladas.';
+          ? tr('En la camioneta el gasto es el de estar quieto.')
+          : tr('Radiación: solo rayos cósmicos de fondo; las tormentas solares no están modeladas.');
 
       const n = data.nav;
       fields.coords.value.textContent = `x ${n.x_m.toFixed(0)}  z ${n.z_m.toFixed(0)} m`;
@@ -600,17 +621,17 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
         const d = data.objective.distance_m;
         objectiveDistance.textContent = d >= 1000 ? `${(d / 1000).toFixed(1)} km` : `${d.toFixed(0)} m`;
       } else {
-        objectiveName.textContent = 'Todos visitados';
+        objectiveName.textContent = tr('Todos visitados');
         objectiveDistance.textContent = '';
       }
       if (Number.isFinite(data.ltst_h)) {
         const hours = Math.floor(data.ltst_h);
         const minutes = Math.floor((data.ltst_h - hours) * 60);
-        clockHour.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} hora local`;
+        clockHour.textContent = tr`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} hora local`;
       }
       fields.ambient.value.textContent = data.environment
         ? `${data.environment.ambient_temp_c.toFixed(0)} °C · ${PHASES[data.environment.phase]}`
-        : 'sin dato';
+        : tr('sin dato');
 
       strip.style.transform = `translateX(${-n.heading_deg * COMPASS_PX_PER_DEG}px)`;
       heading.textContent = `${String(Math.round(n.heading_deg) % 360).padStart(3, '0')}°`;
@@ -632,7 +653,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
       elapsed.value.textContent = formatDuration(data.elapsed_s / 3600);
 
       reticle.hidden = !data.firstPerson;
-      fps.textContent = `${data.fps.toFixed(0)} cuadros/s`;
+      fps.textContent = tr`${data.fps.toFixed(0)} cuadros/s`;
     },
   };
 }

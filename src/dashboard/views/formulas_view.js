@@ -3,8 +3,9 @@
 import { state } from '../../shared/state.js';
 import { defaultConfig } from '../../models/physiology/defaults.js';
 import { buildFormulaCards } from './formulas_data.js';
+import { tr } from '../../shared/i18n.js';
 
-const TAG_LABELS = { publicado: '[publicado]', 'diseño': '[diseño]', 'sin etiqueta': '[sin etiqueta]' };
+const TAG_LABELS = { publicado: tr('[publicado]'), 'diseño': tr('[diseño]'), 'sin etiqueta': tr('[sin etiqueta]') };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -19,16 +20,16 @@ export function createFormulasView() {
   const inner = el('div', 'view-inner');
   view.append(inner);
   inner.append(
-    el('h1', null, 'Fórmulas'),
-    el('p', null, 'Modelos M5 a M13 con los valores de la persona elegida, caminando a su ritmo sostenible. [publicado] es una cifra de una fuente citada; [diseño] es un supuesto del proyecto, no un dato científico; [sin etiqueta] es un valor que el documento del proyecto da sin decir de dónde sale.'),
+    el('h1', null, tr('Fórmulas')),
+    el('p', null, tr('Modelos M5 a M13 con los valores de la persona elegida, caminando a su ritmo sostenible. [publicado] es una cifra de una fuente citada; [diseño] es un supuesto del proyecto, no un dato científico; [sin etiqueta] es un valor que el documento del proyecto da sin decir de dónde sale.')),
   );
 
   const controls = el('div', 'formula-controls');
-  const memberLabel = el('label', null, 'Persona ');
+  const memberLabel = el('label', null, tr('Persona '));
   const memberSelect = el('select');
   memberSelect.className = 'formula-member';
   memberLabel.append(memberSelect);
-  const slopeLabel = el('label', null, 'Pendiente (°) ');
+  const slopeLabel = el('label', null, tr('Pendiente (°) '));
   const slopeInput = el('input');
   slopeInput.type = 'number';
   slopeInput.className = 'formula-slope';
@@ -45,7 +46,7 @@ export function createFormulasView() {
     const selected = Math.min(Number(memberSelect.value) || 0, state.crew.length - 1);
     memberSelect.replaceChildren();
     state.crew.forEach((member, i) => {
-      const option = el('option', null, member.name || `Tripulante ${i + 1}`);
+      const option = el('option', null, member.name || tr`Tripulante ${i + 1}`);
       option.value = String(i);
       memberSelect.append(option);
     });
@@ -60,9 +61,9 @@ export function createFormulasView() {
       box.append(
         el('h2', null, `${card.id} · ${card.title}`),
         el('div', 'formula-math', card.formula),
-        el('div', 'formula-source', `Con: ${card.substitution}`),
+        el('div', 'formula-source', tr`Con: ${card.substitution}`),
         el('div', 'formula-result', card.result),
-        el('div', 'formula-source', `Fuente: ${card.source}`),
+        el('div', 'formula-source', tr`Fuente: ${card.source}`),
       );
       const constants = el('ul', 'constant-list');
       for (const constant of card.constants) {
