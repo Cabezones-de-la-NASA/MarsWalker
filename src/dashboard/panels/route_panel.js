@@ -1,5 +1,6 @@
 // Panel Ruta: inicio y destino con clic en el mapa, cálculo, métricas, perfil y exportación.
 import './panels.css';
+import { createPanelShell } from './panel_shell.js';
 import { on } from '../../shared/state.js';
 import { buildElevationProfile } from '../../models/routing/profile.js';
 import { drawElevationProfile } from './elevation_profile.js';
@@ -39,8 +40,8 @@ function formatTime(time_s) {
 
 // deps: { dem, dataset, routeLine, getCrew }  (getCrew: tripulación actual, para la ruta por salud)
 export function createRoutePanel(container, { dem, dataset, routeLine, getCrew }) {
-  const panel = el('section', 'panel route-panel');
-  panel.append(el('h2', null, 'Ruta'));
+  const shell = createPanelShell('Ruta', 'route-panel');
+  const panel = shell.body;
 
   // --- Selector de algoritmo
   const algoRow = el('label', 'route-row');
@@ -87,7 +88,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew }
 
   // --- Acciones
   const actions = el('div', 'route-row');
-  const computeButton = el('button', 'route-compute', 'Calcular');
+  const computeButton = el('button', 'route-compute btn-primary', 'Calcular');
   computeButton.type = 'button';
   computeButton.disabled = true;
   const exportButton = el('button', 'route-export', 'Exportar');
@@ -121,7 +122,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew }
   const profile = el('canvas', 'route-profile');
   const profileNote = el('div', 'route-hint', 'Perfil de elevación. En rojo, tramos de más de 25°.');
   panel.append(profile, profileNote);
-  container.append(panel);
+  container.append(shell.root);
   drawElevationProfile(profile, null);
 
   // --- Worker
@@ -232,8 +233,9 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew }
   });
 
   return {
-    panel,
+    panel: shell.root,
     getRoute: () => route,
+    getGoal: () => points.goal,
     getStart: () => points.start,
     // Clásica contra salud entre el inicio y el destino actuales.
     // -> Promise<{ classic, health, comparison } | { failed: true, error }>

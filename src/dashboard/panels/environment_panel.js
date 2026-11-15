@@ -1,6 +1,7 @@
 // Panel Entorno: Sol, hora local, temperatura, viento y polvo (M16 y M17),
 // y el botón "Simular tormenta" que traza la evacuación al refugio más cercano con M4.
 import './panels.css';
+import { createPanelShell } from './panel_shell.js';
 import { state, emit } from '../../shared/state.js';
 import { createSimClock } from '../../shared/sim_clock.js';
 import { solarState, sunDirection, JEZERO_LAT_DEG } from '../../models/environment/solar.js';
@@ -25,10 +26,10 @@ function formatHour(ltst_h) {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
-// deps: { view, dataset, routePanel }
-export function createEnvironmentPanel(container, { view, dataset, routePanel }) {
-  const panel = el('section', 'panel environment-panel');
-  panel.append(el('h2', null, 'Entorno'));
+// deps: { world, dataset, routePanel }
+export function createEnvironmentPanel(container, { world, dataset, routePanel }) {
+  const shell = createPanelShell('Entorno', 'environment-panel');
+  const panel = shell.body;
 
   // --- Controles
   const env = { ls_deg: 0, ltst_h: 12, dust_tau: NOMINAL_DUST_TAU, storm: false };
@@ -88,7 +89,7 @@ export function createEnvironmentPanel(container, { view, dataset, routePanel })
     status,
     el('div', 'env-note', 'Viento: ningún modelo del proyecto lo calcula todavía. Temperatura: modelo de diseño (M17), sin ajustar con datos de MEDA.'),
   );
-  container.append(panel);
+  container.append(shell.root);
 
   // --- Reloj de simulación: el Sol se actualiza antes que el clima, y el clima antes que
   // quien lo consuma (la salud, cuando exista el modo a pie).
@@ -123,15 +124,18 @@ export function createEnvironmentPanel(container, { view, dataset, routePanel })
     values.temperature.textContent = `${weather.ambient_temp_c.toFixed(1)} °C`;
     values.wind.textContent = 'sin dato';
 
-    // Luz de la escena: dirección del Sol de M16; la intensidad sigue a la irradiancia.
-    const daylight = sun.surface_w_m2 / 500;
-    view.setSun(sunDirection(Math.max(sun.elevation_deg, 0), sun.azimuth_deg), daylight);
+    // Luz, cielo y bruma de la escena: dirección del Sol de M16 y polvo de M17.
+    world.setEnvironment({
+      sunDirection: sunDirection(sun.elevation_deg, sun.azimuth_deg),
+      sun,
+      weather: { dust_tau: env.dust_tau, storm: env.storm },
+    });
     state.environment = { ...env, sun, weather };
     emit('environment:change', state.environment);
   }
 
   let playing = false;
-  view.onFrame(() => {
+  world.onFrame(() => {
     if (playing) clock.tick();
   });
   playButton.addEventListener('click', () => {
@@ -171,5 +175,5 @@ export function createEnvironmentPanel(container, { view, dataset, routePanel })
   });
 
   update();
-  return { panel, getEnvironment: () => ({ ...env, sun, weather }) };
+  return { panel: shell.root, getEnvironment: () => ({ ...env, sun, weather }) };
 }

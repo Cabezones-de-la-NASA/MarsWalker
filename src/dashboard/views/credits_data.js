@@ -34,7 +34,7 @@ export const CREDIT_GROUPS = [
   {
     title: 'Repositorios de NASA (2.4)',
     items: [
-      { id: 'G1', name: 'NASA 3D Resources', url: 'https://github.com/nasa/NASA-3D-Resources', use: 'Modelos del rover Perseverance (NASA/JPL-Caltech) y del astronauta (NASA).' },
+      { id: 'G1', name: 'NASA 3D Resources', url: 'https://github.com/nasa/NASA-3D-Resources', use: 'Modelo del rover Perseverance (NASA/JPL-Caltech).' },
       { id: 'G2', name: 'NASA-AMMOS 3DTilesRendererJS', url: 'https://github.com/NASA-AMMOS/3DTilesRendererJS', use: 'Referencia para terreno grande. No está instalado.' },
       { id: 'G3', name: 'NASA-AMMOS MMGIS', url: 'https://github.com/NASA-AMMOS/MMGIS', use: 'Referencia de interfaz: capas, leyendas y perfil de elevación.' },
       { id: 'G4', name: 'NASA NOS3', url: 'https://github.com/nasa/nos3', use: 'Referencia de arquitectura de simulación con paso de tiempo.' },

@@ -8,7 +8,8 @@ import { sampleSlope_deg } from '../../models/terrain/slope.js';
 const DRAG_TOLERANCE_PX = 5;
 
 // markers: THREE.Object3D[] con userData.poi (opcional).
-export function createPicking({ camera, domElement, mesh, dem, markers = [] }) {
+// isEnabled: función que dice si el clic debe atenderse (falso en el modo a pie).
+export function createPicking({ camera, domElement, mesh, dem, markers = [], isEnabled = () => true }) {
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   let down = null;
@@ -21,7 +22,7 @@ export function createPicking({ camera, domElement, mesh, dem, markers = [] }) {
     if (!down) return;
     const moved_px = Math.hypot(event.clientX - down.x, event.clientY - down.y);
     down = null;
-    if (moved_px > DRAG_TOLERANCE_PX || event.button !== 0) return;
+    if (moved_px > DRAG_TOLERANCE_PX || event.button !== 0 || !isEnabled()) return;
 
     const rect = domElement.getBoundingClientRect();
     pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;

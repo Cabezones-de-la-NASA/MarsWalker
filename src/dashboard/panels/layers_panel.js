@@ -1,5 +1,6 @@
 // Panel de capas: casilla, opacidad y leyenda (unidad y rango) por capa.
 import './panels.css';
+import { createPanelShell } from './panel_shell.js';
 import { RISK_COLORS } from '../layers/layer_defs.js';
 
 function el(tag, className, text) {
@@ -36,8 +37,8 @@ function buildLegend(layer) {
 }
 
 export function createLayersPanel(container, compositor) {
-  const panel = el('section', 'panel layers-panel');
-  panel.append(el('h2', null, 'Capas'));
+  const shell = createPanelShell('Capas', 'layers-panel');
+  const panel = shell.body;
 
   for (const layer of compositor.getLayers()) {
     const item = el('div', 'layer-item');
@@ -81,6 +82,6 @@ export function createLayersPanel(container, compositor) {
     panel.append(item);
   }
 
-  container.append(panel);
-  return panel;
+  container.append(shell.root);
+  return shell.root;
 }

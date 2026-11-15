@@ -1,10 +1,7 @@
-// Dashboard: arma la vista orbital, las capas y sus paneles.
+// Dashboard: la vista orbital del mapa, sus capas, paneles y pestañas.
+// El mundo 3D (escena, cielo, terreno) llega ya creado desde main.js.
 import * as THREE from 'three';
-import { state, on } from '../shared/state.js';
-import { datasetIdFromUrl, loadDataset } from '../shared/dataset_loader.js';
-import { createDem } from '../models/terrain/dem.js';
-import { createScene } from './map/scene.js';
-import { createTerrainMesh } from './map/terrain_mesh.js';
+import { state, on, emit } from '../shared/state.js';
 import { createOrbitControls } from './map/orbit_controls.js';
 import { createPicking } from './map/picking.js';
 import { createPoiMarkers } from './map/poi_markers.js';
@@ -20,7 +17,7 @@ import { createTabs } from './views/tabs.js';
 import { createFormulasView } from './views/formulas_view.js';
 import { createCreditsView } from './views/credits_view.js';
 import { createPerseverance } from '../models3d/rover.js';
-import { createAstronaut } from '../models3d/astronaut.js';
+import { QUALITY_PROFILES, saveQuality } from '../world/quality.js';
 import './panels/panels.css';
 
 function el(tag, className, text) {
@@ -30,70 +27,81 @@ function el(tag, className, text) {
   return node;
 }
 
-export async function startDashboard(container) {
+// [diseño] El astronauta empieza a 6 m al este del rover, para que no se solapen.
+const ASTRONAUT_START_OFFSET_M = 6;
+
+/**
+ * startDashboard(container, { world, dem, dataset, terrain }) ->
+ *   setActive(bool)   muestra u oculta el dashboard (al bajar a la superficie se oculta)
+ *   y referencias para las pruebas de navegador.
+ */
+export async function startDashboard(container, { world, dem, dataset, terrain }) {
   const ui = el('div', 'dashboard-ui');
   container.append(ui);
+  const dockLeft = el('div', 'dock dock-left');
+  const dockRight = el('div', 'dock dock-right');
+  ui.append(dockLeft, dockRight);
 
-  const dataset_id = datasetIdFromUrl();
-  let dataset;
-  try {
-    dataset = await loadDataset(dataset_id);
-  } catch (error) {
-    ui.append(el('div', 'panel load-error', error.message));
-    throw error;
-  }
-  const dem = createDem(dataset.metadata, dataset.heights_m);
-
-  const view = createScene(container);
+  // Capas: el compositor pinta un canvas que es la textura del terreno.
   const compositor = await createCompositor(dem, dataset);
   const texture = new THREE.CanvasTexture(compositor.canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = view.renderer.capabilities.getMaxAnisotropy();
+  texture.anisotropy = Math.min(world.quality.anisotropy, world.renderer.capabilities.getMaxAnisotropy());
+  terrain.material.map = texture;
+  terrain.material.needsUpdate = true;
   compositor.onChange(() => {
     texture.needsUpdate = true;
   });
 
-  const mesh = createTerrainMesh(dem, texture);
-  view.scene.add(mesh);
-
-  const orbit = createOrbitControls(view.camera, view.renderer.domElement, dem);
-  view.onFrame(() => orbit.update());
+  const orbit = createOrbitControls(world.camera, world.renderer.domElement, dem);
+  let active = true;
+  world.onFrame(() => {
+    if (active) orbit.update();
+  });
 
   // Puntos de interés (poi.json es opcional).
   const points = dataset.poi && Array.isArray(dataset.poi.points) ? dataset.poi.points : [];
-  const { markers } = createPoiMarkers(view.scene, dem, points);
-  // Mientras no exista el modo a pie, el astronauta se coloca en el refugio.
+  const { markers, group: poiGroup } = createPoiMarkers(world.scene, dem, points);
   const shelter = points.find((poi) => poi.type === 'shelter');
-  state.astronaut_position_m = shelter ? [...shelter.position_m] : null;
+  // El astronauta empieza junto al refugio; sin refugio, en el centro del mapa.
+  state.astronaut_position_m = shelter
+    ? [shelter.position_m[0] + ASTRONAUT_START_OFFSET_M, shelter.position_m[1]]
+    : [0, 0];
 
-  // Modelos 3D a escala real: el rover sobre el refugio y el astronauta a su lado,
-  // los dos apoyados en el suelo con sampleElevation_m.
-  // [diseño] El astronauta se dibuja a 5 m al este del rover para que no se solapen.
-  const ASTRONAUT_OFFSET_M = 5;
+  // Rover a escala real sobre el refugio, apoyado en el suelo con sampleElevation_m.
   const models = {};
-  function placeOnGround(object, x_m, z_m) {
-    object.position.set(x_m, dem.sampleElevation_m(x_m, z_m), z_m);
-    view.scene.add(object);
-  }
   const modelsReady = shelter
-    ? Promise.all([
-        createPerseverance().then((rover) => {
-          placeOnGround(rover, shelter.position_m[0], shelter.position_m[1]);
+    ? createPerseverance()
+        .then((rover) => {
+          const [x_m, z_m] = shelter.position_m;
+          rover.position.set(x_m, dem.sampleElevation_m(x_m, z_m), z_m);
+          rover.traverse((node) => {
+            if (node.isMesh) node.castShadow = world.quality.shadows;
+          });
+          world.scene.add(rover);
           models.rover = rover;
-        }),
-        createAstronaut().then((astronaut) => {
-          placeOnGround(astronaut, shelter.position_m[0] + ASTRONAUT_OFFSET_M, shelter.position_m[1]);
-          models.astronaut = astronaut;
-        }),
-      ]).catch((error) => {
-        console.error('No se pudieron cargar los modelos 3D:', error);
-      })
+        })
+        .catch((error) => {
+          console.error('No se pudo cargar el modelo del rover:', error);
+        })
     : Promise.resolve();
 
-  createPicking({ camera: view.camera, domElement: view.renderer.domElement, mesh, dem, markers });
+  // El rover mide 3 m: desde la órbita no se ve y cuesta cientos de llamadas de dibujo,
+  // así que solo se dibuja con la cámara cerca. [diseño] Distancia de corte en metros.
+  const ROVER_DRAW_DISTANCE_M = 700;
+  world.onFrame(() => {
+    if (models.rover) {
+      models.rover.visible =
+        world.camera.position.distanceTo(models.rover.position) < ROVER_DRAW_DISTANCE_M;
+    }
+  });
 
-  ui.append(el('div', 'panel title-chip', `MarsWalk · ${dataset.metadata.label}`));
-  createLayersPanel(ui, compositor);
+  const picking = createPicking({
+    camera: world.camera, domElement: world.renderer.domElement, mesh: terrain.mesh, dem, markers,
+    isEnabled: () => active,
+  });
+
+  createLayersPanel(dockLeft, compositor);
 
   const readout = el('div', 'panel readout', 'Haz clic sobre el terreno');
   ui.append(readout);
@@ -103,28 +111,71 @@ export async function startDashboard(container) {
       `elevación ${elevation_m.toFixed(1)} m · pendiente ${slope_deg.toFixed(2)}°`;
   });
 
-  const routeLine = createRouteLine(view.scene, dem, view.renderer);
-  view.onFrame(() => routeLine.update(view.camera));
+  const routeLine = createRouteLine(world.scene, dem, world.renderer);
+  world.onFrame(() => routeLine.update(world.camera));
   state.crew = DEFAULT_CREW.map((member) => ({ ...member }));
-  const routePanel = createRoutePanel(ui, {
+  const popupHost = el('div');
+  dockRight.append(popupHost);
+  const routePanel = createRoutePanel(dockRight, {
     dem, dataset, routeLine, getCrew: () => state.crew.map((member) => ({ ...member })),
   });
-  const environmentPanel = createEnvironmentPanel(ui, { view, dataset, routePanel });
+  const environmentPanel = createEnvironmentPanel(dockLeft, { world, dataset, routePanel });
 
-  const popup = createPoiPopup(ui);
-  on('poi:click', (poi) => popup.show(poi, state.astronaut_position_m));
+  const popup = createPoiPopup(popupHost);
+  on('poi:click', (poi) => {
+    if (active) popup.show(poi, state.astronaut_position_m);
+  });
 
-  // Pestañas: el mapa y tres vistas a pantalla completa.
+  // Barra superior: pestañas, perfil gráfico y bajada a la superficie.
   const crewPanel = createCrewPanel({ routePanel });
   const formulasView = createFormulasView();
   const creditsView = createCreditsView();
-  const tabs = createTabs(ui, [
-    { id: 'map', label: 'Mapa' },
-    { id: 'crew', label: 'Tripulación', element: crewPanel.element, onShow: crewPanel.render },
-    { id: 'formulas', label: 'Fórmulas', element: formulasView.element, onShow: formulasView.render },
-    { id: 'credits', label: 'Créditos', element: creditsView.element },
-  ]);
+  const tabs = createTabs(
+    ui,
+    [
+      { id: 'map', label: 'Mapa' },
+      { id: 'crew', label: 'Tripulación', element: crewPanel.element, onShow: crewPanel.render },
+      { id: 'formulas', label: 'Fórmulas', element: formulasView.element, onShow: formulasView.render },
+      { id: 'credits', label: 'Créditos', element: creditsView.element },
+    ],
+    {
+      subtitle: dataset.metadata.label,
+      qualityOptions: Object.values(QUALITY_PROFILES).map((profile) => [profile.id, profile.label]),
+      quality: world.quality.id,
+      // El perfil gráfico se aplica al recargar: cambia el renderer y las mallas.
+      onQuality(id) {
+        saveQuality(id);
+        window.location.reload();
+      },
+      onExplore: () => emit('mode:request', 'gameplay'),
+    },
+  );
 
-  view.start();
-  return { view, dem, dataset, compositor, mesh, orbit, routePanel, environmentPanel, models, modelsReady, tabs };
+  // Vista orbital inicial.
+  let savedCamera = null;
+
+  return {
+    world, dem, dataset, compositor, mesh: terrain.mesh, orbit, routePanel, environmentPanel,
+    models, modelsReady, tabs, picking,
+    getRoute: () => routePanel.getRoute(),
+    setActive(next) {
+      if (next === active) return;
+      active = next;
+      ui.hidden = !active;
+      orbit.controls.enabled = active;
+      poiGroup.visible = true; // los marcadores también sirven de referencia a pie
+      if (!active) {
+        savedCamera = {
+          position: world.camera.position.clone(),
+          target: orbit.controls.target.clone(),
+        };
+        popup.hide();
+      } else if (savedCamera) {
+        world.camera.position.copy(savedCamera.position);
+        orbit.controls.target.copy(savedCamera.target);
+        world.camera.up.set(0, 1, 0);
+        orbit.controls.update();
+      }
+    },
+  };
 }

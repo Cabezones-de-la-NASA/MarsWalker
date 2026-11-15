@@ -1,0 +1,152 @@
+/* Componentes compartidos: paneles, botones, campos, tablas, etiquetas. */
+
+.panel {
+  pointer-events: auto;
+  background: var(--surface-1);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+/* Panel plegable: <details class="panel"> con <summary> */
+.panel > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  font: 600 var(--text-xs) / 1 var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.panel > summary::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--accent);
+  border-bottom: 1.5px solid var(--accent);
+  transform: rotate(-45deg);
+  transition: transform 0.18s var(--ease);
+}
+
+.panel[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+.panel[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.panel-body {
+  padding: var(--space-3);
+}
+
+.panel h2 {
+  margin: 0;
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+button,
+select,
+input {
+  font: inherit;
+  color: var(--text);
+}
+
+.btn,
+.dashboard-ui button,
+.dashboard-ui select,
+.dashboard-ui input[type='text'],
+.dashboard-ui input[type='number'] {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease), color 0.15s var(--ease);
+}
+
+.btn,
+.dashboard-ui button {
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled),
+.dashboard-ui button:hover:not(:disabled) {
+  border-color: var(--line-strong);
+}
+
+.dashboard-ui button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.btn-primary,
+.dashboard-ui button.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a0f0a;
+  font-weight: 600;
+}
+
+.btn-primary:hover:not(:disabled),
+.dashboard-ui button.btn-primary:hover:not(:disabled) {
+  background: var(--solar-amber);
+  border-color: var(--solar-amber);
+}
+
+.dashboard-ui button.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a0f0a;
+}
+
+input[type='range'] {
+  accent-color: var(--accent);
+}
+
+input[type='checkbox'] {
+  accent-color: var(--accent);
+}
+
+.num,
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px var(--space-3);
+  margin: 0;
+}
+
+.kv dt {
+  color: var(--text-muted);
+}
+
+.kv dd {
+  margin: 0;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.note {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.note-warn {
+  color: var(--warn);
+}

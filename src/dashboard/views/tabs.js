@@ -1,5 +1,5 @@
-// Barra de pestañas del dashboard: Mapa, Tripulación, Fórmulas y Créditos.
-// "Mapa" deja ver la escena; las demás abren una vista a pantalla completa sobre ella.
+// Barra superior del dashboard: marca, pestañas (Mapa, Tripulación, Fórmulas, Créditos),
+// perfil gráfico y el botón para bajar a la superficie.
 import './views.css';
 import logoUrl from '../../assets/space_apps_logo.png';
 
@@ -10,10 +10,18 @@ function el(tag, className, text) {
   return node;
 }
 
-// views: [{ id, label, element?, onShow? }]; la primera es el mapa (sin elemento).
-export function createTabs(container, views) {
-  const bar = el('nav', 'tab-bar');
-  bar.setAttribute('aria-label', 'Vistas');
+/**
+ * views: [{ id, label, element?, onShow? }]; la primera es el mapa (sin elemento).
+ * options: { subtitle, qualityOptions: [[id, label]], quality, onQuality(id), onExplore() }
+ */
+export function createTabs(container, views, options = {}) {
+  const bar = el('header', 'top-bar');
+  const brand = el('div', 'brand', 'MarsWalk');
+  if (options.subtitle) brand.append(el('span', 'brand-sub', options.subtitle));
+  const nav = el('nav', 'tab-bar');
+  nav.setAttribute('aria-label', 'Vistas');
+  bar.append(brand, nav);
+
   const buttons = new Map();
   let active = views[0].id;
 
@@ -35,12 +43,35 @@ export function createTabs(container, views) {
     button.dataset.view = view.id;
     button.addEventListener('click', () => show(view.id));
     buttons.set(view.id, button);
-    bar.append(button);
+    nav.append(button);
     if (view.element) {
       view.element.classList.add('view');
       view.element.hidden = true;
       container.append(view.element);
     }
+  }
+
+  bar.append(el('div', 'top-bar-spacer'));
+
+  if (options.qualityOptions) {
+    const label = el('label', null, 'Gráficos');
+    const select = el('select', 'quality-select');
+    for (const [id, text] of options.qualityOptions) {
+      const option = el('option', null, text);
+      option.value = id;
+      select.append(option);
+    }
+    select.value = options.quality;
+    select.addEventListener('change', () => options.onQuality(select.value));
+    label.append(select);
+    bar.append(label);
+  }
+
+  if (options.onExplore) {
+    const explore = el('button', 'explore-button btn-primary', 'Explorar a pie');
+    explore.type = 'button';
+    explore.addEventListener('click', options.onExplore);
+    bar.append(explore);
   }
 
   const logo = el('img', 'tab-logo');
