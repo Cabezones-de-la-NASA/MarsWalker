@@ -387,7 +387,7 @@ export function startIntro(container, { waitReady, onRevealStart, onComplete } =
     const initialVolume = music.volume;
     const fadeStart = performance.now();
     function step(now) {
-      const progress = Math.min(1, (now - fadeStart) / durationMs);
+      const progress = Math.min(1, Math.max(0, (now - fadeStart) / durationMs));
       music.volume = Math.max(0, initialVolume * (1 - progress));
       if (progress < 1) {
         requestAnimationFrame(step);
@@ -513,7 +513,7 @@ export function startIntro(container, { waitReady, onRevealStart, onComplete } =
     const initialVolume = video.volume;
     const fadeStart = performance.now();
     function fadeVideoAudio(now) {
-      const progress = Math.min(1, (now - fadeStart) / 600);
+      const progress = Math.min(1, Math.max(0, (now - fadeStart) / 600));
       video.volume = Math.max(0, initialVolume * (1 - progress));
       if (progress < 1 && !video.paused) {
         requestAnimationFrame(fadeVideoAudio);

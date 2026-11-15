@@ -2,7 +2,7 @@
 // y exportar o importar la misión.
 import './panels.css';
 import { createPanelShell } from './panel_shell.js';
-import { state, on } from '../../shared/state.js';
+import { state, on, emit } from '../../shared/state.js';
 import { MAX_OBJECTIVES } from '../../shared/missions.js';
 
 const TYPE_LABELS = { sampling: 'Muestreo', hazard: 'Peligro' };
@@ -18,6 +18,16 @@ function el(tag, className, text) {
 export function createMissionPanel(container, { mission }) {
   const shell = createPanelShell('Misión', 'mission-panel', { open: false });
   const panel = shell.body;
+
+  // --- Misión guiada: se puede repetir cuando se quiera
+  const replay = el('button', 'mission-replay btn-primary', 'Jugar "Primer contacto"');
+  replay.type = 'button';
+  replay.title = 'Aterriza, recoge dos muestras con el rover y refúgiate antes de la tormenta';
+  replay.addEventListener('click', () => {
+    state.sortieRequested = true;
+    emit('mode:request', 'gameplay');
+  });
+  panel.append(replay, el('div', 'route-hint', 'La misión guiada de inicio: unos dos minutos, con aterrizaje.'), el('div', 'route-section', 'Tu base'));
 
   // --- Base
   const baseRow = el('div', 'route-row');

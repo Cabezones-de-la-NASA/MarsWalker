@@ -18,7 +18,7 @@ import { buildRoverContext, pickMockReply } from './rover_context.js';
 
 export const ROVER_LLM_URL = import.meta.env?.VITE_ROVER_LLM_URL ?? '';
 // [diseño] Espera máxima de la respuesta y turnos de conversación que se envían.
-const REQUEST_TIMEOUT_MS = 15000;
+const REQUEST_TIMEOUT_MS = 16000; // algo más que la espera del servidor (12 s)
 const HISTORY_TURNS = 8;
 
 export const isLlmConfigured = () => Boolean(ROVER_LLM_URL);

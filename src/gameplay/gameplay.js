@@ -189,8 +189,6 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   const sound = createSound();
   const speech = createSpeech();
   let lowOxygenWarned = false;
-  // La primera bajada de cada visita es siempre con la caída; después, a petición.
-  let hasLanded = false;
   const parachute = createParachute();
   parachute.scale.setScalar(PARACHUTE_SCALE);
   parachute.visible = false;
@@ -508,12 +506,13 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     followCamera.snap();
     rig.setVisible(!followCamera.isFirstPerson());
     vitals.reset(player.x_m, player.z_m);
-    hasLanded = true;
     sound.thud();
     followCamera.shake(0.5);
     if (sortieMode) sortie.start(capsuleSite);
   }
-  const shouldLand = () => state.landingRequested || !hasLanded;
+  // La caída en cápsula sale con la misión "Primer contacto" o si se pide en el mapa
+  // ("Aterrizaje realista"); el resto de bajadas son directas.
+  const shouldLand = () => state.landingRequested;
 
   function placeAstronaut() {
     rig.object.position.set(player.x_m, player.y_m, player.z_m);

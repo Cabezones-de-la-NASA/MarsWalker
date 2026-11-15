@@ -65,8 +65,7 @@ function formatTime(time_s) {
 //   getCrew: tripulación actual, para la ruta por salud
 //   getPoints: puntos de interés de la zona más la base y los objetivos propios
 export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, getPoints }) {
-  // Plegado de entrada: se abre solo al marcar el primer punto en el mapa.
-  const shell = createPanelShell('Plan de EVA', 'route-panel', { open: false });
+  const shell = createPanelShell('Plan de EVA', 'route-panel');
   shell.body.append(el('div', 'route-section', '1 · Marca inicio y destino en el mapa'));
   const panel = shell.body;
 

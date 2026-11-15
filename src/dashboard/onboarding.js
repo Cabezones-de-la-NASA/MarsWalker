@@ -169,6 +169,9 @@ export function createOnboarding(ui, { orbitControls }) {
     isOpen: () => step >= 0,
     start(force = false) {
       if (step >= 0 || (!force && alreadySeen())) return;
+      // Durante la guía el Plan de EVA empieza plegado; el paso que lo explica lo abre.
+      const plan = ui.querySelector('.route-panel');
+      if (plan) plan.open = false;
       show(0);
     },
   };

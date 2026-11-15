@@ -1,5 +1,6 @@
 // Función de Vercel: el servidor del rover. Guarda la clave del LLM y responde a la web.
 //
+//   GET  /api/rover  -> { status, model, key_configured }   (comprobación del despliegue)
 //   POST /api/rover  { kind: 'chat' | 'route', context, messages: [{ role, content }] }
 //   200              { text }
 //
@@ -12,7 +13,10 @@ import {
 } from '../lib/rover.js';
 
 // Si este modelo deja de existir, cambia GEMINI_MODEL en Vercel; no hace falta tocar código.
-const DEFAULT_MODEL = 'gemini-3.8-flash';
+const DEFAULT_MODEL = 'gemini-4-hydrogen';
+// [diseño] Espera máxima de la respuesta del modelo. Pasado este tiempo se corta y la web
+// usa su respuesta de reserva, en vez de quedarse esperando.
+const MODEL_TIMEOUT_MS = 12000;
 const DEFAULT_ORIGINS = 'https://cabezones-de-la-nasa.github.io,http://localhost:5173';
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 const allow = createRateLimiter({ max: 20, window_ms: 60000 });
@@ -27,6 +31,13 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   }
   if (req.method === 'OPTIONS') return res.status(allowed ? 204 : 403).end();
+  // GET: estado del servidor, para comprobar el despliegue sin gastar una pregunta.
+  // No revela la clave, solo si está puesta.
+  if (req.method === 'GET') {
+    return res.status(200).json({
+      status: 'ok', model: process.env.GEMINI_MODEL ?? DEFAULT_MODEL, key_configured: Boolean(process.env.GEMINI_API_KEY),
+    });
+  }
   if (req.method !== 'POST') return res.status(405).json({ error: 'Solo POST' });
   if (!allowed) return res.status(403).json({ error: 'Origen no permitido' });
 
@@ -45,6 +56,7 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify(toGeminiRequest(request)),
+      signal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
     });
     if (!response.ok) {
       // El detalle se queda en los registros del servidor; a la web solo le llega el código.
@@ -55,7 +67,8 @@ export default async function handler(req, res) {
     if (!text) return res.status(502).json({ error: 'El modelo no devolvió texto' });
     return res.status(200).json({ text });
   } catch (error) {
-    console.error('Fallo al llamar a Gemini', error);
-    return res.status(502).json({ error: 'El modelo no respondió' });
+    const timedOut = error?.name === 'TimeoutError' || error?.name === 'AbortError';
+    console.error(timedOut ? `Gemini no respondió en ${MODEL_TIMEOUT_MS} ms` : 'Fallo al llamar a Gemini', error);
+    return res.status(timedOut ? 504 : 502).json({ error: timedOut ? 'El modelo tardó demasiado' : 'El modelo no respondió' });
   }
 }
