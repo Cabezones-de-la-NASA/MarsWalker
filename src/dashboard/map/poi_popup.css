@@ -1,9 +1,9 @@
 .poi-popup {
   position: absolute;
-  top: 12px;
+  top: 52px;
   right: 12px;
   width: 320px;
-  max-height: calc(100vh - 470px);
+  max-height: calc(100vh - 560px);
   min-height: 160px;
   overflow-y: auto;
   box-sizing: border-box;

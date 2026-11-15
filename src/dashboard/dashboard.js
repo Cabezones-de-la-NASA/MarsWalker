@@ -13,6 +13,14 @@ import { createCompositor } from './layers/compositor.js';
 import { createLayersPanel } from './panels/layers_panel.js';
 import { createRouteLine } from './map/route_line.js';
 import { createRoutePanel } from './panels/route_panel.js';
+import { createEnvironmentPanel } from './panels/environment_panel.js';
+import { DEFAULT_CREW } from './default_crew.js';
+import { createCrewPanel } from './panels/crew_panel.js';
+import { createTabs } from './views/tabs.js';
+import { createFormulasView } from './views/formulas_view.js';
+import { createCreditsView } from './views/credits_view.js';
+import { createPerseverance } from '../models3d/rover.js';
+import { createAstronaut } from '../models3d/astronaut.js';
 import './panels/panels.css';
 
 function el(tag, className, text) {
@@ -58,6 +66,30 @@ export async function startDashboard(container) {
   const shelter = points.find((poi) => poi.type === 'shelter');
   state.astronaut_position_m = shelter ? [...shelter.position_m] : null;
 
+  // Modelos 3D a escala real: el rover sobre el refugio y el astronauta a su lado,
+  // los dos apoyados en el suelo con sampleElevation_m.
+  // [diseño] El astronauta se dibuja a 5 m al este del rover para que no se solapen.
+  const ASTRONAUT_OFFSET_M = 5;
+  const models = {};
+  function placeOnGround(object, x_m, z_m) {
+    object.position.set(x_m, dem.sampleElevation_m(x_m, z_m), z_m);
+    view.scene.add(object);
+  }
+  const modelsReady = shelter
+    ? Promise.all([
+        createPerseverance().then((rover) => {
+          placeOnGround(rover, shelter.position_m[0], shelter.position_m[1]);
+          models.rover = rover;
+        }),
+        createAstronaut().then((astronaut) => {
+          placeOnGround(astronaut, shelter.position_m[0] + ASTRONAUT_OFFSET_M, shelter.position_m[1]);
+          models.astronaut = astronaut;
+        }),
+      ]).catch((error) => {
+        console.error('No se pudieron cargar los modelos 3D:', error);
+      })
+    : Promise.resolve();
+
   createPicking({ camera: view.camera, domElement: view.renderer.domElement, mesh, dem, markers });
 
   ui.append(el('div', 'panel title-chip', `MarsWalk · ${dataset.metadata.label}`));
@@ -73,11 +105,26 @@ export async function startDashboard(container) {
 
   const routeLine = createRouteLine(view.scene, dem, view.renderer);
   view.onFrame(() => routeLine.update(view.camera));
-  const routePanel = createRoutePanel(ui, { dem, dataset, routeLine });
+  state.crew = DEFAULT_CREW.map((member) => ({ ...member }));
+  const routePanel = createRoutePanel(ui, {
+    dem, dataset, routeLine, getCrew: () => state.crew.map((member) => ({ ...member })),
+  });
+  const environmentPanel = createEnvironmentPanel(ui, { view, dataset, routePanel });
 
   const popup = createPoiPopup(ui);
   on('poi:click', (poi) => popup.show(poi, state.astronaut_position_m));
 
+  // Pestañas: el mapa y tres vistas a pantalla completa.
+  const crewPanel = createCrewPanel({ routePanel });
+  const formulasView = createFormulasView();
+  const creditsView = createCreditsView();
+  const tabs = createTabs(ui, [
+    { id: 'map', label: 'Mapa' },
+    { id: 'crew', label: 'Tripulación', element: crewPanel.element, onShow: crewPanel.render },
+    { id: 'formulas', label: 'Fórmulas', element: formulasView.element, onShow: formulasView.render },
+    { id: 'credits', label: 'Créditos', element: creditsView.element },
+  ]);
+
   view.start();
-  return { view, dem, dataset, compositor, mesh, orbit, routePanel };
+  return { view, dem, dataset, compositor, mesh, orbit, routePanel, environmentPanel, models, modelsReady, tabs };
 }
