@@ -2,11 +2,12 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { BASE_URL } from '../shared/base_url.js';
 
 // Los modelos de NASA 3D Resources vienen comprimidos con Draco. El decodificador es el
 // que distribuye three.js (examples/jsm/libs/draco/gltf), copiado a public/draco/.
 const draco = new DRACOLoader();
-draco.setDecoderPath('/draco/');
+draco.setDecoderPath(`${BASE_URL}draco/`);
 const loader = new GLTFLoader();
 loader.setDRACOLoader(draco);
 const cache = new Map(); // url -> Promise<THREE.Object3D>
