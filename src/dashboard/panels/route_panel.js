@@ -10,6 +10,7 @@ import { nearestShelter } from '../../models/environment/weather.js';
 import { drawElevationProfile } from './elevation_profile.js';
 import { explainRoute } from '../../shared/rover_llm.js';
 import { buildRouteBrief } from '../../shared/route_brief.js';
+import { defaultConfig } from '../../models/physiology/defaults.js';
 
 const ALGORITHMS = [
   { id: 'astar', label: 'Ahorra oxígeno', sub: 'A* clásico: el menor gasto de O₂', title: 'Ruta clásica: menor coste de oxígeno (M3 y M4)' },
@@ -224,7 +225,8 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
     verdict.classList.remove('is-rover');
     window.clearTimeout(explainTimer);
     explainTimer = window.setTimeout(async () => {
-      const text = await explainRoute(buildRouteBrief(input));
+      // La capacidad del tanque del traje por defecto, para que diga si el oxígeno alcanza.
+      const text = await explainRoute(buildRouteBrief({ ...input, o2_capacity_l: defaultConfig().suit.o2_capacity_l }));
       if (text && id === explainId) {
         verdict.textContent = text;
         verdict.classList.add('is-rover');

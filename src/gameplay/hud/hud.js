@@ -61,11 +61,11 @@ function formatDuration(hours) {
 }
 
 /**
- * createHud(container, { onResume, onExit, onTimeScale, timeScales }) ->
+ * createHud(container, { onResume, onExit, onTimeScale, timeScales, volumes, onVolume }) ->
  *   setVisible(bool), update(data), setPrompts([[tecla, texto]]), showCard({ kind, title, lines }),
  *   hideCard(), setMenu(bool), isMenuOpen(), setTimeScale(n), toggleDetails()
  */
-export function createHud(container, { onResume, onExit, onTimeScale, timeScales = [1] }) {
+export function createHud(container, { onResume, onExit, onTimeScale, timeScales = [1], volumes = {}, onVolume }) {
   const hud = el('div', 'hud');
   hud.hidden = true;
 
@@ -286,6 +286,25 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
     scaleLabel,
     el('div', 'hud-note', 'La velocidad del tiempo mueve el Sol y el clima de Marte. El oxígeno y el resto de la fisiología van siempre en tiempo real. También se cambia con la tecla T. Con "Jugar con realismo" (Modo avanzado, en el mapa) el tiempo queda en 1×.'),
   );
+  // Volúmenes: ambiente, respiración y efectos.
+  const volumeBox = el('div', 'hud-volumes');
+  for (const [channel, label] of [['ambience', 'Ambiente'], ['breath', 'Respiración'], ['effects', 'Efectos y avisos']]) {
+    const row = el('label', 'hud-volume', label);
+    const slider = el('input');
+    slider.type = 'range';
+    slider.min = '0';
+    slider.max = '100';
+    slider.step = '5';
+    slider.value = String(Math.round((volumes[channel] ?? 0.5) * 100));
+    const value = el('span', 'hud-volume-value', `${slider.value} %`);
+    slider.addEventListener('input', () => {
+      value.textContent = `${slider.value} %`;
+      onVolume?.(channel, Number(slider.value) / 100);
+    });
+    row.append(slider, value);
+    volumeBox.append(row);
+  }
+  box.append(el('h3', 'hud-menu-heading', 'Sonido'), volumeBox);
   const controls = el('dl', 'hud-controls');
   for (const [keys, text] of [
     ['W A S D', 'Moverse'], ['Ratón', 'Mirar'], ['Shift', 'Correr'], ['Space', 'Saltar'],

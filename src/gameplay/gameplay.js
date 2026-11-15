@@ -216,6 +216,8 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     onResume: () => setPaused(false),
     onExit: () => emit('mode:request', 'dashboard'),
     onTimeScale: setTimeScale,
+    volumes: sound.getVolumes(),
+    onVolume: (channel, value) => sound.setVolume(channel, value),
   });
   setTimeScale(DEFAULT_TIME_SCALE);
 
@@ -610,6 +612,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       // El salto se dispara una vez por pulsación.
       const jump = input.state.jump && !jumpHeld;
       jumpHeld = input.state.jump;
+      if (jump && player.grounded) sound.jump();
       const previousYaw = player.yaw_rad;
       const before = player;
       player = stepPlayer(player, { dirX, dirZ, run: input.state.run, jump }, env, delta_s);

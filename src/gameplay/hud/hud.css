@@ -1088,3 +1088,30 @@
 .hud-help-hint kbd {
   margin-bottom: 3px;
 }
+
+/* ---- Volúmenes en el menú ---- */
+.hud-menu-heading {
+  margin: var(--space-3) 0 var(--space-1);
+  font: 500 var(--text-sm) / 1 var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hud-amber);
+}
+
+.hud-menu .hud-volume {
+  display: grid;
+  grid-template-columns: 150px 1fr 48px;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 4px 0;
+}
+
+.hud-volume input[type='range'] {
+  width: 100%;
+  accent-color: var(--hud-amber);
+}
+
+.hud-volume-value {
+  text-align: right;
+  color: var(--text-muted);
+}
