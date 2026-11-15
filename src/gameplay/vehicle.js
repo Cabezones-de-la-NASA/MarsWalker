@@ -49,6 +49,9 @@ export function createVehicle({ world, groundAt }) {
 
   return {
     object,
+    ready: truck.ready,
+    get driverEye() { return truck.driverEye; },
+    setCabinLight(on) { truck.setCabinLight(on); },
     place(x_m, z_m, yaw_rad = 0) {
       vehicle = { x_m, z_m, yaw_rad, speed_ms: 0 };
       object.visible = true;
@@ -69,11 +72,12 @@ export function createVehicle({ world, groundAt }) {
       const rolled_m = Math.hypot(vehicle.x_m - before.x_m, vehicle.z_m - before.z_m) * Math.sign(vehicle.speed_ms || 1);
       for (const wheel of truck.wheels) wheel.rotation.x += rolled_m / truck.wheel_radius_m;
       truck.setLights(Boolean(input));
+      truck.setSteering(input?.steer ?? 0, delta_s);
       object.visible = camera.position.distanceTo(object.position) < DRAW_DISTANCE_M;
       settle(1 - Math.exp(-8 * delta_s));
     },
     canBoard(x_m, z_m) {
-      return Boolean(vehicle) && Math.hypot(vehicle.x_m - x_m, vehicle.z_m - z_m) <= VEHICLE.board_reach_m;
+      return Boolean(vehicle && truck.driverEye) && Math.hypot(vehicle.x_m - x_m, vehicle.z_m - z_m) <= VEHICLE.board_reach_m;
     },
     exitPosition: () => exitPosition(vehicle),
     resolveCollision(x_m, z_m, bodyRadius_m) {

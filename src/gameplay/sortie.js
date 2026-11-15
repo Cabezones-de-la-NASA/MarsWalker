@@ -79,9 +79,8 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
 
   const homeMark = createInterestMark(1.6);
   // La base de la misión: una estación detrás de la cápsula. Se queda tras terminar.
-  const station = createStation({ shadows: world.quality.shadows });
-  station.visible = false;
-  world.scene.add(homeMark, station);
+  const station = createStation({ shadows: world.quality.shadows, groundAt });
+  world.scene.add(homeMark, station.object);
 
   function sendDust(force = false) {
     if (!force && Math.abs(dust_tau - sentDust_tau) < DUST_STEP) return;
@@ -131,7 +130,8 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
       const label = { intro: 'Cápsula', to_first: 'Roca 1', to_second: 'Roca 2', return: 'Base' }[mission.state.phase];
       return { x_m: mission.goal_m[0], z_m: mission.goal_m[1], label };
     },
-    basePosition: () => (station.visible ? { x_m: station.position.x, z_m: station.position.z } : null),
+    station,
+    basePosition: () => (station.object.visible ? { x_m: station.object.position.x, z_m: station.object.position.z } : null),
     // Tutorial: se inspeccionó la cápsula; ahora sí, a por las rocas.
     capsuleInspected() {
       if (!mission || mission.state.phase !== 'intro') return;
@@ -164,9 +164,8 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
         mark.visible = true;
       });
       const [baseX_m, baseZ_m] = plan.base_m;
-      station.position.set(baseX_m, groundAt(baseX_m, baseZ_m), baseZ_m);
-      station.rotation.y = Math.atan2(home.x_m - baseX_m, home.z_m - baseZ_m);
-      station.visible = true;
+      const yaw_rad = Math.atan2(home.x_m - baseX_m, home.z_m - baseZ_m);
+      station.place(baseX_m, baseZ_m, yaw_rad);
       say('Bienvenido a Marte. Antes de nada, echa un vistazo a la cápsula que te trajo.');
     },
     // Se sale al mapa a media misión: no cuenta y el cielo vuelve a su estado normal.
@@ -176,7 +175,7 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
       clearing = false;
       hideMarkers();
       removeRock();
-      station.visible = false;
+      station.object.visible = false;
       hud.setSortie(null);
       dust_tau = NOMINAL_DUST_TAU;
       sendDust(true);

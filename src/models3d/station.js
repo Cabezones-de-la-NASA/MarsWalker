@@ -1,73 +1,147 @@
-// Base o estación de superficie, hecha con primitivas de three.js. Origen en el suelo.
-// Es un diseño del equipo [diseño]: no reproduce ningún hábitat real.
+// Base NS-02. El GLB tiene su origen en las fundaciones; el acceso mira a +Z.
 import * as THREE from 'three';
+import { BASE_URL } from '../shared/base_url.js';
+import { loadModel } from './loader.js';
 
-// [diseño] Medidas, en metros.
-const HAB_RADIUS_M = 2.2;
-const HAB_LENGTH_M = 8.5;
-// Radio del círculo de colisión alrededor del centro de la base.
-export const STATION_RADIUS_M = 6.5;
+export const STATION_MODEL_URL = `${BASE_URL}models3d/base-terrestre-ns-02/base-terrestre-ns-02.glb`;
 
-export function createStation({ shadows = false } = {}) {
-  const group = new THREE.Group();
-  group.name = 'station';
-  const hull = new THREE.MeshStandardMaterial({ color: 0xe9e2d6, roughness: 0.55, metalness: 0.15 });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x3a3c3f, roughness: 0.7, metalness: 0.4 });
-  const accent = new THREE.MeshStandardMaterial({ color: 0xc65b27, roughness: 0.6 });
-  const panel = new THREE.MeshStandardMaterial({ color: 0x1b2a4a, roughness: 0.35, metalness: 0.6 });
-  const glow = new THREE.MeshStandardMaterial({ color: 0xffd29a, emissive: 0xffb45c, emissiveIntensity: 1.8 });
-  const add = (geometry, material, x, y, z) => {
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(x, y, z);
-    group.add(mesh);
-    return mesh;
-  };
+// Huellas en el espacio del modelo: casco, vestíbulo, paneles solares y armarios.
+const STRUCTURES = [
+  [-11.91, 11.82, -2.61, 2.18],
+  [-2.17, 2.17, 2.18, 5.73],
+  [-18.83, -12.37, -1.06, 3.96],
+  [12.37, 18.83, -3.10, 1.92],
+  [-12.86, -11.52, 0.22, 1.79],
+  [11.52, 12.86, -1.83, -0.26],
+];
+const RAMP = {
+  halfWidth_m: 1.57,
+  deckZ_m: 5.73,
+  topZ_m: 6.42,
+  toeZ_m: 12.53,
+  deckHeight_m: 1.276,
+  toeHeight_m: 0.157,
+};
+const RAILS = [
+  [-1.62, -1.50, RAMP.deckZ_m, RAMP.toeZ_m],
+  [1.50, 1.62, RAMP.deckZ_m, RAMP.toeZ_m],
+];
+const WALK_BLOCKS = [...STRUCTURES, ...RAILS];
+const DRIVE_BLOCKS = [...STRUCTURES, [-1.67, 1.67, RAMP.deckZ_m, RAMP.toeZ_m]];
 
-  // Módulo habitable: un cilindro tumbado con tapas redondeadas, sobre patas.
-  const hab = add(new THREE.CylinderGeometry(HAB_RADIUS_M, HAB_RADIUS_M, HAB_LENGTH_M, 28), hull, 0, HAB_RADIUS_M + 0.5, 0);
-  hab.rotation.z = Math.PI / 2;
-  for (const side of [-1, 1]) {
-    const cap = add(new THREE.SphereGeometry(HAB_RADIUS_M, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), hull, (side * HAB_LENGTH_M) / 2, HAB_RADIUS_M + 0.5, 0);
-    cap.rotation.z = -side * (Math.PI / 2);
-    const band = add(new THREE.TorusGeometry(HAB_RADIUS_M + 0.02, 0.07, 8, 36), accent, side * (HAB_LENGTH_M / 2 - 0.9), HAB_RADIUS_M + 0.5, 0);
-    band.rotation.y = Math.PI / 2;
-    for (const depth of [-1, 1]) {
-      add(new THREE.CylinderGeometry(0.12, 0.16, 0.9, 8), dark, side * (HAB_LENGTH_M / 2 - 1.2), 0.45, depth * 1.3);
+// Puntos de apoyo de las piezas de hormigón del GLB.
+const FOUNDATION_PADS = [
+  ...[-9.83, -5.65, -2.67, 2.67, 5.49, 9.67].flatMap((x) =>
+    [-1.34, 1.34].map((z) => [x, z, 0.72, 0.92])),
+  [-1.15, 4.25, 1.04, 2.36], [1.15, 4.25, 1.04, 2.36],
+  ...[-1, 1].flatMap((side) => {
+    const arrayZ = side < 0 ? 1.45 : -0.59;
+    return [
+      ...[side * 15.6 - 2.8, side * 15.6 + 2.8].flatMap((x) =>
+        [-1.99, 1.99].map((dz) => [x, arrayZ + dz, 0.61, 0.63])),
+      [side * 12.19, arrayZ - 0.45, 1.02, 1.13],
+      [side * 3.76, -2.04, 0.88, 0.95],
+      ...[0.11, 0.41, 0.71].map((fraction) =>
+        [side * 1.545, 6.42 + fraction * 6.10, 0.34, 0.43]),
+    ];
+  }),
+];
+
+function localXZ(frame, x_m, z_m) {
+  const dx = x_m - frame.x_m;
+  const dz = z_m - frame.z_m;
+  return [frame.cos * dx - frame.sin * dz, frame.sin * dx + frame.cos * dz];
+}
+
+function worldXZ(frame, x, z) {
+  return [frame.x_m + frame.cos * x + frame.sin * z, frame.z_m - frame.sin * x + frame.cos * z];
+}
+
+function pushOut(x, z, radius, boxes) {
+  const blocked = (px, pz) => boxes.some(([x0, x1, z0, z1]) =>
+    px > x0 - radius && px < x1 + radius && pz > z0 - radius && pz < z1 + radius);
+  if (!blocked(x, z)) return [x, z];
+  // Buscar la salida más corta de la unión de las huellas, también en sus juntas.
+  let nearest = [x, z];
+  let best = Infinity;
+  for (const [x0, x1, z0, z1] of boxes) {
+    for (const [px, pz] of [[x0 - radius, z], [x1 + radius, z], [x, z0 - radius], [x, z1 + radius]]) {
+      const distance = Math.abs(x - px) + Math.abs(z - pz);
+      if (distance < best && !blocked(px, pz)) {
+        best = distance;
+        nearest = [px, pz];
+      }
     }
   }
-  // Ventanas iluminadas a lo largo del módulo.
-  for (let i = -2; i <= 2; i++) {
-    add(new THREE.BoxGeometry(0.7, 0.45, 0.06), glow, i * 1.4, HAB_RADIUS_M + 1.0, HAB_RADIUS_M * 0.93);
-  }
+  return nearest;
+}
 
-  // Esclusa al frente, con puerta y rampa.
-  add(new THREE.BoxGeometry(2.2, 2.4, 2.4), hull, 0, 1.7, HAB_RADIUS_M + 1.2);
-  add(new THREE.BoxGeometry(1.0, 1.9, 0.08), dark, 0, 1.5, HAB_RADIUS_M + 2.42);
-  add(new THREE.BoxGeometry(0.5, 0.12, 0.06), glow, 0, 2.65, HAB_RADIUS_M + 2.43);
-  const ramp = add(new THREE.BoxGeometry(1.4, 0.1, 2.0), dark, 0, 0.28, HAB_RADIUS_M + 3.3);
-  ramp.rotation.x = 0.28;
+export function createStation({ shadows = false, groundAt }) {
+  const object = new THREE.Group();
+  object.name = 'station';
+  object.visible = false;
+  const foundations = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshStandardMaterial({ color: 0x817967, roughness: 0.93 }),
+    FOUNDATION_PADS.length,
+  );
+  foundations.name = 'Apoyos al terreno';
+  foundations.count = 0;
+  foundations.castShadow = shadows;
+  foundations.receiveShadow = true;
+  const transform = new THREE.Matrix4();
+  let frame = null;
+  let loaded = false;
 
-  // Dos mástiles con paneles solares.
-  for (const side of [-1, 1]) {
-    const x = side * (HAB_LENGTH_M / 2 + 2.6);
-    add(new THREE.CylinderGeometry(0.07, 0.09, 3.4, 8), dark, x, 1.7, -1.5);
-    const array = add(new THREE.BoxGeometry(3.6, 0.06, 2.0), panel, x, 3.5, -1.5);
-    array.rotation.x = -0.5;
-    add(new THREE.BoxGeometry(3.7, 0.08, 0.06), hull, x, 3.5, -1.5).rotation.x = -0.5;
-  }
-
-  // Antena de plato y luz de posición.
-  add(new THREE.CylinderGeometry(0.05, 0.05, 2.2, 8), dark, -2.4, HAB_RADIUS_M * 2 + 1.5, -0.4);
-  const dish = add(new THREE.SphereGeometry(0.9, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2.6), hull, -2.4, HAB_RADIUS_M * 2 + 2.7, -0.4);
-  dish.rotation.x = Math.PI + 0.7;
-  add(new THREE.CylinderGeometry(0.03, 0.03, 1.6, 6), dark, 2.6, HAB_RADIUS_M * 2 + 1.2, 0);
-  add(new THREE.SphereGeometry(0.1, 10, 8), glow, 2.6, HAB_RADIUS_M * 2 + 2.05, 0);
-
-  group.traverse((node) => {
-    if (node.isMesh) {
+  const ready = loadModel(STATION_MODEL_URL).then((model) => {
+    model.name = 'base-terrestre-ns-02';
+    model.traverse((node) => {
+      if (!node.isMesh) return;
       node.castShadow = shadows;
       node.receiveShadow = true;
-    }
+    });
+    object.add(model, foundations);
+    loaded = true;
+  }).catch((error) => {
+    console.error('No se pudo cargar el modelo de la base NS-02:', error);
   });
-  return group;
+
+  return {
+    object,
+    ready,
+    place(x_m, z_m, yaw_rad = 0) {
+      frame = { x_m, z_m, cos: Math.cos(yaw_rad), sin: Math.sin(yaw_rad) };
+      const toeGround_m = groundAt(...worldXZ(frame, 0, RAMP.toeZ_m));
+      const mainGround_m = groundAt(x_m, z_m);
+      // Cerca de un desnivel se prioriza el apoyo del casco y se prolongan las patas.
+      const y_m = Math.max(mainGround_m - 0.42, toeGround_m - 0.10);
+      object.position.set(x_m, y_m, z_m);
+      object.rotation.y = yaw_rad;
+      object.visible = true;
+      let count = 0;
+      for (const [x, z, width, depth] of FOUNDATION_PADS) {
+        const ground_m = groundAt(...worldXZ(frame, x, z));
+        const extension_m = y_m - ground_m;
+        if (extension_m < 0.035) continue;
+        transform.makeScale(width, extension_m + 0.11, depth);
+        transform.setPosition(x, -(extension_m + 0.05) / 2, z);
+        foundations.setMatrixAt(count++, transform);
+      }
+      foundations.count = count;
+      foundations.instanceMatrix.needsUpdate = true;
+      foundations.boundingSphere = null;
+    },
+    walkSurface_m(x_m, z_m) {
+      if (!object.visible || !loaded) return -Infinity;
+      const [x, z] = localXZ(frame, x_m, z_m);
+      if (Math.abs(x) > RAMP.halfWidth_m || z < RAMP.deckZ_m || z > RAMP.toeZ_m) return -Infinity;
+      const t = Math.max(0, (z - RAMP.topZ_m) / (RAMP.toeZ_m - RAMP.topZ_m));
+      return object.position.y + THREE.MathUtils.lerp(RAMP.deckHeight_m, RAMP.toeHeight_m, t);
+    },
+    resolveCollision(x_m, z_m, radius_m, onFoot = true) {
+      if (!object.visible || !loaded) return [x_m, z_m];
+      const [x, z] = localXZ(frame, x_m, z_m);
+      return worldXZ(frame, ...pushOut(x, z, radius_m, onFoot ? WALK_BLOCKS : DRIVE_BLOCKS));
+    },
+  };
 }

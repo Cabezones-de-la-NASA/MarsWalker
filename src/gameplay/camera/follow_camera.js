@@ -13,10 +13,12 @@ const PITCH_MAX_THIRD = 0.55;
 const PITCH_MAX_FIRST = 1.35;
 const PITCH_FREE = 1.5; // casi vertical: mirada libre durante el aterrizaje
 const FOLLOW_STIFFNESS = 9; // cuanto mayor, más pegada va la cámara
+const CABIN_YAW_LIMIT = 1.89;
+const CABIN_DEFAULT_PITCH = 0.23;
 
 /**
  * createFollowCamera(camera, groundAt) ->
- *   update(delta_s, player, look)   player: { x_m, y_m, z_m }; look: [dx_px, dy_px]
+ *   update(delta_s, player, look, driverEye?)   driverEye es el anclaje en la cabina en marcha.
  *   toggle(), isFirstPerson(), yaw (rumbo de la cámara, radianes), snap(player)
  * yaw = 0 mira hacia +Z (sur) y crece hacia +X (este), igual que el rumbo del astronauta.
  */
@@ -32,7 +34,29 @@ export function createFollowCamera(camera, groundAt) {
   const position = new THREE.Vector3();
   const target = new THREE.Vector3();
   const desired = new THREE.Vector3();
+  const cabinOrientation = new THREE.Quaternion();
+  const cabinForward = new THREE.Vector3();
+  let inCabin = false;
+  let cabinYaw = 0;
+  let cabinPitch = CABIN_DEFAULT_PITCH;
   let needsSnap = true;
+
+  function lookFromCabin(driverEye, look) {
+    if (!inCabin) {
+      inCabin = true;
+      cabinYaw = 0;
+      cabinPitch = CABIN_DEFAULT_PITCH;
+    }
+    cabinYaw = THREE.MathUtils.clamp(cabinYaw - look[0] * LOOK_SENSITIVITY, -CABIN_YAW_LIMIT, CABIN_YAW_LIMIT);
+    cabinPitch = THREE.MathUtils.clamp(cabinPitch + look[1] * LOOK_SENSITIVITY, -0.87, 1.13);
+    driverEye.getWorldPosition(camera.position);
+    driverEye.getWorldQuaternion(cabinOrientation);
+    const flat = Math.cos(cabinPitch);
+    cabinForward.set(Math.sin(cabinYaw) * flat, -Math.sin(cabinPitch), Math.cos(cabinYaw) * flat);
+    cabinForward.applyQuaternion(cabinOrientation);
+    camera.up.set(0, 1, 0).applyQuaternion(cabinOrientation);
+    camera.lookAt(target.copy(camera.position).add(cabinForward));
+  }
 
   function compute(player) {
     const cosPitch = Math.cos(pitch);
@@ -59,6 +83,9 @@ export function createFollowCamera(camera, groundAt) {
   return {
     get yaw() {
       return yaw;
+    },
+    get viewYaw() {
+      return inCabin ? Math.atan2(cabinForward.x, cabinForward.z) : yaw;
     },
     isFirstPerson: () => firstPerson,
     toggle() {
@@ -91,7 +118,15 @@ export function createFollowCamera(camera, groundAt) {
       targetHeight_m = on ? 2.1 : THIRD_TARGET_HEIGHT_M;
       eyeHeight_m = on ? 2.05 : EYE_HEIGHT_M;
     },
-    update(delta_s, player, look) {
+    update(delta_s, player, look, driverEye = null) {
+      if (firstPerson && driverEye) {
+        lookFromCabin(driverEye, look);
+        return;
+      }
+      if (inCabin) {
+        inCabin = false;
+        needsSnap = true;
+      }
       yaw -= look[0] * LOOK_SENSITIVITY;
       pitch = freeLook
         ? THREE.MathUtils.clamp(pitch + look[1] * LOOK_SENSITIVITY, -PITCH_FREE, PITCH_FREE)
