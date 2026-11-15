@@ -37,8 +37,8 @@ function formatTime(time_s) {
   return minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`;
 }
 
-// deps: { dem, dataset, routeLine, crew }  (crew: tripulación para la ruta por salud)
-export function createRoutePanel(container, { dem, dataset, routeLine, crew }) {
+// deps: { dem, dataset, routeLine, getCrew }  (getCrew: tripulación actual, para la ruta por salud)
+export function createRoutePanel(container, { dem, dataset, routeLine, getCrew }) {
   const panel = el('section', 'panel route-panel');
   panel.append(el('h2', null, 'Ruta'));
 
@@ -129,6 +129,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine, crew }) {
   // Copia de las alturas: el hilo principal sigue usando las suyas.
   worker.postMessage({ type: 'init', metadata: dataset.metadata, heights_m: dataset.heights_m.slice() });
   let requestId = 0;
+  let compareId = 0;
   let route = null;
 
   function setPicking(key) {
@@ -176,7 +177,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine, crew }) {
       id: requestId,
       algorithm: select.value,
       preset: presetSelect.value,
-      crew,
+      crew: getCrew(),
       start_m: points.start,
       goal_m: points.goal,
       config: {},
@@ -234,6 +235,30 @@ export function createRoutePanel(container, { dem, dataset, routeLine, crew }) {
     panel,
     getRoute: () => route,
     getStart: () => points.start,
+    // Clásica contra salud entre el inicio y el destino actuales.
+    // -> Promise<{ classic, health, comparison } | { failed: true, error }>
+    compare() {
+      if (!points.start || !points.goal) {
+        return Promise.resolve({
+          failed: true,
+          error: 'Elige primero un inicio y un destino en el panel Ruta (pestaña Mapa).',
+        });
+      }
+      compareId += 1;
+      const id = compareId;
+      return new Promise((resolve) => {
+        const onMessage = (event) => {
+          if (event.data.type !== 'compare' || event.data.id !== id) return;
+          worker.removeEventListener('message', onMessage);
+          resolve(event.data.result);
+        };
+        worker.addEventListener('message', onMessage);
+        worker.postMessage({
+          type: 'compare', id, start_m: points.start, goal_m: points.goal,
+          crew: getCrew(), preset: presetSelect.value,
+        });
+      });
+    },
     setAlgorithm(id) {
       select.value = id;
       onAlgorithmChange();

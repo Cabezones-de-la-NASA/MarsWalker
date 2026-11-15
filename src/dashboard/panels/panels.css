@@ -122,7 +122,7 @@
 
 .title-chip {
   position: absolute;
-  left: 274px;
+  right: 12px;
   top: 12px;
   padding: 6px 10px;
   font-weight: 600;
@@ -241,7 +241,7 @@
 .environment-panel {
   position: absolute;
   left: 274px;
-  top: 52px;
+  top: 64px;
   width: 270px;
   box-sizing: border-box;
 }

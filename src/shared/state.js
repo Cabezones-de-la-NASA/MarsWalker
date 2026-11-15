@@ -8,6 +8,8 @@ export const state = {
   astronaut_position_m: null,
   // Entorno actual: { ls_deg, ltst_h, dust_tau, storm, sun, weather }, o null al arrancar.
   environment: null,
+  // Tripulación, de 1 a 6: [{ name, role, age, sex, mass_kg, fitness, prior_dose_msv }].
+  crew: [],
 };
 
 const handlers = new Map();

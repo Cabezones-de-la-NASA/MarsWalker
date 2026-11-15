@@ -1,0 +1,241 @@
+.tab-bar {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  pointer-events: auto;
+  background: rgba(24, 14, 10, 0.92);
+  border: 1px solid rgba(232, 160, 106, 0.3);
+  border-radius: 8px;
+  z-index: 30;
+}
+
+.tab-button {
+  font: inherit;
+  color: #f3e6dc;
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.tab-button.is-active {
+  background: #e8a06a;
+  color: #1a0f0b;
+  font-weight: 600;
+}
+
+.tab-logo {
+  height: 30px;
+  margin-left: 8px;
+}
+
+.view {
+  position: absolute;
+  inset: 0;
+  padding: 64px 24px 24px;
+  overflow-y: auto;
+  pointer-events: auto;
+  background: rgba(18, 9, 7, 0.97);
+  z-index: 20;
+}
+
+.view[hidden] {
+  display: none;
+}
+
+.view-inner {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.view h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  color: #e8a06a;
+}
+
+.view h2 {
+  margin: 20px 0 8px;
+  font-size: 15px;
+  color: #e8a06a;
+}
+
+.view p {
+  margin: 4px 0 10px;
+  color: #cdb9aa;
+  max-width: 75ch;
+}
+
+.view a {
+  color: #f0b98d;
+}
+
+.view button,
+.view select,
+.view input {
+  font: inherit;
+  color: #f3e6dc;
+  background: #3a2418;
+  border: 1px solid rgba(232, 160, 106, 0.5);
+  border-radius: 4px;
+  padding: 4px 6px;
+}
+
+.view button {
+  cursor: pointer;
+}
+
+.view button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.view table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.view th,
+.view td {
+  padding: 5px 8px;
+  text-align: left;
+  border-bottom: 1px solid rgba(232, 160, 106, 0.18);
+  vertical-align: middle;
+}
+
+.view th {
+  font-size: 12px;
+  font-weight: 600;
+  color: #cdb9aa;
+}
+
+.view td.num,
+.view th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+/* ---- Tripulación ---- */
+.crew-table input[type='text'] {
+  width: 120px;
+}
+
+.crew-table input[type='number'] {
+  width: 64px;
+}
+
+.crew-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.crew-warning {
+  color: #ffb4a8;
+}
+
+.compare-better {
+  color: #8fe3b0;
+}
+
+.compare-worse {
+  color: #ffb4a8;
+}
+
+/* ---- Fórmulas ---- */
+.formula-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 8px 0 16px;
+}
+
+.formula-card {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  background: rgba(58, 36, 24, 0.5);
+  border: 1px solid rgba(232, 160, 106, 0.25);
+  border-radius: 8px;
+}
+
+.formula-card h2 {
+  margin: 0 0 6px;
+}
+
+.formula-math {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 13px;
+  color: #f3e6dc;
+  overflow-wrap: anywhere;
+}
+
+.formula-result {
+  margin: 6px 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.formula-source {
+  font-size: 12px;
+  color: #cdb9aa;
+}
+
+.constant-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+
+.constant-list li {
+  margin: 2px 0;
+}
+
+.tag {
+  display: inline-block;
+  min-width: 78px;
+  margin-right: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  text-align: center;
+}
+
+.tag-publicado {
+  background: #1f4d36;
+  color: #b9f0d0;
+}
+
+.tag-diseño {
+  background: #6b4a12;
+  color: #ffe2a8;
+}
+
+.tag-sin-etiqueta {
+  background: #4a4a4a;
+  color: #e6e6e6;
+}
+
+/* ---- Créditos ---- */
+.credits-logo {
+  display: block;
+  height: 90px;
+  margin: 8px 0 12px;
+}
+
+.credit-id {
+  white-space: nowrap;
+  color: #cdb9aa;
+}
