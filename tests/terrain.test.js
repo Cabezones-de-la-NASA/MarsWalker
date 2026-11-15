@@ -168,3 +168,13 @@ test('dataset sintético del paso 2: fondo del cráter bajo el borde y pendiente
     assert.ok(Number.isFinite(slope_deg) && slope_deg >= 0 && slope_deg < 90);
   }
 });
+
+test('M2: bandas de color con cortes en 0.45 y 0.85', async () => {
+  const { riskBand } = await import('../src/models/terrain/slope.js');
+  assert.equal(riskBand(0), 'low');
+  assert.equal(riskBand(0.449), 'low');
+  assert.equal(riskBand(0.45), 'medium');
+  assert.equal(riskBand(0.849), 'medium');
+  assert.equal(riskBand(0.85), 'high');
+  assert.equal(riskBand(1), 'high');
+});

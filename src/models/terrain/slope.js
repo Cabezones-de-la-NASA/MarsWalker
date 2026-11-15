@@ -47,3 +47,13 @@ export function sampleSlope_deg(dem, x_m, z_m) {
 export function riskIndex(slope_deg, maxSafe_deg = MAX_SAFE_SLOPE_DEG) {
   return Math.min(Math.max(slope_deg / maxSafe_deg, 0), 1);
 }
+
+/**
+ * M2: banda de color del riesgo. Verde < 0.45 <= amarillo < 0.85 <= rojo.
+ * Devuelve 'low' | 'medium' | 'high'; el color lo pone quien dibuja.
+ */
+export function riskBand(risk) {
+  if (risk < RISK_CUT_LOW) return 'low';
+  if (risk < RISK_CUT_HIGH) return 'medium';
+  return 'high';
+}

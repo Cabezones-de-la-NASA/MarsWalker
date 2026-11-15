@@ -4,6 +4,8 @@
 // mode: 'intro' | 'dashboard' | 'gameplay'
 export const state = {
   mode: 'intro',
+  // Posición del astronauta en el mapa, [x_m, z_m], o null si aún no se ha colocado.
+  astronaut_position_m: null,
 };
 
 const handlers = new Map();

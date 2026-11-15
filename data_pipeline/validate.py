@@ -156,6 +156,10 @@ def _check_poi(path, folder_name, errors):
                 errors.append("poi.json: points[%d].%s debe ser texto" % (i, key))
         if not _is_pair(point.get("position_m")):
             errors.append("poi.json: points[%d].position_m debe ser [x, z]" % i)
+        for key in ("image_url", "image_src"):
+            if key in point and not (isinstance(point[key], str)
+                                     and point[key].startswith("https://")):
+                errors.append("poi.json: points[%d].%s debe ser un enlace https" % (i, key))
         if point.get("type") not in POI_TYPES:
             errors.append("poi.json: points[%d].type debe ser shelter, sampling o hazard" % i)
 
