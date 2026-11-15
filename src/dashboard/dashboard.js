@@ -8,15 +8,16 @@ import { createPoiMarkers } from './map/poi_markers.js';
 import { createPoiPopup } from './map/poi_popup.js';
 import { createCompositor } from './layers/compositor.js';
 import { createLayersPanel } from './panels/layers_panel.js';
-import { createRouteLine } from './map/route_line.js';
+import { createRouteRibbon } from './map/route_ribbon.js';
 import { createRoutePanel } from './panels/route_panel.js';
 import { createEnvironmentPanel } from './panels/environment_panel.js';
+import { createMissionPanel } from './panels/mission_panel.js';
+import { createOnboarding } from './onboarding.js';
 import { DEFAULT_CREW } from './default_crew.js';
 import { createCrewPanel } from './panels/crew_panel.js';
 import { createTabs } from './views/tabs.js';
 import { createFormulasView } from './views/formulas_view.js';
 import { createCreditsView } from './views/credits_view.js';
-import { createPerseverance } from '../models3d/rover.js';
 import { QUALITY_PROFILES, saveQuality } from '../world/quality.js';
 import './panels/panels.css';
 
@@ -27,15 +28,16 @@ function el(tag, className, text) {
   return node;
 }
 
-// [diseño] El astronauta empieza a 6 m al este del rover, para que no se solapen.
-const ASTRONAUT_START_OFFSET_M = 6;
+// [diseño] El astronauta empieza a unos metros del refugio o de la base, fuera de su
+// círculo de colisión.
+const ASTRONAUT_START_OFFSET_M = 9;
 
 /**
- * startDashboard(container, { world, dem, dataset, terrain, zones }) ->
+ * startDashboard(container, { world, dem, dataset, terrain, mission, zones }) ->
  *   setActive(bool)   muestra u oculta el dashboard (al bajar a la superficie se oculta)
  *   y referencias para las pruebas de navegador.
  */
-export async function startDashboard(container, { world, dem, dataset, terrain, zones = [] }) {
+export async function startDashboard(container, { world, dem, dataset, terrain, mission, zones = [] }) {
   const ui = el('div', 'dashboard-ui');
   container.append(ui);
   const dockLeft = el('div', 'dock dock-left');
@@ -59,42 +61,19 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
     if (active) orbit.update();
   });
 
-  // Puntos de interés (poi.json es opcional).
-  const points = dataset.poi && Array.isArray(dataset.poi.points) ? dataset.poi.points : [];
-  const { markers, group: poiGroup } = createPoiMarkers(world.scene, dem, points);
-  const shelter = points.find((poi) => poi.type === 'shelter');
-  // El astronauta empieza junto al refugio; sin refugio, en el centro del mapa.
-  state.astronaut_position_m = shelter
-    ? [shelter.position_m[0] + ASTRONAUT_START_OFFSET_M, shelter.position_m[1]]
+  // Puntos de interés: los de la zona más la base y los objetivos propios de la misión.
+  const { markers, group: poiGroup, setPoints: setMarkerPoints } = createPoiMarkers(world.scene, dem, mission.getPoints());
+  mission.onChange(() => setMarkerPoints(mission.getPoints()));
+  // El astronauta empieza junto a la base si la hay; si no, junto al refugio de la zona;
+  // sin ninguno de los dos, en el centro del mapa.
+  const home = mission.getBase() ?? mission.getPoints().find((poi) => poi.type === 'shelter');
+  state.astronaut_position_m = home
+    ? [home.position_m[0] + ASTRONAUT_START_OFFSET_M, home.position_m[1] + ASTRONAUT_START_OFFSET_M]
     : [0, 0];
 
-  // Rover a escala real sobre el refugio, apoyado en el suelo con sampleElevation_m.
+  // El rover ya no se aparca aquí: acompaña al astronauta y lo gestiona el modo a pie.
   const models = {};
-  const modelsReady = shelter
-    ? createPerseverance()
-        .then((rover) => {
-          const [x_m, z_m] = shelter.position_m;
-          rover.position.set(x_m, dem.sampleElevation_m(x_m, z_m), z_m);
-          rover.traverse((node) => {
-            if (node.isMesh) node.castShadow = world.quality.shadows;
-          });
-          world.scene.add(rover);
-          models.rover = rover;
-        })
-        .catch((error) => {
-          console.error('No se pudo cargar el modelo del rover:', error);
-        })
-    : Promise.resolve();
-
-  // El rover mide 3 m: desde la órbita no se ve y cuesta cientos de llamadas de dibujo,
-  // así que solo se dibuja con la cámara cerca. [diseño] Distancia de corte en metros.
-  const ROVER_DRAW_DISTANCE_M = 700;
-  world.onFrame(() => {
-    if (models.rover) {
-      models.rover.visible =
-        world.camera.position.distanceTo(models.rover.position) < ROVER_DRAW_DISTANCE_M;
-    }
-  });
+  const modelsReady = Promise.resolve();
 
   const picking = createPicking({
     camera: world.camera, domElement: world.renderer.domElement, mesh: terrain.mesh, dem, markers,
@@ -111,15 +90,19 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
       `elevación ${elevation_m.toFixed(1)} m · pendiente ${slope_deg.toFixed(2)}°`;
   });
 
-  const routeLine = createRouteLine(world.scene, dem, world.renderer);
+  const routeLine = createRouteRibbon(world.scene, dem);
   world.onFrame((delta_s) => routeLine.update(world.camera, delta_s));
   state.crew = DEFAULT_CREW.map((member) => ({ ...member }));
   const popupHost = el('div');
   dockRight.append(popupHost);
   const routePanel = createRoutePanel(dockRight, {
     dem, dataset, routeLine, getCrew: () => state.crew.map((member) => ({ ...member })),
+    getPoints: () => mission.getPoints(),
   });
-  const environmentPanel = createEnvironmentPanel(dockLeft, { world, dataset, routePanel });
+  createMissionPanel(dockRight, { mission });
+  const environmentPanel = createEnvironmentPanel(dockLeft, {
+    world, routePanel, getPoints: () => mission.getPoints(),
+  });
 
   const popup = createPoiPopup(popupHost);
   on('poi:click', (poi) => {
@@ -165,8 +148,12 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
         window.location.reload();
       },
       onExplore: () => emit('mode:request', 'gameplay'),
+      onHelp: () => onboarding.start(true),
     },
   );
+
+  // Primeros pasos: salen solos la primera vez que el dashboard queda a la vista.
+  const onboarding = createOnboarding(ui, { orbitControls: orbit.controls });
 
   // Vista orbital inicial.
   let savedCamera = null;
@@ -175,15 +162,21 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
     world, dem, dataset, compositor, mesh: terrain.mesh, orbit, routePanel, environmentPanel,
     models, modelsReady, tabs, picking, ui,
     getRoute: () => routePanel.getRoute(),
+    onboarding,
     setUiVisible(visible) {
       ui.classList.toggle('is-intro-hidden', !visible);
       orbit.controls.enabled = active && visible;
+      if (visible) onboarding.start();
     },
     setActive(next) {
       if (next === active) return;
       active = next;
       ui.hidden = !active;
       orbit.controls.enabled = active;
+      // La cinta de la ruta cambia de medidas: ancha desde la órbita, estrecha a pie.
+      routeLine.setView(active ? 'orbit' : 'surface');
+      // Al salir del mapa, un clic pendiente de colocar base u objetivo se cancela.
+      state.clickMode = 'route';
       poiGroup.visible = true; // los marcadores también sirven de referencia a pie
       if (!active) {
         savedCamera = {

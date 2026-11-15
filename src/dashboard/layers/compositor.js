@@ -30,16 +30,18 @@ export async function createCompositor(dem, dataset) {
 
   const filesById = new Map(dataset.metadata.layers.map((layer) => [layer.id, layer.file]));
   const layers = [];
+  const entries = new Map(dataset.metadata.layers.map((layer) => [layer.id, layer]));
   for (const def of LAYER_DEFS) {
+    const entry = entries.get(def.id);
     const file = filesById.get(def.id);
-    let source = null; // imagen o canvas; se crea al encender la capa si es calculada
-    let simulated = false;
+    // Una capa que necesita archivo (CRISM, THEMIS) no existe si la zona no lo trae.
+    if (def.requiresFile && !file) continue;
+    let source = null; // imagen o canvas; las capas calculadas se crean al encenderlas
     if (file) {
       // Si metadata.layers trae archivo para la capa, se usa ese archivo.
       source = await loadImage(dataset.baseUrl + file);
       // La base se tiñe con la paleta de Marte salvo que el dataset diga "tint": false
       // (por ejemplo, cuando la textura ya es un ortomosaico en color).
-      const entry = dataset.metadata.layers.find((layer) => layer.id === def.id);
       if (def.id === 'base' && entry?.tint !== false) {
         const scratch = document.createElement('canvas');
         scratch.width = dem.cols;
@@ -49,13 +51,13 @@ export async function createCompositor(dem, dataset) {
         const pixels = scratchCtx.getImageData(0, 0, dem.cols, dem.rows).data;
         source = rasterToCanvas({ width: dem.cols, height: dem.rows, data: tintBaseRaster(pixels, dem) });
       }
-    } else if (def.canBeSimulated) {
-      simulated = true;
     }
     layers.push({
-      def,
+      // La unidad, el rango y la fuente de una capa de archivo vienen del metadata.
+      def: def.requiresFile
+        ? { ...def, unit: entry.unit ?? null, range: entry.range ?? null, source: entry.source ?? null }
+        : def,
       source,
-      simulated,
       visible: def.defaultVisible,
       opacity: def.defaultOpacity,
     });
@@ -82,12 +84,7 @@ export async function createCompositor(dem, dataset) {
   return {
     canvas,
     getLayers() {
-      return layers.map(({ def, simulated, visible, opacity }) => ({
-        ...def,
-        simulated,
-        visible,
-        opacity,
-      }));
+      return layers.map(({ def, visible, opacity }) => ({ ...def, visible, opacity }));
     },
     setLayer(id, { visible, opacity } = {}) {
       const layer = layers.find((entry) => entry.def.id === id);

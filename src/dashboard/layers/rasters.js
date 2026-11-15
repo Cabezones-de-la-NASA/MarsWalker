@@ -28,31 +28,15 @@ export function rampColor(ramp, t) {
   return ramp[ramp.length - 1][1];
 }
 
-// APROXIMACIONES, NO DATOS REALES. Solo sirven para probar la interfaz de capas mientras
-// no haya productos CRISM o THEMIS convertidos. Coeficientes [diseño], sin base publicada.
-// elevation01: elevación normalizada al rango del dataset (0 = punto más bajo).
-export function simulatedCrismIndex(elevation01, slope_deg) {
-  return clamp01(0.6 * (1 - elevation01) + 0.4 * clamp01(slope_deg / 20));
-}
-export function simulatedThemisIndex(elevation01, slope_deg) {
-  return clamp01(0.15 + 0.7 * clamp01(slope_deg / 15) + 0.15 * elevation01);
-}
-
 // -> { width, height, data: Uint8ClampedArray RGBA }, una celda del DEM por píxel.
 export function buildLayerRaster(layerId, dem) {
   const def = LAYER_DEFS.find((layer) => layer.id === layerId);
-  if (!def || def.kind === 'image') throw new Error(`La capa ${layerId} no se calcula desde el DEM`);
-
-  const { rows, cols, resolution_m, size_m, elevations_m } = dem;
-  const data = new Uint8ClampedArray(rows * cols * 4);
-
-  let min_m = Infinity;
-  let max_m = -Infinity;
-  for (const elevation_m of elevations_m) {
-    if (elevation_m < min_m) min_m = elevation_m;
-    if (elevation_m > max_m) max_m = elevation_m;
+  if (!def || (def.kind !== 'ramp' && def.kind !== 'bands')) {
+    throw new Error(`La capa ${layerId} no se calcula desde el DEM`);
   }
-  const relief_m = max_m - min_m || 1;
+
+  const { rows, cols, resolution_m, size_m } = dem;
+  const data = new Uint8ClampedArray(rows * cols * 4);
 
   for (let row = 0; row < rows; row++) {
     const z_m = (row + 0.5) * resolution_m - size_m[1] / 2;
@@ -64,13 +48,6 @@ export function buildLayerRaster(layerId, dem) {
         color = rampColor(def.ramp, slope_deg / def.range[1]);
       } else if (layerId === 'risk') {
         color = RISK_COLORS[riskBand(riskIndex(slope_deg, MAX_SAFE_SLOPE_DEG))];
-      } else {
-        const elevation01 = (elevations_m[row * cols + col] - min_m) / relief_m;
-        const index =
-          layerId === 'crism'
-            ? simulatedCrismIndex(elevation01, slope_deg)
-            : simulatedThemisIndex(elevation01, slope_deg);
-        color = rampColor(def.ramp, index);
       }
       const i = (row * cols + col) * 4;
       data[i] = color[0];

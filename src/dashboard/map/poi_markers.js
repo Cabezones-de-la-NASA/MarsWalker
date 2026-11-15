@@ -36,31 +36,45 @@ function markerTexture(style) {
   return texture;
 }
 
-// points: lista "points" de poi.json. -> { group, markers } ; cada marcador lleva userData.poi.
+// points: lista "points" de poi.json más los puntos propios de la misión.
+// -> { group, markers, setPoints(points) }; cada marcador lleva userData.poi.
+// markers es siempre el mismo arreglo: setPoints lo vacía y lo vuelve a llenar, así quien
+// lo recibió (el clic sobre el mapa) ve los cambios sin tener que pedirlo otra vez.
 export function createPoiMarkers(scene, dem, points) {
   const group = new THREE.Group();
   group.name = 'poi';
   const textures = new Map();
   const markers = [];
 
-  for (const poi of points) {
-    const style = POI_STYLES[poi.type] || FALLBACK_STYLE;
-    if (!textures.has(style)) textures.set(style, markerTexture(style));
-    const material = new THREE.SpriteMaterial({
-      map: textures.get(style),
-      sizeAttenuation: false, // mismo tamaño en pantalla a cualquier distancia
-      depthTest: false,
-      transparent: true,
-    });
-    const sprite = new THREE.Sprite(material);
-    const [x_m, z_m] = poi.position_m;
-    sprite.position.set(x_m, dem.sampleElevation_m(x_m, z_m) + MARKER_LIFT_M, z_m);
-    sprite.scale.set(MARKER_SCREEN_SIZE, MARKER_SCREEN_SIZE, 1);
-    sprite.renderOrder = 10;
-    sprite.userData.poi = poi;
-    group.add(sprite);
-    markers.push(sprite);
+  function setPoints(next) {
+    for (const sprite of markers) {
+      group.remove(sprite);
+      sprite.material.dispose();
+    }
+    markers.length = 0;
+    for (const poi of next) {
+      const style = POI_STYLES[poi.type] || FALLBACK_STYLE;
+      if (!textures.has(style)) textures.set(style, markerTexture(style));
+      const material = new THREE.SpriteMaterial({
+        map: textures.get(style),
+        sizeAttenuation: false, // mismo tamaño en pantalla a cualquier distancia
+        depthTest: false,
+        transparent: true,
+      });
+      const sprite = new THREE.Sprite(material);
+      const [x_m, z_m] = poi.position_m;
+      sprite.position.set(x_m, dem.sampleElevation_m(x_m, z_m) + MARKER_LIFT_M, z_m);
+      // Los puntos propios se dibujan algo mayores para distinguirlos de los de la zona.
+      const size = MARKER_SCREEN_SIZE * (poi.custom ? 1.15 : 1);
+      sprite.scale.set(size, size, 1);
+      sprite.renderOrder = 10;
+      sprite.userData.poi = poi;
+      group.add(sprite);
+      markers.push(sprite);
+    }
   }
+
+  setPoints(points);
   scene.add(group);
-  return { group, markers };
+  return { group, markers, setPoints };
 }

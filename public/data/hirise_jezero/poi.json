@@ -1,0 +1,118 @@
+{
+  "dataset_id": "hirise_jezero",
+  "todo": "TODO: añadir contexto de misión de las páginas de Perseverance y MRO de https://www.jpl.nasa.gov/topics/mars/ (el sitio rechazó la conexión desde la sesión de trabajo). Las descripciones actuales usan solo el DEM y el NASA Photojournal.",
+  "points": [
+    {
+      "id": "poi_01",
+      "name": "Refugio central",
+      "position_m": [
+        0.5,
+        -4.5
+      ],
+      "type": "shelter",
+      "description": "Llano con 2.0° de pendiente en el centro de la zona, con su entorno por debajo de 4°. La imagen de referencia, de Mars Odyssey, muestra la mitad oeste del cráter Jezero, donde se encuentra el rover Perseverance. Posición elegida por el proyecto con la pendiente M1 del DTM HiRISE de 1 m/px; no es la ubicación real de la imagen.",
+      "source": "Posición: DTM HiRISE DTEEC_045994_1985_046060_1985_U01 (USGS/UA) y modelo M1. Contexto e imagen: NASA Photojournal, PIA26140.",
+      "image_url": "https://science.nasa.gov/photojournal/jezero-crater-false-color/",
+      "image_src": "https://assets.science.nasa.gov/content/dam/science/psd/photojournal/pia/pia26/pia26140/PIA26140.jpg/jcr:content/renditions/cq5dam.web.1280.1280.jpeg",
+      "image_credit": "NASA/JPL-Caltech/ASU"
+    },
+    {
+      "id": "poi_02",
+      "name": "Muestreo oeste",
+      "position_m": [
+        -943.5,
+        -75.2
+      ],
+      "type": "sampling",
+      "description": "Terreno casi plano (0.03°) en la parte alta del oeste de la zona, cerca de un escarpe. La imagen de referencia muestra Wildcat Ridge y Skinner Ridge, dos lugares del delta de Jezero donde Perseverance tomó muestras de roca para un posible retorno a la Tierra. Posición elegida por el proyecto con la pendiente M1 del DTM HiRISE de 1 m/px; no es la ubicación real de la imagen.",
+      "source": "Posición: DTM HiRISE DTEEC_045994_1985_046060_1985_U01 (USGS/UA) y modelo M1. Contexto e imagen: NASA Photojournal, PIA24924.",
+      "image_url": "https://science.nasa.gov/photojournal/2-perseverance-sampling-locations-in-jezeros-delta/",
+      "image_src": "https://assets.science.nasa.gov/content/dam/science/psd/photojournal/pia/pia24/pia24924/figures/PIA24924_figA_thumb.jpg/jcr:content/renditions/cq5dam.web.1280.1280.jpeg",
+      "image_credit": "NASA/JPL-Caltech/ASU/MSSS"
+    },
+    {
+      "id": "poi_03",
+      "name": "Muestreo sur",
+      "position_m": [
+        -433.7,
+        586.1
+      ],
+      "type": "sampling",
+      "description": "Terreno casi plano (0.03°) en la parte baja del sur, cerca de un escarpe. La imagen de referencia muestra el núcleo de roca del afloramiento Berea dentro del taladro de Perseverance; cada núcleo mide unos 13 mm de diámetro y 60 mm de largo. Posición elegida por el proyecto con la pendiente M1 del DTM HiRISE de 1 m/px; no es la ubicación real de la imagen.",
+      "source": "Posición: DTM HiRISE DTEEC_045994_1985_046060_1985_U01 (USGS/UA) y modelo M1. Contexto e imagen: NASA Photojournal, PIA25690.",
+      "image_url": "https://science.nasa.gov/photojournal/perseverances-rock-core-from-berea-outcrop/",
+      "image_src": "https://assets.science.nasa.gov/content/dam/science/psd/photojournal/pia/pia25/pia25690/PIA25690.jpg/jcr:content/renditions/cq5dam.web.1280.1280.jpeg",
+      "image_credit": "NASA/JPL-Caltech/ASU/MSSS"
+    },
+    {
+      "id": "poi_04",
+      "name": "Muestreo junto al refugio",
+      "position_m": [
+        40.9,
+        51.0
+      ],
+      "type": "sampling",
+      "description": "Terreno casi plano (0.04°) a unos 70 m del refugio. La imagen de referencia muestra la muestra Otis Peak, cuyas zonas de distinto color son minerales que arrastró un río que desembocaba en el cráter Jezero. Posición elegida por el proyecto con la pendiente M1 del DTM HiRISE de 1 m/px; no es la ubicación real de la imagen.",
+      "source": "Posición: DTM HiRISE DTEEC_045994_1985_046060_1985_U01 (USGS/UA) y modelo M1. Contexto e imagen: NASA Photojournal, PIA25962.",
+      "image_url": "https://science.nasa.gov/photojournal/perseverances-otis-peak-sample-reveals-colors-of-conglomerate/",
+      "image_src": "https://assets.science.nasa.gov/content/dam/science/psd/photojournal/pia/pia25/pia25962/PIA25962.jpg/jcr:content/renditions/cq5dam.web.1280.1280.jpeg",
+      "image_credit": "NASA/JPL-Caltech"
+    },
+    {
+      "id": "poi_05",
+      "name": "Muestreo suroeste",
+      "position_m": [
+        -903.1,
+        767.8
+      ],
+      "type": "sampling",
+      "description": "Terreno casi plano (0.04°) en la esquina suroeste, cerca de un escarpe. La imagen de referencia, de Mars Odyssey, muestra el depósito del delta del cráter Jezero. Posición elegida por el proyecto con la pendiente M1 del DTM HiRISE de 1 m/px; no es la ubicación real de la imagen.",
+      "source": "Posición: DTM HiRISE DTEEC_045994_1985_046060_1985_U01 (USGS/UA) y modelo M1. Contexto e imagen: NASA Photojournal, PIA26252.",
+      "image_url": "https://science.nasa.gov/photojournal/jezero-crater-delta-2/",
+      "image_src": "https://assets.science.nasa.gov/content/dam/science/psd/photojournal/pia/pia26/pia26252/PIA26252.jpg/jcr:content/renditions/cq5dam.web.1280.1280.jpeg",
+      "image_credit": "NASA/JPL-Caltech/ASU"
+    },
+    {
+      "id": "poi_06",
+      "name": "Peligro: escarpe suroeste",
+      "position_m": [
+        -888.0,
+        565.9
+      ],
+      "type": "hazard",
+      "description": "Escarpe muy empinado: 73.6° de pendiente en la celda de 1 m, muy por encima del límite seguro de 25° (M2). La imagen de referencia, de la cámara Mastcam-Z de Perseverance, muestra el borde oriental erosionado del delta de Jezero. Posición elegida por el proyecto con la pendiente M1 del DTM HiRISE de 1 m/px; no es la ubicación real de la imagen.",
+      "source": "Posición: DTM HiRISE DTEEC_045994_1985_046060_1985_U01 (USGS/UA) y modelo M1. Contexto e imagen: NASA Photojournal, PIA25671.",
+      "image_url": "https://science.nasa.gov/photojournal/mastcam-z-views-the-eastern-edge-of-jezeros-delta/",
+      "image_src": "https://assets.science.nasa.gov/content/dam/science/psd/photojournal/pia/pia25/pia25671/figures/PIA25671_figA_thumb.jpg/jcr:content/renditions/cq5dam.web.1280.1280.jpeg",
+      "image_credit": "NASA/JPL-Caltech/ASU/MSSS"
+    },
+    {
+      "id": "poi_07",
+      "name": "Peligro: escarpe oeste",
+      "position_m": [
+        -590.1,
+        -231.7
+      ],
+      "type": "hazard",
+      "description": "Escarpe con 65.7° de pendiente en la celda de 1 m, por encima del límite seguro de 25° (M2). La imagen de referencia muestra un campo de rocas que un río antiguo y rápido depositó en el cráter Jezero. Posición elegida por el proyecto con la pendiente M1 del DTM HiRISE de 1 m/px; no es la ubicación real de la imagen.",
+      "source": "Posición: DTM HiRISE DTEEC_045994_1985_046060_1985_U01 (USGS/UA) y modelo M1. Contexto e imagen: NASA Photojournal, PIA25963.",
+      "image_url": "https://science.nasa.gov/photojournal/perseverance-views-jezero-boulder-field/",
+      "image_src": "https://assets.science.nasa.gov/content/dam/science/psd/photojournal/pia/pia25/pia25963/PIA25963.jpg/jcr:content/renditions/cq5dam.web.1280.1280.jpeg",
+      "image_credit": "NASA/JPL-Caltech/ASU/MSSS"
+    },
+    {
+      "id": "poi_08",
+      "name": "Peligro: escarpe este",
+      "position_m": [
+        192.3,
+        379.1
+      ],
+      "type": "hazard",
+      "description": "Escarpe con 62.3° de pendiente en la celda de 1 m, por encima del límite seguro de 25° (M2). La imagen de referencia muestra el terreno resbaladizo que dificultó a Perseverance la subida al borde del cráter Jezero. Posición elegida por el proyecto con la pendiente M1 del DTM HiRISE de 1 m/px; no es la ubicación real de la imagen.",
+      "source": "Posición: DTM HiRISE DTEEC_045994_1985_046060_1985_U01 (USGS/UA) y modelo M1. Contexto e imagen: NASA Photojournal, PIA26479.",
+      "image_url": "https://science.nasa.gov/photojournal/perseverance-views-slippery-terrain/",
+      "image_src": "https://assets.science.nasa.gov/content/dam/science/psd/photojournal/pia/pia26/pia26479/PIA26479.jpg/jcr:content/renditions/cq5dam.web.1280.1280.jpeg",
+      "image_credit": "NASA/JPL-Caltech"
+    }
+  ]
+}

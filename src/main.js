@@ -12,6 +12,7 @@ import { createDust } from './world/dust.js';
 import { startDashboard } from './dashboard/dashboard.js';
 import { createGameplay } from './gameplay/gameplay.js';
 import { startIntro } from './intro/intro.js';
+import { createMissionStore } from './shared/missions.js';
 
 // [diseño] Duración del fundido entre el mapa y la superficie, en milisegundos.
 const FADE_MS = 320;
@@ -56,8 +57,16 @@ async function initScene() {
   const rocks = createRocks(world.scene, dem, quality);
   const dust = createDust(world.scene, quality);
 
-  const dashboard = await startDashboard(document.body, { world, dem, dataset, terrain, zones });
-  const gameplay = createGameplay(document.body, { world, dem, dataset, terrain, rocks, dust });
+  // Misión del usuario en esta zona: base y objetivos propios, guardados en el navegador.
+  const mission = createMissionStore({
+    dataset_id: dataset.metadata.dataset_id,
+    datasetPoints: dataset.poi?.points ?? [],
+    halfWidth_m: dem.size_m[0] / 2,
+    halfDepth_m: dem.size_m[1] / 2,
+  });
+
+  const dashboard = await startDashboard(document.body, { world, dem, dataset, terrain, mission, zones });
+  const gameplay = createGameplay(document.body, { world, dem, dataset, terrain, rocks, dust, mission });
 
   // Cambio de modo. La posición del astronauta viaja en state.astronaut_position_m.
   // El cambio se hace detrás de un fundido a negro, como un corte de cámara.
@@ -85,7 +94,7 @@ async function initScene() {
 
   // Solo en desarrollo: acceso desde la consola y las pruebas de navegador.
   if (import.meta.env.DEV) {
-    window.__marswalk = { ...dashboard, state, terrain, rocks, dust, gameplay, on };
+    window.__marswalk = { ...dashboard, state, terrain, rocks, dust, gameplay, mission, on };
   }
 
   return { world, dashboard };
@@ -108,9 +117,10 @@ async function start() {
   const skipIntro = consumeSkipIntroFlag();
 
   if (skipIntro) {
-    const { world } = await initScene();
+    const { world, dashboard } = await initScene();
     state.mode = 'dashboard';
     world.start();
+    dashboard.setUiVisible(true);
     return;
   }
 

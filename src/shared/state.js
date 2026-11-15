@@ -10,6 +10,8 @@ export const state = {
   environment: null,
   // Tripulación, de 1 a 6: [{ name, role, age, sex, mass_kg, fitness, prior_dose_msv }].
   crew: [],
+  // A qué responde un clic en el mapa: 'route' (por defecto), 'place_base' o 'place_objective'.
+  clickMode: 'route',
 };
 
 const handlers = new Map();

@@ -49,12 +49,6 @@ export function createLayersPanel(container, compositor) {
     checkbox.type = 'checkbox';
     checkbox.checked = layer.visible;
     head.append(checkbox, el('span', 'layer-name', layer.label));
-    if (layer.simulated) {
-      const badge = el('span', 'layer-badge', 'simulada');
-      badge.title = 'Aproximación generada desde pendiente y elevación. No es un dato real.';
-      head.append(badge);
-    }
-
     const opacityRow = el('label', 'layer-opacity');
     const slider = el('input');
     slider.type = 'range';
@@ -73,11 +67,12 @@ export function createLayersPanel(container, compositor) {
     });
 
     item.append(head, opacityRow);
-    if (layer.kind !== 'image') item.append(buildLegend(layer));
-    if (layer.simulated) {
-      item.append(
-        el('div', 'layer-note', 'Simulada desde pendiente y elevación: no es un dato de misión.'),
-      );
+    if (layer.kind === 'ramp' || layer.kind === 'bands') item.append(buildLegend(layer));
+    if (layer.kind === 'file') {
+      // Capa de datos reales: unidad, rango y fuente, tal como los declara la zona.
+      const range = layer.range ? `de ${layer.range[0]} a ${layer.range[1]}` : 'rango no declarado';
+      item.append(el('div', 'layer-legend', `${layer.unit ?? 'unidad no declarada'}, ${range}`));
+      if (layer.source) item.append(el('div', 'layer-legend', `Fuente: ${layer.source}`));
     }
     panel.append(item);
   }

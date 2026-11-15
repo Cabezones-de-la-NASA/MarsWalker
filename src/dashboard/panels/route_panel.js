@@ -2,7 +2,7 @@
 // elevación, comparación de la ruta clásica contra la de salud y exportación.
 import './panels.css';
 import { createPanelShell } from './panel_shell.js';
-import { state, on } from '../../shared/state.js';
+import { state, on, emit } from '../../shared/state.js';
 import { buildElevationProfile } from '../../models/routing/profile.js';
 import { QAOA_NOTICE } from '../../models/routing/qaoa_inspired.js';
 import { PRESETS } from '../../models/routing/astar_health.js';
@@ -56,8 +56,10 @@ function formatTime(time_s) {
   return minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`;
 }
 
-// deps: { dem, dataset, routeLine, getCrew }  (getCrew: tripulación actual, para la ruta por salud)
-export function createRoutePanel(container, { dem, dataset, routeLine, getCrew }) {
+// deps: { dem, dataset, routeLine, getCrew, getPoints }
+//   getCrew: tripulación actual, para la ruta por salud
+//   getPoints: puntos de interés de la zona más la base y los objetivos propios
+export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, getPoints }) {
   const shell = createPanelShell('Ruta', 'route-panel');
   const panel = shell.body;
 
@@ -283,6 +285,8 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew }
   }
 
   on('terrain:click', ({ x_m, z_m }) => {
+    // Mientras se coloca la base o un objetivo, el clic no es para la ruta.
+    if (state.clickMode !== 'route') return;
     setPoint(target, [x_m, z_m]);
     // Tras el inicio toca el destino; después, cada clic mueve el destino.
     setTarget('goal');
@@ -301,7 +305,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew }
   });
   toShelter.addEventListener('click', () => {
     const from_m = points.start ?? state.astronaut_position_m ?? [0, 0];
-    const shelter = nearestShelter(dataset.poi?.points, from_m);
+    const shelter = nearestShelter(getPoints(), from_m);
     if (!shelter) {
       status.textContent = 'Esta zona no tiene ningún refugio.';
       return;
@@ -338,6 +342,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew }
     routeLine.setComparePath(null);
     compareBox.hidden = true;
     routeLine.setPath(route.path_m);
+    emit('route:computed', route);
     const unsafe = drawElevationProfile(profile, buildElevationProfile(dem, route.path_m));
     status.textContent =
       `Ruta calculada en ${message.elapsed_ms.toFixed(0)} ms.` +

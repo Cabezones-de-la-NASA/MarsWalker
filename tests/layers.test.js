@@ -5,8 +5,6 @@ import { createDem } from '../src/models/terrain/dem.js';
 import {
   buildLayerRaster,
   rampColor,
-  simulatedCrismIndex,
-  simulatedThemisIndex,
 } from '../src/dashboard/layers/rasters.js';
 import { LAYER_DEFS, RISK_COLORS } from '../src/dashboard/layers/layer_defs.js';
 
@@ -53,20 +51,15 @@ test('pendiente: 0° usa el inicio de la rampa y 45° o más el final', () => {
   assert.deepEqual(pixel(buildLayerRaster('slope', planeDem(60))), [...ramp[ramp.length - 1][1], 255]);
 });
 
-test('crism y themis simuladas: índices en [0, 1] y un píxel por celda', () => {
-  for (const elevation01 of [0, 0.3, 1]) {
-    for (const slope_deg of [0, 10, 25, 80]) {
-      for (const index of [
-        simulatedCrismIndex(elevation01, slope_deg),
-        simulatedThemisIndex(elevation01, slope_deg),
-      ]) {
-        assert.ok(index >= 0 && index <= 1);
-      }
-    }
+test('crism y themis no se simulan: son capas de archivo y no se calculan desde el DEM', () => {
+  for (const id of ['crism', 'themis']) {
+    const def = LAYER_DEFS.find((layer) => layer.id === id);
+    assert.equal(def.requiresFile, true);
+    assert.equal(def.kind, 'file');
+    assert.throws(() => buildLayerRaster(id, planeDem(10)));
   }
-  const raster = buildLayerRaster('themis', planeDem(10));
-  assert.equal(raster.width, 8);
-  assert.equal(raster.height, 8);
-  assert.equal(raster.data.length, 8 * 8 * 4);
   assert.throws(() => buildLayerRaster('base', planeDem(0)));
+  const raster = buildLayerRaster('slope', planeDem(10));
+  assert.equal(raster.width, 8);
+  assert.equal(raster.data.length, 8 * 8 * 4);
 });

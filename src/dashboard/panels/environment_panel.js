@@ -26,8 +26,8 @@ function formatHour(ltst_h) {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
-// deps: { world, dataset, routePanel }
-export function createEnvironmentPanel(container, { world, dataset, routePanel }) {
+// deps: { world, routePanel, getPoints }
+export function createEnvironmentPanel(container, { world, routePanel, getPoints }) {
   const shell = createPanelShell('Entorno', 'environment-panel');
   const panel = shell.body;
 
@@ -156,11 +156,11 @@ export function createEnvironmentPanel(container, { world, dataset, routePanel }
     }
     // Evacuación con M4 al refugio más cercano, desde el inicio de la ruta si hay uno
     // y si no desde la posición del astronauta.
-    const points = dataset.poi?.points ?? [];
+    const points = getPoints();
     const from_m = routePanel.getStart() ?? state.astronaut_position_m;
     const shelter = from_m ? nearestShelter(points, from_m) : null;
     if (!shelter) {
-      status.textContent = 'Tormenta activa. Este dataset no tiene ningún refugio para evacuar.';
+      status.textContent = 'Tormenta activa. Esta zona no tiene refugio: coloca una base en el panel Misión.';
       return;
     }
     if (Math.hypot(shelter.position_m[0] - from_m[0], shelter.position_m[1] - from_m[1]) < 1) {

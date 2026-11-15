@@ -117,6 +117,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   mission.append(el('h2', 'hud-title', 'Estado de misión'));
   const status = el('div', 'hud-status', '—');
   const alerts = el('ul', 'hud-alerts');
+  const objectives = row(mission, 'Objetivos');
   const samples = row(mission, 'Muestras');
   const elapsed = row(mission, 'Tiempo de EVA');
   mission.append(status, alerts);
@@ -220,7 +221,8 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
     /**
      * data = { vitals, status, o2_capacity_l, nav: { x_m, z_m, elevation_m, slope_deg,
      *          heading_deg, speed_ms, distance_m }, environment: { ambient_temp_c, phase },
-     *          elapsed_s, samples, sampleSites, running, firstPerson, fps, time_scale }
+     *          elapsed_s, samples, sampleSites, visited, objectives, running, firstPerson, fps,
+     *          time_scale }
      */
     update(data) {
       const v = data.vitals;
@@ -273,6 +275,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
         if (flag === 'dehydration_warning' && flags.dehydration_critical) continue;
         alerts.append(el('li', null, text));
       }
+      objectives.value.textContent = `${data.visited} de ${data.objectives}`;
       samples.value.textContent = `${data.samples} de ${data.sampleSites}`;
       elapsed.value.textContent = formatDuration(data.elapsed_s / 3600);
 

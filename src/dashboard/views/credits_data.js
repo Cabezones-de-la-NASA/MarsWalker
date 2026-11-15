@@ -61,6 +61,8 @@ export const CREDIT_GROUPS = [
   {
     title: 'Lo que es arte y no dato',
     items: [
+      { id: '', name: 'Rover de compañía', url: '', use: 'El rover sigue al astronauta al paso de una persona. Es una licencia del juego: el Perseverance real avanza a centímetros por segundo. Los datos que cuenta sí llevan su fuente.' },
+      { id: '', name: 'Base y objetivos propios', url: '', use: 'La estación es un diseño del equipo y los puntos que coloca el usuario no son datos de misión.' },
       { id: '', name: 'Color del terreno', url: '', use: 'La textura base se tiñe con una paleta óxido elegida por el equipo. No es el color medido de la superficie ni un ortomosaico.' },
       { id: '', name: 'Rocas', url: '', use: 'Su posición y tamaño se generan con una función fija, con más rocas en ladera. No vienen de datos del terreno.' },
       { id: '', name: 'Microrrelieve', url: '', use: 'De cerca el suelo lleva ondulaciones de hasta 14 cm para que no se vea liso. La elevación y la pendiente que usan los modelos y el visor salen siempre del DEM.' },

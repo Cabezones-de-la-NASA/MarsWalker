@@ -2,11 +2,15 @@
 """Propone posiciones de puntos de interés a partir de la pendiente M1 de un dataset.
 
 Criterios (docs/modelosydb.md, paso 6 del plan de construcción):
-  - refugio:  pendiente < 4 grados en la celda y en todo su entorno de 5 x 5; el más cercano
-              al centro del mapa.
-  - peligro:  celdas con pendiente > 25 grados, separadas entre sí.
-  - muestreo: celdas de pendiente < 8 grados a entre 100 y 300 m de un escarpe (> 20 grados)
-              de la mitad oeste del mapa, separadas entre sí.
+  - refugio:  pendiente < 4 grados en el punto y en todo su entorno; el más cercano al
+              centro del mapa.
+  - peligro:  puntos con pendiente > 25 grados, separados entre sí.
+  - muestreo: puntos de pendiente < 8 grados cerca de un escarpe (> 20 grados) de la mitad
+              oeste del mapa, separados entre sí.
+
+Las distancias se escalan con el tamaño del mapa, para que sirva igual en una zona de
+10 km a 20 m/px que en una de 2 km a 1 m/px. En mapas muy finos los candidatos se toman
+cada pocos metros, pero la pendiente de cada uno es siempre la de M1 en esa celda.
 
 Las posiciones salen en metros con los ejes de la escena: [x_m, z_m], +X este, -Z norte.
 Solo usa la librería estándar de Python.
@@ -29,6 +33,14 @@ HAZARD_MIN_DEG = 25.0
 SCARP_MIN_DEG = 20.0
 SAMPLING_MAX_DEG = 8.0
 
+# Distancias como fracción del lado menor del mapa.
+FLAT_RADIUS = 0.004        # entorno llano del refugio (40 m en un mapa de 10 km)
+HAZARD_GAP = 0.15          # separación entre peligros
+SCARP_NEAR = (0.01, 0.03)  # distancia de un muestreo a su escarpe
+SAMPLING_GAP = 0.09        # separación entre muestreos
+# Separación mínima entre candidatos, en metros.
+CANDIDATE_STEP_M = 5.0
+
 
 def spaced(candidates, count, min_gap_cells):
     """Toma candidatos en orden, saltando los que quedan cerca de uno ya elegido."""
@@ -44,36 +56,46 @@ def spaced(candidates, count, min_gap_cells):
 def find_sites(meta, values):
     rows, cols = meta["shape"]
     res = meta["resolution_m"]
+    side_cells = min(rows, cols)
     slope = compare_slope_d5.slope_grid_deg(values, rows, cols, res)
     at = lambda r, c: slope[r * cols + c]  # noqa: E731
-    inner = [(r, c) for r in range(3, rows - 3) for c in range(3, cols - 3)]
+
+    step = max(1, int(round(CANDIDATE_STEP_M / res)))
+    margin = max(3, int(side_cells * 0.03))
+    grid = [(r, c) for r in range(margin, rows - margin, step) for c in range(margin, cols - margin, step)]
 
     # Refugio: llano con entorno llano, lo más cerca posible del centro.
+    flat_cells = max(2, int(round(side_cells * FLAT_RADIUS)))
+    offsets = range(-flat_cells, flat_cells + 1, max(1, flat_cells // 2))
+
     def flat_around(r, c):
-        return all(at(r + dr, c + dc) < SHELTER_MAX_DEG
-                   for dr in range(-2, 3) for dc in range(-2, 3))
-    shelters = sorted((p for p in inner if flat_around(*p)),
-                      key=lambda p: math.hypot(p[0] - rows / 2, p[1] - cols / 2))[:1]
+        return all(at(r + dr, c + dc) < SHELTER_MAX_DEG for dr in offsets for dc in offsets)
+    by_center = sorted(grid, key=lambda p: math.hypot(p[0] - rows / 2, p[1] - cols / 2))
+    shelters = []
+    for point in by_center:
+        if flat_around(*point):
+            shelters.append(point)
+            break
 
-    # Peligros: las celdas más empinadas, separadas 1.5 km.
-    steep = sorted((p for p in inner if at(*p) > HAZARD_MIN_DEG), key=lambda p: -at(*p))
-    hazards = spaced(steep, 3, 1500 / res)
+    # Peligros: los puntos más empinados, separados entre sí.
+    steep = sorted((p for p in grid if at(*p) > HAZARD_MIN_DEG), key=lambda p: -at(*p))
+    hazards = spaced(steep, 3, side_cells * HAZARD_GAP)
 
-    # Muestreo: al pie o en lo alto de un escarpe de la mitad oeste, sobre terreno suave.
-    scarp = [p for p in inner if at(*p) > SCARP_MIN_DEG and p[1] < cols / 2]
+    # Muestreo: junto a un escarpe de la mitad oeste, sobre terreno suave.
+    scarp = [p for p in grid if at(*p) > SCARP_MIN_DEG and p[1] < cols / 2]
+    lo, hi = side_cells * SCARP_NEAR[0], side_cells * SCARP_NEAR[1]
+    reach = int(math.ceil(hi / step)) * step
     near = set()
-    lo, hi = 100 / res, 300 / res
-    reach = int(math.ceil(hi))
     for r, c in scarp:
-        for dr in range(-reach, reach + 1):
-            for dc in range(-reach, reach + 1):
+        for dr in range(-reach, reach + 1, step):
+            for dc in range(-reach, reach + 1, step):
                 if lo <= math.hypot(dr, dc) <= hi:
                     near.add((r + dr, c + dc))
     gentle = sorted((p for p in near
-                     if 3 <= p[0] < rows - 3 and 3 <= p[1] < cols - 3
+                     if margin <= p[0] < rows - margin and margin <= p[1] < cols - margin
                      and at(*p) < SAMPLING_MAX_DEG),
-                    key=lambda p: (at(*p), p))
-    samplings = spaced(gentle, 4, 900 / res)
+                    key=lambda p: (round(at(*p), 2), p))
+    samplings = spaced(gentle, 4, side_cells * SAMPLING_GAP)
 
     def describe(kind, cells):
         out = []

@@ -82,6 +82,15 @@ export function createTabs(container, views, options = {}) {
     bar.append(label);
   }
 
+  if (options.onHelp) {
+    const help = el('button', 'help-button', '?');
+    help.type = 'button';
+    help.title = 'Ver los primeros pasos';
+    help.setAttribute('aria-label', 'Ver los primeros pasos');
+    help.addEventListener('click', options.onHelp);
+    bar.append(help);
+  }
+
   if (options.onExplore) {
     const explore = el('button', 'explore-button btn-primary', 'Explorar a pie');
     explore.type = 'button';

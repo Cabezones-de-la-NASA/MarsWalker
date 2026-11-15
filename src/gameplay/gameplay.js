@@ -15,10 +15,13 @@ import { createVitals } from './vitals.js';
 import { createHud } from './hud/hud.js';
 import { createInteraction } from './interact.js';
 import { createFootprints } from './footprints.js';
+import { createCompanion } from './companion.js';
+import { createStation, STATION_RADIUS_M } from '../models3d/station.js';
 
-// [diseño] Margen hasta el borde del mapa y radio de colisión del rover, en metros.
+// [diseño] Margen hasta el borde del mapa, en metros.
 const MAP_MARGIN_M = 4;
-const ROVER_RADIUS_M = 2.2;
+// [diseño] El rover aparece a esta distancia del astronauta al empezar.
+const COMPANION_START_OFFSET_M = 5;
 // [diseño] Color de la baliza de cada tipo de punto de interés.
 const BEACON_COLORS = { shelter: 0x3d8bfd, sampling: 0x2bb673, hazard: 0xe5484d };
 // [diseño] Aceleraciones disponibles para el reloj de la fisiología.
@@ -26,29 +29,33 @@ const TIME_SCALES = [1, 20, 120];
 const HUD_REFRESH_S = 0.15;
 
 /**
- * createGameplay(container, { world, dem, dataset, terrain, rocks, dust }) ->
+ * createGameplay(container, { world, dem, terrain, rocks, dust, mission }) ->
+ *   mission: base y objetivos propios (src/shared/missions.js)
  *   enter()   baja a la superficie en state.astronaut_position_m
  *   exit()    vuelve al mapa y guarda la posición en state.astronaut_position_m
  *   isActive()
  */
-export function createGameplay(container, { world, dem, dataset, terrain, rocks, dust }) {
-  const points = dataset.poi?.points ?? [];
-  const shelter = points.find((poi) => poi.type === 'shelter');
+export function createGameplay(container, { world, dem, terrain, rocks, dust, mission }) {
+  const getPoints = () => mission.getPoints();
   const [width_m, depth_m] = dem.size_m;
   const groundAt = (x_m, z_m) => visualGround_m(dem, x_m, z_m);
 
-  // Colisiones: rocas grandes y el rover. La malla del astronauta no interviene: el
-  // cuerpo de colisión es un cilindro de radio fijo, independiente del modelo visual.
+  const companion = createCompanion({ world, groundAt });
+
+  // Colisiones: rocas grandes, el rover y la base. La malla del astronauta no interviene:
+  // el cuerpo de colisión es un cilindro de radio fijo, independiente del modelo visual.
   function resolveCollision(x_m, z_m) {
     let [px, pz] = resolveRockCollision(dem, x_m, z_m, LOCOMOTION.body_radius_m);
-    if (shelter) {
-      const dx = px - shelter.position_m[0];
-      const dz = pz - shelter.position_m[1];
+    [px, pz] = companion.resolveCollision(px, pz, LOCOMOTION.body_radius_m);
+    const base = mission.getBase();
+    if (base) {
+      const dx = px - base.position_m[0];
+      const dz = pz - base.position_m[1];
       const distance_m = Math.hypot(dx, dz);
-      const reach_m = ROVER_RADIUS_M + LOCOMOTION.body_radius_m;
+      const reach_m = STATION_RADIUS_M + LOCOMOTION.body_radius_m;
       if (distance_m < reach_m && distance_m > 1e-6) {
-        px = shelter.position_m[0] + (dx / distance_m) * reach_m;
-        pz = shelter.position_m[1] + (dz / distance_m) * reach_m;
+        px = base.position_m[0] + (dx / distance_m) * reach_m;
+        pz = base.position_m[1] + (dz / distance_m) * reach_m;
       }
     }
     return [px, pz];
@@ -61,19 +68,40 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   const rig = createAstronautRig({ shadows: world.quality.shadows });
   world.scene.add(rig.object);
 
-  // Balizas en los puntos de interés: referencias de navegación a pie.
+  // Balizas en los puntos de interés (la base lleva su estación, no baliza).
   const beacons = new THREE.Group();
   beacons.name = 'beacons';
   beacons.visible = false;
-  for (const poi of points) {
-    const beacon = createBeacon(BEACON_COLORS[poi.type] ?? 0xffb45c, { shadows: world.quality.shadows });
-    beacon.position.set(poi.position_m[0], groundAt(poi.position_m[0], poi.position_m[1]), poi.position_m[1]);
-    beacons.add(beacon);
+  // Estación en la base del usuario. Se ve también desde el mapa.
+  const station = createStation({ shadows: world.quality.shadows });
+  station.visible = false;
+  world.scene.add(beacons, station);
+
+  function rebuildMissionObjects() {
+    beacons.clear();
+    const base = mission.getBase();
+    for (const poi of getPoints()) {
+      if (base && poi.id === base.id) continue;
+      const beacon = createBeacon(BEACON_COLORS[poi.type] ?? 0xffb45c, { shadows: world.quality.shadows });
+      beacon.position.set(poi.position_m[0], groundAt(poi.position_m[0], poi.position_m[1]), poi.position_m[1]);
+      beacons.add(beacon);
+    }
+    station.visible = Boolean(base);
+    if (base) {
+      const [x_m, z_m] = base.position_m;
+      // La estación se apoya en el punto más bajo de su huella para no quedar flotando.
+      let lowest_m = Infinity;
+      for (const [dx, dz] of [[0, 0], [5, 0], [-5, 0], [0, 4], [0, -4]]) {
+        lowest_m = Math.min(lowest_m, dem.sampleElevation_m(x_m + dx, z_m + dz));
+      }
+      station.position.set(x_m, lowest_m, z_m);
+    }
   }
-  world.scene.add(beacons);
+  rebuildMissionObjects();
+  mission.onChange(rebuildMissionObjects);
 
   const footprints = createFootprints(world.scene, world.quality.footprints);
-  const interaction = createInteraction({ dem, points });
+  const interaction = createInteraction({ dem, getPoints, companion });
   const followCamera = createFollowCamera(world.camera, groundAt);
   const vitals = createVitals({
     dem,
@@ -142,10 +170,18 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   }
   spawn(state.astronaut_position_m ?? [0, 0]);
 
+  // El rover empieza al lado del astronauta, mirando hacia él.
+  function placeCompanion() {
+    const [x_m, z_m] = resolveRockCollision(dem, player.x_m - COMPANION_START_OFFSET_M, player.z_m, 1.9);
+    companion.place(x_m, z_m, Math.PI / 2);
+  }
+  placeCompanion();
+
   world.onFrame((delta_s) => {
     if (!active) {
       // En el mapa el astronauta descansa en su sitio.
       rig.update(delta_s, { speed_ms: 0, walk_speed_ms: LOCOMOTION.walk_speed_ms, run_speed_ms: LOCOMOTION.run_speed_ms });
+      companion.update(delta_s, null, world.camera);
       return;
     }
     const look = paused ? [0, 0] : input.consumeLook();
@@ -176,6 +212,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       });
       vitals.update(delta_s, player.x_m, player.z_m);
       footprints.update(player, groundAt);
+      companion.update(delta_s, player, world.camera);
       state.astronaut_position_m = [player.x_m, player.z_m];
       target = interaction.nearest(player.x_m, player.z_m);
     }
@@ -213,8 +250,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
         environment: state.environment
           ? { ambient_temp_c: state.environment.weather.ambient_temp_c, phase: state.environment.sun.phase }
           : null,
-        samples: interaction.samples().length,
-        sampleSites: interaction.sampleSites,
+        ...interaction.progress(),
         running: speed_ms > LOCOMOTION.walk_speed_ms + 0.05,
         firstPerson: followCamera.isFirstPerson(),
         fps: world.stats.fps,
@@ -225,12 +261,15 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   return {
     isActive: () => active,
     // Referencias para las pruebas de navegador.
-    debug: { getPlayer: () => player, vitals, followCamera, input, hud, interaction, rig, env },
+    debug: { getPlayer: () => player, vitals, followCamera, input, hud, interaction, rig, env, companion, station, beacons },
     enter() {
       if (active) return;
       active = true;
       paused = false;
       spawn(state.astronaut_position_m ?? [0, 0]);
+      // Si el astronauta se movió en el mapa, el rover reaparece a su lado.
+      const rover = companion.position();
+      if (!rover || Math.hypot(rover.x_m - player.x_m, rover.z_m - player.z_m) > 30) placeCompanion();
       vitals.reset(player.x_m, player.z_m);
       footprints.reset();
       world.setView('surface');
