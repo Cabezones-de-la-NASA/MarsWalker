@@ -1,0 +1,1 @@
+esta version la puedes mover a recuerda incluir el promt y la imagen de la creacion \\wsl.localhost\Ubuntu\home\linux05\Space\MarsWalker si no hay una carpeta relacionada a la creacion de modelos 3d creala y agregala a la pagina web de esa misma pagina web. Apartir de ahora todos los cambios guardalos en la nueva ruta \\wsl.localhost\Ubuntu\home\linux05\Space\MarsWalker
