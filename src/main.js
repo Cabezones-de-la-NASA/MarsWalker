@@ -9,6 +9,7 @@ import { createWorld } from './world/world.js';
 import { createTerrainMaterial, createTerrainMesh, createLocalPatch } from './world/terrain.js';
 import { createRocks } from './world/rocks.js';
 import { createDust } from './world/dust.js';
+import { visualGround_m } from './world/surface_detail.js';
 import { startDashboard } from './dashboard/dashboard.js';
 import { createGameplay } from './gameplay/gameplay.js';
 import { startIntro } from './intro/intro.js';
@@ -63,7 +64,7 @@ async function initScene() {
   world.scene.add(patch.mesh);
   const terrain = { mesh, material, patch };
   const rocks = createRocks(world.scene, dem, quality);
-  const dust = createDust(world.scene, quality);
+  const dust = createDust(world.scene, quality, (x_m, z_m) => visualGround_m(dem, x_m, z_m));
 
   // Misión del usuario en esta zona: base y objetivos propios, guardados en el navegador.
   const mission = createMissionStore({

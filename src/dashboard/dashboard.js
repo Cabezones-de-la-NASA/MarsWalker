@@ -21,6 +21,7 @@ import { createCrewPanel } from './panels/crew_panel.js';
 import { createTabs } from './views/tabs.js';
 import { createFormulasView } from './views/formulas_view.js';
 import { createCreditsView } from './views/credits_view.js';
+import { createModels3dView } from './views/models3d_view.js';
 import { QUALITY_PROFILES, saveQuality } from '../world/quality.js';
 import './panels/panels.css';
 import { tr } from '../shared/i18n.js';
@@ -131,12 +132,14 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
   const crewPanel = createCrewPanel({ routePanel });
   const formulasView = createFormulasView();
   const creditsView = createCreditsView();
+  const models3dView = createModels3dView();
   const tabs = createTabs(
     ui,
     [
       { id: 'map', label: tr('Mapa') },
       { id: 'crew', label: tr('Tripulación'), element: crewPanel.element, onShow: crewPanel.render, secondary: true },
       { id: 'formulas', label: tr('Fórmulas'), element: formulasView.element, onShow: formulasView.render, secondary: true },
+      { id: 'models3d', label: tr('Modelos 3D'), ...models3dView },
       { id: 'credits', label: tr('Créditos'), element: creditsView.element },
     ],
     {

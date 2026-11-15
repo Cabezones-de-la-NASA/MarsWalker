@@ -70,6 +70,8 @@ export function createWorld(container, quality) {
       phase: environment.sun.phase,
       dust_tau: environment.weather.dust_tau,
       storm: environment.weather.storm,
+      visibility_m: environment.weather.visibility_m,
+      air_mass: environment.sun.air_mass,
       surface,
     });
     const [sx, sy, sz] = environment.sunDirection;
@@ -179,7 +181,7 @@ export function createWorld(container, quality) {
         const delta_s = Math.min(timer.getDelta(), 0.1);
         for (const fn of [...frameCallbacks]) fn(delta_s, timer.getElapsed());
         // El disco solar usa la dirección real (puede estar bajo el horizonte).
-        sky.update(camera, environment.sunDirection, world.look);
+        sky.update(camera, environment.sunDirection, world.look, timer.getElapsed(), environment.weather);
         renderer.render(scene, camera);
         frames += 1;
         statsTime_s += delta_s;

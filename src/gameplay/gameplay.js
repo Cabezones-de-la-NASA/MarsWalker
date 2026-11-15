@@ -26,11 +26,11 @@ import { createSpeech } from './rover_chat/speech.js';
 import { createSound } from './audio/sound.js';
 import { createSortie } from './sortie.js';
 import { markFirstContactDone } from '../shared/first_contact.js';
-import { NOMINAL_DUST_TAU, STORM_DUST_TAU } from '../models/environment/weather.js';
+import { NOMINAL_DUST_TAU, sampleDust } from '../models/environment/dust_storm.js';
 import { VEHICLE } from '../models/locomotion/vehicle.js';
 import { FOLLOW } from '../models/locomotion/follow.js';
 import { memberStatus } from '../models/physiology/group.js';
-import { createStation, STATION_RADIUS_M } from '../models3d/station.js';
+import { createStation } from '../models3d/station.js';
 import { tr } from '../shared/i18n.js';
 
 // [diseño] Margen hasta el borde del mapa, en metros.
@@ -76,24 +76,23 @@ const PARACHUTE_SCALE = 1.7;
 export function createGameplay(container, { world, dem, dataset, terrain, rocks, dust, mission }) {
   const getPoints = () => mission.getPoints();
   const [width_m, depth_m] = dem.size_m;
-  // Suelo que se pisa: el terreno más las rocas de cima plana a las que se sube saltando.
+  // Suelo de la escena y superficies que puede pisar el astronauta.
   const platforms = [];
-  const groundAt = (x_m, z_m) => visualGround_m(dem, x_m, z_m) + platformHeight_m(platforms, x_m, z_m);
+  const terrainGroundAt = (x_m, z_m) => visualGround_m(dem, x_m, z_m) + platformHeight_m(platforms, x_m, z_m);
+  const baseStation = createStation({ shadows: world.quality.shadows, groundAt: terrainGroundAt });
+  let sortie;
+  const groundAt = (x_m, z_m) => Math.max(
+    terrainGroundAt(x_m, z_m),
+    baseStation.walkSurface_m(x_m, z_m),
+    sortie?.station.walkSurface_m(x_m, z_m) ?? -Infinity,
+  );
 
-  const companion = createCompanion({ world, groundAt });
-  const truck = createVehicle({ world, groundAt });
+  const companion = createCompanion({ world, groundAt: terrainGroundAt });
+  const truck = createVehicle({ world, groundAt: terrainGroundAt });
 
-  // Colisiones: rocas grandes, el rover y la base. La malla del astronauta no interviene:
-  // el cuerpo de colisión es un cilindro de radio fijo, independiente del modelo visual.
-  function avoidBase(px, pz, radius_m) {
-    const base = mission.getBase();
-    if (!base) return [px, pz];
-    const dx = px - base.position_m[0];
-    const dz = pz - base.position_m[1];
-    const distance_m = Math.hypot(dx, dz);
-    const reach_m = STATION_RADIUS_M + radius_m;
-    if (distance_m >= reach_m || distance_m < 1e-6) return [px, pz];
-    return [base.position_m[0] + (dx / distance_m) * reach_m, base.position_m[1] + (dz / distance_m) * reach_m];
+  function avoidStations(px, pz, radius_m, onFoot) {
+    const [x, z] = baseStation.resolveCollision(px, pz, radius_m, onFoot);
+    return sortie?.station.resolveCollision(x, z, radius_m, onFoot) ?? [x, z];
   }
   function avoidCapsule(px, pz, radius_m) {
     if (!capsuleSite) return [px, pz];
@@ -109,18 +108,18 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     [px, pz] = companion.resolveCollision(px, pz, LOCOMOTION.body_radius_m);
     [px, pz] = truck.resolveCollision(px, pz, LOCOMOTION.body_radius_m);
     [px, pz] = avoidCapsule(px, pz, LOCOMOTION.body_radius_m);
-    return avoidBase(px, pz, LOCOMOTION.body_radius_m);
+    return avoidStations(px, pz, LOCOMOTION.body_radius_m, true);
   }
   const bounds = { halfWidth_m: width_m / 2 - MAP_MARGIN_M, halfDepth_m: depth_m / 2 - MAP_MARGIN_M };
   const env = { groundAt, resolveCollision, ...bounds };
   // La camioneta choca con rocas, con el rover y con la base.
   const vehicleEnv = {
-    groundAt,
+    groundAt: terrainGroundAt,
     resolveCollision(x_m, z_m) {
       let [px, pz] = resolveRockCollision(dem, x_m, z_m, VEHICLE_ROCK_RADIUS_M);
       [px, pz] = companion.resolveCollision(px, pz, VEHICLE_ROCK_RADIUS_M);
       [px, pz] = avoidCapsule(px, pz, VEHICLE.body_radius_m);
-      return avoidBase(px, pz, VEHICLE.body_radius_m);
+      return avoidStations(px, pz, VEHICLE.body_radius_m, false);
     },
     ...bounds,
   };
@@ -133,8 +132,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   beacons.name = 'beacons';
   beacons.visible = false;
   // Estación en la base del usuario. Se ve también desde el mapa.
-  const station = createStation({ shadows: world.quality.shadows });
-  station.visible = false;
+  const station = baseStation.object;
   world.scene.add(beacons, station);
 
   function rebuildMissionObjects() {
@@ -143,19 +141,11 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     for (const poi of getPoints()) {
       if (base && poi.id === base.id) continue;
       const beacon = createBeacon(BEACON_COLORS[poi.type] ?? 0xffb45c, { shadows: world.quality.shadows });
-      beacon.position.set(poi.position_m[0], groundAt(poi.position_m[0], poi.position_m[1]), poi.position_m[1]);
+      beacon.position.set(poi.position_m[0], terrainGroundAt(poi.position_m[0], poi.position_m[1]), poi.position_m[1]);
       beacons.add(beacon);
     }
-    station.visible = Boolean(base);
-    if (base) {
-      const [x_m, z_m] = base.position_m;
-      // La estación se apoya en el punto más bajo de su huella para no quedar flotando.
-      let lowest_m = Infinity;
-      for (const [dx, dz] of [[0, 0], [5, 0], [-5, 0], [0, 4], [0, -4]]) {
-        lowest_m = Math.min(lowest_m, dem.sampleElevation_m(x_m + dx, z_m + dz));
-      }
-      station.position.set(x_m, lowest_m, z_m);
-    }
+    if (base) baseStation.place(...base.position_m);
+    else station.visible = false;
   }
   rebuildMissionObjects();
   mission.onChange(rebuildMissionObjects);
@@ -275,7 +265,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       return;
     }
     speech.cancelSpeech();
-    const bubble = hud.sayLive('Tú', tr('Te escucho…'));
+    const bubble = hud.sayLive(tr('Tú'), tr('Te escucho…'));
     listening = bubble;
     speech.listen({ onPartial: (text) => bubble.set(text) })
       .then((text) => {
@@ -316,7 +306,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     hud.openLine({
       onSend(text) {
         closeLine();
-        hud.say(text, 'Tú');
+        hud.say(text, tr('Tú'));
         askRoverAloud(text);
       },
       onCancel: closeLine,
@@ -326,6 +316,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   function setDriving(next) {
     driving = next;
     followCamera.setVehicleMode(driving);
+    if (!driving) truck.setCabinLight(false);
     followCamera.snap();
     rig.setVisible(!driving && !followCamera.isFirstPerson());
     hud.hideCard();
@@ -354,11 +345,9 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     hud.say(text);
     if (!sound.isMuted()) speech.speak(text);
   }
-  // Viento para el sonido: 0 en calma y 1 en plena tormenta, según el polvo de la escena.
-  const windLevel = () => Math.min(Math.max(
-    ((state.environment?.dust_tau ?? NOMINAL_DUST_TAU) - NOMINAL_DUST_TAU) / (STORM_DUST_TAU - NOMINAL_DUST_TAU), 0), 1);
-  const sortie = createSortie({
-    world, dem, groundAt, bounds, hud, sound, say: roverSay, platforms,
+  const nominalDust = sampleDust(NOMINAL_DUST_TAU);
+  sortie = createSortie({
+    world, dem, groundAt: terrainGroundAt, bounds, hud, sound, say: roverSay, platforms,
     getOxygen_l: () => vitals.get().vitals.o2_l,
     onDone() {
       // Misión cumplida: llega la camioneta y todo queda libre.
@@ -531,15 +520,17 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
 
   // El rover empieza al lado del astronauta, mirando hacia él.
   function placeCompanion() {
-    const [x_m, z_m] = resolveRockCollision(dem, player.x_m - COMPANION_START_OFFSET_M, player.z_m, 1.9);
+    const [px, pz] = resolveRockCollision(dem, player.x_m - COMPANION_START_OFFSET_M, player.z_m, 1.9);
+    const [x_m, z_m] = avoidStations(px, pz, 1.9, false);
     companion.place(x_m, z_m, Math.PI / 2);
   }
   placeCompanion();
 
   function placeVehicle() {
-    const [x_m, z_m] = resolveRockCollision(
+    const [px, pz] = resolveRockCollision(
       dem, player.x_m + VEHICLE_START_OFFSET_M[0], player.z_m + VEHICLE_START_OFFSET_M[1], VEHICLE.body_radius_m,
     );
+    const [x_m, z_m] = avoidStations(px, pz, VEHICLE.body_radius_m, false);
     truck.place(
       Math.min(Math.max(x_m, -bounds.halfWidth_m), bounds.halfWidth_m),
       Math.min(Math.max(z_m, -bounds.halfDepth_m), bounds.halfDepth_m),
@@ -564,13 +555,19 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       return;
     }
     const look = paused ? [0, 0] : input.consumeLook();
+    const dustReading = state.environment?.dust ?? nominalDust;
+    const windSound = {
+      wind: Math.min(1, dustReading.wind_ms / 28),
+      airborneDust: dustReading.load,
+      dustGust: dustReading.gust,
+    };
     // El tiempo de Marte (Sol, clima) avanza con la velocidad elegida. Lo escucha quien
     // lleve el reloj de simulación.
     if (!paused && landing) emit('time:advance', delta_s * landing.scale);
     else if (!paused && timeScale > 0) emit('time:advance', delta_s * timeScale);
     if (landing) {
       if (!paused) landing.t_s += delta_s * landing.scale;
-      sound.update(delta_s, { walking_m: 0, heart_bpm: 70, wind: windLevel(), vehicle_speed_ms: null, falling: true });
+      sound.update(delta_s, { ...windSound, walking_m: 0, heart_bpm: 70, vehicle_speed_ms: null, falling: true });
       const fall = descentState(landing.t_s);
       player = { ...player, y_m: landing.ground_m + fall.altitude_m, yaw_rad: landing.yaw0_rad + fall.spin_rad, grounded: false };
       placeAstronaut();
@@ -595,7 +592,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       placeAstronaut();
       vitals.update(delta_s, player.x_m, player.z_m, { riding: true });
       companion.update(delta_s, player, world.camera, FOLLOW_VEHICLE);
-      sound.update(delta_s, { walking_m: 0, heart_bpm: vitals.get().vitals.heart_rate_bpm, wind: windLevel(), vehicle_speed_ms: car.speed_ms });
+      sound.update(delta_s, { ...windSound, walking_m: 0, heart_bpm: vitals.get().vitals.heart_rate_bpm, vehicle_speed_ms: car.speed_ms });
       state.astronaut_position_m = [player.x_m, player.z_m];
       target = null;
     } else if (!paused) {
@@ -643,18 +640,21 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       sound.update(delta_s, {
         walking_m: player.grounded ? Math.hypot(player.x_m - before.x_m, player.z_m - before.z_m) : 0,
         running: speed_ms > LOCOMOTION.walk_speed_ms + 0.05,
-        heart_bpm: flags.heart_rate_bpm, wind: windLevel(), vehicle_speed_ms: null, drilling: guided.drilling,
-        agitation: windLevel(),
+        ...windSound, heart_bpm: flags.heart_rate_bpm, vehicle_speed_ms: null, drilling: guided.drilling,
+        agitation: .39 * dustReading.load,
       });
       // Aviso sonoro la primera vez que el oxígeno baja del 10 %.
       if (flags.flags.o2_low && !lowOxygenWarned) sound.beep('low');
       lowOxygenWarned = flags.flags.o2_low;
     }
 
-    followCamera.update(delta_s, player, look);
+    const cabinEye = driving && followCamera.isFirstPerson() ? truck.driverEye : null;
+    truck.setCabinLight(Boolean(cabinEye));
+    followCamera.update(delta_s, player, look, cabinEye);
     terrain.patch.update(player.x_m, player.z_m);
     rocks.update(player.x_m, player.z_m);
-    dust?.update(delta_s, world.camera, state.environment?.dust_tau ?? 0.5);
+    dust?.update(delta_s, world.camera, dustReading, world.look, world.renderer.domElement.height);
+    if (!paused) footprints.weather(delta_s, dustReading);
     world.setShadowFocus(rig.object.position);
 
     // Marcas de interés: flotan con un vaivén suave y desaparecen al usar la cosa.
@@ -674,7 +674,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     if (hudClock >= HUD_REFRESH_S) {
       hudClock = 0;
       const snapshot = vitals.get();
-      const yaw = followCamera.yaw;
+      const yaw = followCamera.viewYaw;
       // Rumbo desde el norte (-Z) hacia el este (+X), en grados.
       const heading_deg = ((Math.atan2(Math.sin(yaw), -Math.cos(yaw)) * 180) / Math.PI + 360) % 360;
       const speed_ms = horizontalSpeed_ms(player);
@@ -684,6 +684,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       } else if (!paused && !hud.isCardOpen() && !chatOpen && !landing) {
         if (driving) {
           if (speed_ms < 2) prompts.push(['F', tr('Bajar de la camioneta')]);
+          prompts.push(['V', followCamera.isFirstPerson() ? tr('Vista exterior') : tr('Vista de cabina')]);
         } else {
           // El tercer valor marca lo que merece el centro de la pantalla: algo con lo
           // que interactuar. Hablar con el rover y traer la camioneta van solo al panel.
@@ -699,7 +700,8 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
         const bearing_deg = (Math.atan2(goal.x_m - player.x_m, -(goal.z_m - player.z_m)) * 180) / Math.PI;
         hud.setCompassTarget({ offset_deg: ((bearing_deg - heading_deg + 540) % 360) - 180, label: goal.label });
       } else hud.setCompassTarget(null);
-      hud.setDust(windLevel());
+      const visor = followCamera.isFirstPerson() && !landing;
+      hud.setDust(visor ? dustReading.load * (driving ? .63 : 1) : 0, dustReading);
       hud.update({
         vehicle: { driving, driven_m: snapshot.driven_m },
         objective: interaction.nearestObjective(player.x_m, player.z_m),

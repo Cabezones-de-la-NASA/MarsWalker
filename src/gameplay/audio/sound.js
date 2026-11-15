@@ -257,8 +257,13 @@ export function createSound() {
       // Viento de la caída en cápsula (generado) y arena en la tormenta, a rachas.
       gustPhase += delta_s;
       const gust = 0.7 + 0.3 * Math.sin(gustPhase * 1.7) * Math.sin(gustPhase * 0.61 + 1.3);
+      // Rachas del modelo de tormenta si llegan; en cabina todo suena amortiguado.
+      const gustLevel = state.dustGust ?? gust;
+      const cabin = state.vehicle_speed_ms != null;
+      const damp = cabin ? 0.34 : 1;
       glide(nodes.fallWind.gain.gain, state.falling ? 0.3 * gust : 0, 0.4);
-      glide(nodes.sand.gain.gain, wind > 0.25 ? (wind - 0.25) * 0.16 * gust : 0, 0.3);
+      glide(nodes.sand.filter.frequency, cabin ? 1350 : 3020, 0.26);
+      glide(nodes.sand.gain.gain, (state.airborneDust ?? Math.max(0, wind - 0.25)) * (0.026 + 0.078 * gustLevel) * damp * 2, 0.19);
 
       // Respiración: tranquila por defecto; tras unos segundos corriendo, o con la tormenta
       // encima, pasa a la de sofoco, y vuelve poco a poco al parar.

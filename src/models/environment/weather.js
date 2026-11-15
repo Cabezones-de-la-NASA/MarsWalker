@@ -2,6 +2,9 @@
 // Código puro: sin three.js ni DOM.
 import { MARS_SURFACE_TEMP_MAX_C, MARS_SURFACE_TEMP_MIN_C } from '../../shared/constants.js';
 import { MARS_SEMI_MAJOR_AXIS_AU, sunDistance_au } from './solar.js';
+import { NOMINAL_DUST_TAU, STORM_DUST_TAU, dustAmount } from './dust_storm.js';
+
+export { NOMINAL_DUST_TAU, STORM_DUST_TAU };
 
 // [diseño] Día nominal: media -56 °C y amplitud 31 °C. Tormenta de polvo: -68 °C y 14 °C.
 export const NOMINAL_MEAN_C = -56;
@@ -12,10 +15,6 @@ export const STORM_AMPLITUDE_C = 14;
 export const PEAK_LTST_H = 14.2;
 // Coeficiente del término orbital, 95 (a / r - 1). Viene de la ficha M17, sin etiqueta.
 export const ORBITAL_TEMP_COEFFICIENT_C = 95;
-// Opacidad del polvo en día nominal y con tormenta. El documento no da estos valores:
-// son un supuesto [diseño] para alimentar M16 desde el panel.
-export const NOMINAL_DUST_TAU = 0.5;
-export const STORM_DUST_TAU = 4;
 
 // Parámetros del ajuste diario; el script de MEDA (D6) puede sustituir media y amplitud.
 export function weatherParams(storm = false, overrides = {}) {
@@ -41,12 +40,19 @@ export function ambientTemp_c({ ls_deg, ltst_h, storm = false, params }) {
  * in_published_range: la temperatura cae en el rango de superficie de la tabla 2.3
  * (de 20 °C a -153 °C, F2).
  */
-export function weatherState({ ls_deg, ltst_h, storm = false, params }) {
-  const ambient_temp_c = ambientTemp_c({ ls_deg, ltst_h, storm, params });
+export function weatherState({
+  ls_deg, ltst_h, storm = false, params, dust_tau = storm ? STORM_DUST_TAU : NOMINAL_DUST_TAU,
+}) {
+  const amount = dustAmount(dust_tau);
+  const fitted = params ?? {
+    mean_c: NOMINAL_MEAN_C + (STORM_MEAN_C - NOMINAL_MEAN_C) * amount,
+    amplitude_c: NOMINAL_AMPLITUDE_C + (STORM_AMPLITUDE_C - NOMINAL_AMPLITUDE_C) * amount,
+  };
+  const ambient_temp_c = ambientTemp_c({ ls_deg, ltst_h, params: fitted });
   return {
     ambient_temp_c,
     storm,
-    dust_tau: storm ? STORM_DUST_TAU : NOMINAL_DUST_TAU,
+    dust_tau,
     in_published_range:
       ambient_temp_c <= MARS_SURFACE_TEMP_MAX_C && ambient_temp_c >= MARS_SURFACE_TEMP_MIN_C,
   };

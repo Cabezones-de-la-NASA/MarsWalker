@@ -18,7 +18,17 @@ const DOME_FRAGMENT = /* glsl */ `
   uniform vec3 mieColor;
   uniform float mieIntensity;
   uniform float opacity;
+  uniform float stormLoad;
+  uniform vec2 dustFlow;
   varying vec3 vDirection;
+
+  float hazeHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+  float hazeNoise(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hazeHash(i), hazeHash(i + vec2(1., 0.)), f.x),
+      mix(hazeHash(i + vec2(0., 1.)), hazeHash(i + vec2(1.)), f.x), f.y);
+  }
 
   void main() {
     vec3 dir = normalize(vDirection);
@@ -29,7 +39,13 @@ const DOME_FRAGMENT = /* glsl */ `
     float band = exp(-abs(dir.y) * 9.0);
     sky = mix(sky, horizonColor * 1.06, band * 0.55);
     // Bajo el horizonte, el domo se funde con el color de la bruma.
-    sky = mix(sky, horizonColor * 0.82, smoothstep(0.0, -0.25, dir.y));
+    sky = mix(sky, horizonColor * 0.82, 1.0 - smoothstep(-0.25, 0.0, dir.y));
+    if (stormLoad > 0.01) {
+      vec2 p = dir.xz * 5. + vec2(dir.y * 3.5, dir.y * 7.0) + dustFlow;
+      float gusts = hazeNoise(p) * .64 + hazeNoise(p * 2.29 + 16.) * .36;
+      float bottom = smoothstep(-.20, -.015, dir.y) * (1. - smoothstep(.05, .49, dir.y));
+      sky = mix(sky, horizonColor * (.78 + gusts * .38), bottom * stormLoad * .84);
+    }
     // Dispersión hacia delante alrededor del Sol.
     float cosTheta = max(dot(dir, normalize(sunDirection)), 0.0);
     sky += mieColor * (pow(cosTheta, 32.0) + 0.28 * pow(cosTheta, 6.0)) * mieIntensity;
@@ -109,6 +125,8 @@ export function createSky(scene, { starCount = 2500 } = {}) {
         mieColor: { value: new THREE.Color() },
         mieIntensity: { value: 0.8 },
         opacity: { value: 1 },
+        stormLoad: { value: 0 },
+        dustFlow: { value: new THREE.Vector2() },
       },
       side: THREE.BackSide,
       // Opaco y sin profundidad: se dibuja el primero y todo lo demás lo tapa.
@@ -156,10 +174,11 @@ export function createSky(scene, { starCount = 2500 } = {}) {
   // [diseño] Fobos queda fijo en el cielo: su órbita no está modelada.
   const MOON_DIRECTION = new THREE.Vector3(-0.45, 0.62, 0.64).normalize();
   const direction = new THREE.Vector3();
+  let lastSky_s = 0;
 
   return {
     group,
-    update(camera, sunDirection, look) {
+    update(camera, sunDirection, look, elapsed_s, weather) {
       // Radio dentro del plano lejano de la cámara para que nada se recorte.
       const radius = camera.far * 0.45;
       group.position.copy(camera.position);
@@ -174,9 +193,14 @@ export function createSky(scene, { starCount = 2500 } = {}) {
       u.mieIntensity.value = look.mieIntensity;
       u.sunDirection.value.copy(direction);
       u.opacity.value = look.skyOpacity;
+      u.stormLoad.value = look.stormLoad;
+      const delta_s = Math.min(.12, Math.max(0, elapsed_s - lastSky_s));
+      lastSky_s = elapsed_s;
+      u.dustFlow.value.x -= delta_s * (weather.wind_x_ms ?? 0) * .0018;
+      u.dustFlow.value.y -= delta_s * (weather.wind_z_ms ?? 0) * .0018;
 
       sunDisc.position.copy(direction).multiplyScalar(radius * 0.9);
-      sunDisc.scale.setScalar(radius * 0.16);
+      sunDisc.scale.setScalar(radius * 0.033);
       sunDisc.material.color.setHex(look.sunColor);
       // El disco se apaga al cruzar el horizonte.
       sunDisc.material.opacity = THREE.MathUtils.clamp((direction.y + 0.06) / 0.1, 0, 1) * (look.sunDisc ?? 1);

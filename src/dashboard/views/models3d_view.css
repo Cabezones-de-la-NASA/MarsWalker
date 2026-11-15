@@ -1,0 +1,73 @@
+.view.models3d-view {
+  padding: var(--space-4);
+}
+
+.view .models3d-inner {
+  max-width: 1400px;
+}
+
+.models3d-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.models3d-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.models3d-actions a {
+  text-underline-offset: 0.23em;
+}
+
+.models3d-frame {
+  display: block;
+  width: 100%;
+  height: clamp(540px, calc(100dvh - var(--bar-height) - 92px), 950px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #10171b;
+}
+
+@media (max-width: 640px) {
+  .dashboard-ui {
+    --bar-height: 88px;
+  }
+
+  .top-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    grid-template-rows: 44px 43px;
+    gap: 0 var(--space-2);
+  }
+
+  .top-bar-spacer {
+    display: none;
+  }
+
+  .tab-bar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-left: 0;
+    min-width: 0;
+    overflow-x: auto;
+  }
+
+  .dashboard-ui .tab-button {
+    white-space: nowrap;
+  }
+
+  .zone-select {
+    max-width: min(33vw, 160px);
+  }
+
+  .view.models3d-view {
+    padding: var(--space-3);
+  }
+}

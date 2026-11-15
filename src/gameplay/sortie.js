@@ -42,6 +42,7 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
   let mission = null; // { state, home, samples_m, hold_s, oxygenStart_l, lastTick }
   let dust_tau = NOMINAL_DUST_TAU;
   let sentDust_tau = NOMINAL_DUST_TAU;
+  let lastDustPhase = 'calm';
   let clearing = false;
   let clock = 0;
 
@@ -80,14 +81,20 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
 
   const homeMark = createInterestMark(1.6);
   // La base de la misión: una estación detrás de la cápsula. Se queda tras terminar.
-  const station = createStation({ shadows: world.quality.shadows });
-  station.visible = false;
-  world.scene.add(homeMark, station);
+  const station = createStation({ shadows: world.quality.shadows, groundAt });
+  world.scene.add(homeMark, station.object);
 
   function sendDust(force = false) {
-    if (!force && Math.abs(dust_tau - sentDust_tau) < DUST_STEP) return;
+    let phase = 'calm';
+    if (dust_tau > NOMINAL_DUST_TAU) {
+      if (clearing) phase = 'settling';
+      else if (!mission?.state.storm) phase = 'approaching';
+      else phase = dust_tau < STORM_DUST_TAU ? 'crossing' : 'active';
+    }
+    if (!force && lastDustPhase === phase && Math.abs(dust_tau - sentDust_tau) < DUST_STEP) return;
     sentDust_tau = dust_tau;
-    emit('environment:dust', { dust_tau, storm: dust_tau > WARNING_DUST_TAU + 0.2 });
+    lastDustPhase = phase;
+    emit('environment:dust', { dust_tau, phase });
   }
 
   function hideMarkers() {
@@ -132,7 +139,8 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
       const label = { intro: tr('Cápsula'), to_first: 'Roca 1', to_second: 'Roca 2', return: tr('Base') }[mission.state.phase];
       return { x_m: mission.goal_m[0], z_m: mission.goal_m[1], label };
     },
-    basePosition: () => (station.visible ? { x_m: station.position.x, z_m: station.position.z } : null),
+    station,
+    basePosition: () => (station.object.visible ? { x_m: station.object.position.x, z_m: station.object.position.z } : null),
     // Tutorial: se inspeccionó la cápsula; ahora sí, a por las rocas.
     capsuleInspected() {
       if (!mission || mission.state.phase !== 'intro') return;
@@ -165,9 +173,8 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
         mark.visible = true;
       });
       const [baseX_m, baseZ_m] = plan.base_m;
-      station.position.set(baseX_m, groundAt(baseX_m, baseZ_m), baseZ_m);
-      station.rotation.y = Math.atan2(home.x_m - baseX_m, home.z_m - baseZ_m);
-      station.visible = true;
+      const yaw_rad = Math.atan2(home.x_m - baseX_m, home.z_m - baseZ_m);
+      station.place(baseX_m, baseZ_m, yaw_rad);
       say(tr('Bienvenido a Marte. Antes de nada, echa un vistazo a la cápsula que te trajo.'));
     },
     // Se sale al mapa a media misión: no cuenta y el cielo vuelve a su estado normal.
@@ -177,7 +184,7 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
       clearing = false;
       hideMarkers();
       removeRock();
-      station.visible = false;
+      station.object.visible = false;
       hud.setSortie(null);
       dust_tau = NOMINAL_DUST_TAU;
       sendDust(true);
@@ -187,7 +194,8 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
       // Al terminar, el polvo se asienta aunque la misión ya no esté activa.
       if (!mission) {
         if (clearing) {
-          dust_tau = Math.max(NOMINAL_DUST_TAU, dust_tau - ((STORM_DUST_TAU - NOMINAL_DUST_TAU) / STORM_CLEAR_S) * delta_s);
+          dust_tau = NOMINAL_DUST_TAU + (dust_tau - NOMINAL_DUST_TAU) * Math.exp(-3.7 * delta_s / STORM_CLEAR_S);
+          if (dust_tau - NOMINAL_DUST_TAU < 0.06) dust_tau = NOMINAL_DUST_TAU;
           sendDust(dust_tau === NOMINAL_DUST_TAU);
           if (dust_tau === NOMINAL_DUST_TAU) clearing = false;
         }

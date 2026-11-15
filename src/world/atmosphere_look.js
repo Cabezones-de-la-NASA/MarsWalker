@@ -5,6 +5,8 @@
 // los modelos: la altura del Sol y la opacidad del polvo. No es un modelo radiativo.
 // El crepúsculo azulado alrededor del Sol sigue lo que muestran las imágenes de los rovers.
 import { PALETTE, mixHex } from './palette.js';
+import { dustAmount, sampleDust, NOMINAL_DUST_TAU } from '../models/environment/dust_storm.js';
+import { DUST_EXTINCTION } from '../models/environment/solar.js';
 
 const clamp01 = (v) => Math.min(Math.max(v, 0), 1);
 
@@ -15,8 +17,8 @@ const TWILIGHT_TOP = 0x1a182c;
 const TWILIGHT_HORIZON = 0xaa5b4c;
 const TWILIGHT_MIE = 0x6aa8ff;
 const ZENITH_DAY = 0x7a4630; // cenit ocre oscuro: Mars Haze oscurecido
-const STORM_HORIZON = 0x6e2e18;
-const STORM_TOP = 0x3b160b;
+const STORM_HORIZON = 0x987154;
+const STORM_TOP = 0x775542;
 
 /**
  * atmosphereLook({ elevation_deg, phase, dust_tau, storm, surface }) ->
@@ -27,9 +29,14 @@ const STORM_TOP = 0x3b160b;
  *
  * phase: 'day' | 'twilight' | 'night' (M16). surface: vista a pie (true) u orbital (false).
  */
-export function atmosphereLook({ elevation_deg, phase, dust_tau = 0.5, storm = false, surface = false }) {
-  // Más polvo: cielo más turbio y luz directa más débil.
-  const haze = clamp01(dust_tau / 4);
+export function atmosphereLook({
+  elevation_deg, phase, dust_tau = NOMINAL_DUST_TAU, storm = false, surface = false,
+  visibility_m = sampleDust(dust_tau).visibility_m, air_mass,
+}) {
+  const haze = clamp01(dust_tau / 6);
+  const stormLoad = dustAmount(dust_tau);
+  const airMass = air_mass ?? 1 / Math.max(.12, Math.sin(Math.max(0, elevation_deg) * Math.PI / 180));
+  const transmission = Math.exp(-DUST_EXTINCTION * Math.max(0, dust_tau - NOMINAL_DUST_TAU) * airMass);
   const high = clamp01((elevation_deg - 7.5) / 55); // 0 al salir del crepúsculo, 1 con el Sol alto
   const twilight = clamp01((elevation_deg + 6.5) / 14); // 0 al entrar la noche, 1 al empezar el día
 
@@ -39,23 +46,23 @@ export function atmosphereLook({ elevation_deg, phase, dust_tau = 0.5, storm = f
     look = {
       skyTop: mixHex(ZENITH_DAY, STORM_TOP, haze * 0.9),
       skyHorizon: horizon,
-      mieColor: mixHex(PALETTE.solarAmber, 0xff8247, haze),
-      mieIntensity: 0.85 - 0.5 * haze,
+      mieColor: mixHex(PALETTE.solarAmber, 0xe8b48b, haze),
+      mieIntensity: 0.8 - 0.51 * stormLoad,
       skyOpacity: 1,
       // Sol alto: ámbar muy claro, casi blanco, para no teñir de rojo el terreno naranja.
-      sunColor: mixHex(mixHex(0xffb580, 0xfff0dc, high), 0xff8247, haze * 0.8),
-      sunIntensity: (1.3 + 1.2 * high) * (1 - 0.6 * haze),
-      hemiSky: mixHex(0xd9b7a0, STORM_HORIZON, haze * 0.7),
-      hemiGround: mixHex(PALETTE.dustBrown, 0x33160c, haze),
-      hemiIntensity: 0.85 + 0.45 * high,
-      fillIntensity: 0.3,
+      sunColor: mixHex(mixHex(0xffb580, 0xfff0dc, high), 0xe4ad81, haze * 0.73),
+      sunIntensity: (1.3 + 1.2 * high) * transmission,
+      hemiSky: mixHex(0xd9b7a0, STORM_HORIZON, haze * 0.53),
+      hemiGround: mixHex(PALETTE.dustBrown, 0x634630, haze),
+      hemiIntensity: (0.85 + 0.45 * high) * (1 - .28 * stormLoad),
+      fillIntensity: 0.3 * (1 - .34 * stormLoad),
       fogColor: horizon,
       fogNear_m: 220 - 190 * haze,
       fogFar_m: 5200 - 4850 * haze,
       starOpacity: 0,
       moonOpacity: 0,
-      headlamp: 0,
-      exposure: 1.0,
+      headlamp: surface ? .56 * stormLoad : 0,
+      exposure: 1 - .15 * haze,
       daylight: 0.55 + 0.45 * high,
     };
   } else if (phase === 'twilight') {
@@ -67,7 +74,7 @@ export function atmosphereLook({ elevation_deg, phase, dust_tau = 0.5, storm = f
       mieIntensity: 1.3 * (1 - 0.7 * haze),
       skyOpacity: 1,
       sunColor: mixHex(0x5a9eff, 0xff986a, twilight * 0.6),
-      sunIntensity: (0.25 + 1.0 * twilight) * (1 - 0.6 * haze),
+      sunIntensity: (0.25 + 1.0 * twilight) * (0.05 + .95 * transmission),
       hemiSky: mixHex(0x38507f, 0x8a6a78, twilight),
       hemiGround: 0x1a1215,
       hemiIntensity: 0.42 + 0.38 * twilight,
@@ -98,13 +105,18 @@ export function atmosphereLook({ elevation_deg, phase, dust_tau = 0.5, storm = f
       fogColor: 0x05070b,
       fogNear_m: 120,
       fogFar_m: 2600 - 2200 * haze,
-      starOpacity: 1 - 0.95 * haze,
-      moonOpacity: 0.95 * (1 - haze),
+      starOpacity: (1 - 0.95 * haze) * (1 - .89 * stormLoad),
+      moonOpacity: 0.95 * (1 - haze) * (1 - .89 * stormLoad),
       headlamp: surface ? 1 : 0,
       exposure: 1.1,
       daylight: 0.12,
     };
   }
+  // Rango de visibilidad del escenario, no una conversión física directa de τ.
+  look.fogFar_m = Math.min(look.fogFar_m, visibility_m * 1.38);
+  look.fogNear_m = Math.min(look.fogNear_m, look.fogFar_m * (.043 + .035 * (1 - stormLoad)));
+  look.sunDisc = transmission ** 1.25;
+  look.stormLoad = surface ? stormLoad : 0;
   look.storm = Boolean(storm);
   return look;
 }

@@ -132,6 +132,8 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   compassTarget.hidden = true;
   // Polvo en el visor durante la tormenta.
   const dustVeil = el('div', 'hud-dust');
+  const dustReading = el('div', 'hud-dust-reading');
+  dustReading.hidden = true;
 
   // ---- Reloj de Marte y velocidad del tiempo
   const clock = el('div', 'hud-clock');
@@ -231,7 +233,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   feedBox.append(feed);
   let line = null;
   function addBubble(who) {
-    const root = el('div', who === 'Tú' ? 'hud-bubble is-user' : 'hud-bubble');
+    const root = el('div', who === tr('Tú') ? 'hud-bubble is-user' : 'hud-bubble');
     const text = el('p');
     root.append(el('span', 'hud-bubble-who', tr(who)), text);
     feed.append(root);
@@ -341,7 +343,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   box.append(controls);
   menu.append(box);
 
-  hud.append(dustVeil, vitals, nav, compass, heading, compassTarget, clock, vehicleBadge, mission, help, landingBox, sortieBox, feedBox, reticle, prompt, card, menu);
+  hud.append(dustVeil, vitals, nav, compass, heading, compassTarget, clock, dustReading, vehicleBadge, mission, help, landingBox, sortieBox, feedBox, reticle, prompt, card, menu);
   container.append(hud);
 
   return {
@@ -410,10 +412,15 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
       compassTarget.textContent = side < 0 ? `◀ ${target.label}` : side > 0 ? `${target.label} ▶` : `▼ ${target.label}`;
       compassTarget.classList.toggle('is-off', side !== 0);
     },
-    // level: 0 en calma, 1 en plena tormenta. Llena el visor de polvo.
-    setDust(level) {
+    // Solo se deposita polvo en el borde del visor o del parabrisas.
+    setDust(level, reading) {
       dustVeil.style.opacity = String(Math.min(Math.max(level, 0), 1));
-      hud.classList.toggle('is-storm', level > 0.5);
+      dustReading.hidden = !reading || reading.load <= .13;
+      if (!dustReading.hidden) {
+        const distance = reading.visibility_m < 1000
+          ? `${Math.round(reading.visibility_m)} m` : `${(reading.visibility_m / 1000).toFixed(1)} km`;
+        dustReading.textContent = tr`Vis. est. ${distance} · Viento ${Math.round(reading.wind_ms)} m/s`;
+      }
     },
     // sortie: { title, detail, keys: [[tecla, texto]] (o null), countdown_s (o null), storm,
     //           hold (0..1) } o null.
