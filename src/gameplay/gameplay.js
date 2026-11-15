@@ -47,8 +47,9 @@ const FOLLOW_VEHICLE = Object.freeze({
 const TIME_SCALES = [0, 1, 4, 16, 60, 120, 200, 300, 350, 400, 430];
 const DEFAULT_TIME_SCALE = 4;
 const HUD_REFRESH_S = 0.15;
-// El aterrizaje en paracaídas sale solo la primera vez; después, a petición.
-const LANDED_KEY = 'marswalk.landed';
+// [diseño] Segundos que los avisos de acción salen en el centro al empezar a caminar;
+// después pasan al panel de teclas.
+const PROMPT_INTRO_S = 10;
 // [diseño] Tras aterrizar, la cápsula queda hundida y ladeada, y el astronauta sale a
 // unos metros de ella.
 const CAPSULE_SINK_M = 0.4;
@@ -166,8 +167,11 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   let jumpHeld = false;
   let driving = false;
   let chatOpen = false;
+  let promptIntro_s = PROMPT_INTRO_S;
   // Aterrizaje en curso: { t_s, scale, ground_m, yaw0_rad } o null.
   let landing = null;
+  // La primera bajada de cada visita es siempre con la caída; después, a petición.
+  let hasLanded = false;
   const parachute = createParachute();
   parachute.scale.setScalar(PARACHUTE_SCALE);
   parachute.visible = false;
@@ -333,6 +337,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     capsule.rotation.set(0, 0, 0);
     rig.setVisible(false);
     followCamera.setVehicleMode(true); // cámara alejada para ver la campana
+    followCamera.setFreeLook(true); // y libre: se puede mirar alrededor, arriba y abajo
     followCamera.snap();
     hud.setLanding({ ...descentState(0), scale: 1 });
   }
@@ -342,6 +347,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     parachute.visible = false;
     hud.setLanding(null);
     followCamera.setVehicleMode(false);
+    followCamera.setFreeLook(false);
     if (cancel) {
       capsule.visible = false;
       player = { ...player, y_m: groundAt(player.x_m, player.z_m), vy_ms: 0, grounded: true };
@@ -361,20 +367,9 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     followCamera.snap();
     rig.setVisible(!followCamera.isFirstPerson());
     vitals.reset(player.x_m, player.z_m);
-    try {
-      window.localStorage.setItem(LANDED_KEY, '1');
-    } catch {
-      // Sin almacenamiento: el aterrizaje volverá a salir en la próxima visita.
-    }
+    hasLanded = true;
   }
-  function shouldLand() {
-    if (state.landingRequested) return true;
-    try {
-      return window.localStorage.getItem(LANDED_KEY) !== '1';
-    } catch {
-      return false;
-    }
-  }
+  const shouldLand = () => state.landingRequested || !hasLanded;
 
   function placeAstronaut() {
     rig.object.position.set(player.x_m, player.y_m, player.z_m);
@@ -494,6 +489,11 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     dust?.update(delta_s, world.camera, state.environment?.dust_tau ?? 0.5);
     world.setShadowFocus(rig.object.position);
 
+    // La cuenta de los avisos en el centro empieza al pisar el suelo, no durante la caída.
+    if (!paused && !landing && promptIntro_s > 0) {
+      promptIntro_s -= delta_s;
+      if (promptIntro_s <= 0) hud.dockPrompts(true);
+    }
     hudClock += delta_s;
     if (hudClock >= HUD_REFRESH_S) {
       hudClock = 0;
@@ -585,6 +585,8 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       input.setEnabled(true);
       input.requestPointerLock();
       hudClock = HUD_REFRESH_S;
+      promptIntro_s = PROMPT_INTRO_S;
+      hud.dockPrompts(false);
       // La primera bajada (o si se pide en el mapa) empieza colgando del paracaídas.
       if (shouldLand()) startLanding();
       state.landingRequested = false;

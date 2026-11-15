@@ -153,6 +153,10 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
 
   // ---- Ayuda
   const help = el('section', 'hud-block hud-help');
+  // Acciones disponibles ahora mismo (hablar con el rover, traer la camioneta…): arriba
+  // del panel de teclas y en grande. Los primeros segundos salen también en el centro.
+  const actionList = el('div', 'hud-actions');
+  help.append(actionList);
   const helpLine = (keys, text) => {
     const line = el('div');
     for (const key of keys) line.append(el('kbd', null, key));
@@ -182,6 +186,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   const landingSpeed = el('div', 'hud-landing-speed');
   landingBox.append(el('span', 'hud-landing-title', 'Aterrizaje en paracaídas'), landingAltitude, landingInfo, landingBar, landingSpeed);
 
+  let promptSignature = '';
   const reticle = el('div', 'hud-reticle');
   const prompt = el('div', 'hud-prompt');
   prompt.hidden = true;
@@ -246,12 +251,23 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
     // prompts: [[tecla, texto], ...]; vacío lo oculta.
     setPrompts(prompts) {
       prompt.hidden = prompts.length === 0;
+      // Solo se rehace si cambió: así no se reinicia la animación en cada refresco.
+      const signature = prompts.map(([key, text]) => `${key}:${text}`).join('|');
+      if (signature === promptSignature) return;
+      promptSignature = signature;
       prompt.replaceChildren();
+      actionList.replaceChildren();
       for (const [key, text] of prompts) {
-        const line = el('div');
-        line.append(el('kbd', null, key), text);
-        prompt.append(line);
+        for (const host of [prompt, actionList]) {
+          const line = el('div');
+          line.append(el('kbd', null, key), text);
+          host.append(line);
+        }
       }
+    },
+    // docked = true: los avisos dejan el centro y pasan al panel de teclas (con transición).
+    dockPrompts(docked) {
+      hud.classList.toggle('is-prompts-docked', docked);
     },
     setTimeScale(scale) {
       scaleSelect.value = String(scale);
@@ -295,6 +311,9 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
         if (image.credit) card.append(el('div', 'hud-card-credit', `Crédito: ${image.credit}`));
       }
       for (const line of lines) card.append(el('p', null, line));
+      const closeHint = el('div', 'hud-card-close');
+      closeHint.append(el('kbd', null, 'E'), 'cerrar');
+      card.append(closeHint);
       card.hidden = false;
     },
     hideCard() {
