@@ -128,19 +128,26 @@ export function createRoverChat(container, { getSnapshot, onClose }) {
     renderMode();
   });
 
+  // Esc cierra la conversación esté donde esté el foco, y esa pulsación no llega a
+  // nadie más (si llegara, el modo a pie la tomaría por "abrir el menú").
+  function onEscape(event) {
+    if (event.code !== 'Escape') return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    close();
+  }
+
   function close() {
     if (root.hidden) return;
     root.hidden = true;
+    window.removeEventListener('keydown', onEscape, true);
     speech.stopListening();
     speech.cancelSpeech();
     onClose?.();
   }
   closeButton.addEventListener('click', close);
   // Las teclas del chat no deben mover al astronauta ni abrir el menú.
-  root.addEventListener('keydown', (event) => {
-    event.stopPropagation();
-    if (event.code === 'Escape') close();
-  });
+  root.addEventListener('keydown', (event) => event.stopPropagation());
   root.addEventListener('keyup', (event) => event.stopPropagation());
 
   return {
@@ -150,6 +157,7 @@ export function createRoverChat(container, { getSnapshot, onClose }) {
     open() {
       if (!root.hidden) return;
       root.hidden = false;
+      window.addEventListener('keydown', onEscape, true);
       renderMode();
       input.focus();
       // Saluda con un dato; así siempre hay algo que leer aunque no se pregunte nada.

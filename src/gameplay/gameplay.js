@@ -50,6 +50,8 @@ const HUD_REFRESH_S = 0.15;
 // [diseño] Segundos que los avisos de acción salen en el centro al empezar a caminar;
 // después pasan al panel de teclas.
 const PROMPT_INTRO_S = 10;
+// [diseño] Margen tras cerrar la conversación con el rover, en milisegundos.
+const CHAT_CLOSE_GRACE_MS = 250;
 // [diseño] Tras aterrizar, la cápsula queda hundida y ladeada, y el astronauta sale a
 // unos metros de ella.
 const CAPSULE_SINK_M = 0.4;
@@ -167,6 +169,9 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   let jumpHeld = false;
   let driving = false;
   let chatOpen = false;
+  let chatClosed_ms = -Infinity;
+  // Esc que cierra la conversación no debe abrir además el menú de pausa.
+  const justClosedChat = () => performance.now() - chatClosed_ms < CHAT_CLOSE_GRACE_MS * 2;
   let promptIntro_s = PROMPT_INTRO_S;
   // Aterrizaje en curso: { t_s, scale, ground_m, yaw0_rad } o null.
   let landing = null;
@@ -232,9 +237,14 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     getSnapshot: roverSnapshot,
     onClose() {
       chatOpen = false;
+      chatClosed_ms = performance.now();
       if (active && !paused) {
         input.setEnabled(true);
-        input.requestPointerLock();
+        // El cursor se recaptura un instante después: si se pidiera dentro de la misma
+        // pulsación de Esc, el navegador lo soltaría otra vez con esa tecla.
+        window.setTimeout(() => {
+          if (active && !paused && !chatOpen) input.requestPointerLock();
+        }, CHAT_CLOSE_GRACE_MS);
       }
     },
   });
@@ -314,7 +324,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       if (active) hud.toggleDetails();
     },
     onMenu() {
-      if (!active) return;
+      if (!active || justClosedChat()) return;
       // El primer Esc cierra la tarjeta abierta (como E); el segundo abre el menú.
       if (hud.isCardOpen() && !paused) {
         hud.hideCard();
@@ -324,7 +334,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     },
     onPointerLockChange(locked) {
       // Al soltar el cursor con Esc el navegador no entrega la tecla: se abre el menú aquí.
-      if (!active || locked || paused || chatOpen) return;
+      if (!active || locked || paused || chatOpen || justClosedChat()) return;
       // Con una tarjeta abierta, ese Esc solo la cierra. El cursor queda libre: un clic
       // lo vuelve a capturar y mientras tanto se puede mirar arrastrando.
       if (hud.isCardOpen()) {
