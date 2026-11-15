@@ -26,6 +26,8 @@ const ALERTS = {
 
 const PHASES = { day: 'día', twilight: 'crepúsculo', night: 'noche' };
 const COMPASS_PX_PER_DEG = 3;
+// Duración del vuelo de los avisos hacia el panel de teclas (igual que en hud.css).
+const DOCK_TRANSITION_MS = 700;
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -187,6 +189,9 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   landingBox.append(el('span', 'hud-landing-title', 'Aterrizaje en paracaídas'), landingAltitude, landingInfo, landingBar, landingSpeed);
 
   let promptSignature = '';
+  let promptsDocked = false;
+  let lastPrompts = [];
+  let dockTimer = 0;
   const reticle = el('div', 'hud-reticle');
   const prompt = el('div', 'hud-prompt');
   prompt.hidden = true;
@@ -248,26 +253,46 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
     setVisible(visible) {
       hud.hidden = !visible;
     },
-    // prompts: [[tecla, texto], ...]; vacío lo oculta.
+    // prompts: [[tecla, texto, importante], ...]; vacío lo oculta. Los importantes (algo
+    // con lo que interactuar) salen siempre en el centro.
     setPrompts(prompts) {
-      prompt.hidden = prompts.length === 0;
       // Solo se rehace si cambió: así no se reinicia la animación en cada refresco.
-      const signature = prompts.map(([key, text]) => `${key}:${text}`).join('|');
+      lastPrompts = prompts;
+      // Tras los primeros segundos, en el centro solo queda lo marcado como importante.
+      const centered = promptsDocked ? prompts.filter((item) => item[2]) : prompts;
+      prompt.hidden = centered.length === 0;
+      // Solo se rehace si cambió: así no se reinicia la animación en cada refresco.
+      const signature = `${promptsDocked}|${prompts.map(([key, text]) => `${key}:${text}`).join('|')}`;
       if (signature === promptSignature) return;
       promptSignature = signature;
       prompt.replaceChildren();
       actionList.replaceChildren();
-      for (const [key, text] of prompts) {
-        for (const host of [prompt, actionList]) {
+      const fill = (host, items) => {
+        for (const [key, text] of items) {
           const line = el('div');
           line.append(el('kbd', null, key), text);
           host.append(line);
         }
-      }
+      };
+      fill(prompt, centered);
+      fill(actionList, prompts);
     },
-    // docked = true: los avisos dejan el centro y pasan al panel de teclas (con transición).
+    // docked = true: los avisos dejan el centro y pasan al panel de teclas con una
+    // transición; desde entonces el centro solo muestra los importantes.
     dockPrompts(docked) {
-      hud.classList.toggle('is-prompts-docked', docked);
+      window.clearTimeout(dockTimer);
+      if (!docked) {
+        promptsDocked = false;
+        hud.classList.remove('is-prompts-docked', 'is-prompts-docking');
+        this.setPrompts(lastPrompts);
+        return;
+      }
+      hud.classList.add('is-prompts-docked', 'is-prompts-docking');
+      dockTimer = window.setTimeout(() => {
+        promptsDocked = true;
+        hud.classList.remove('is-prompts-docking');
+        this.setPrompts(lastPrompts);
+      }, DOCK_TRANSITION_MS);
     },
     setTimeScale(scale) {
       scaleSelect.value = String(scale);

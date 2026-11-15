@@ -664,7 +664,7 @@
   transform-origin: center;
 }
 
-.hud.is-prompts-docked .hud-prompt {
+.hud.is-prompts-docking .hud-prompt {
   /* Viaja hacia la esquina inferior derecha mientras se desvanece. */
   transform: translate(calc(-50% + 34vw), 16vh) scale(0.7);
   opacity: 0;

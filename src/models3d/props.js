@@ -38,3 +38,36 @@ export function createBeacon(color, { shadows = false } = {}) {
   group.userData.lamp = lamp;
   return group;
 }
+
+/**
+ * Marca de interés: un signo de admiración fino dentro de un aro, que flota sobre algo
+ * con lo que se puede interactuar. Siempre mira a la cámara.
+ * -> THREE.Sprite; size_m es su alto en metros.
+ */
+export function createInterestMark(size_m = 0.7) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#ffb45c';
+  ctx.fillStyle = '#ffb45c';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.arc(64, 64, 54, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.lineWidth = 9;
+  ctx.beginPath();
+  ctx.moveTo(64, 32);
+  ctx.lineTo(64, 74);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(64, 94, 6, 0, Math.PI * 2);
+  ctx.fill();
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false, fog: false }));
+  sprite.scale.setScalar(size_m);
+  sprite.name = 'interest-mark';
+  sprite.visible = false;
+  return sprite;
+}
