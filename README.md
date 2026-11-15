@@ -30,7 +30,7 @@
 ## 2. Project Links
 
 ### Project Demonstration *
-- **URL:** `https://[public-demo-video-url-to-be-added]` *(28-second narrated video cut synchronized with ElevenLabs voiceover and Google Flow / web captures; see Section 4.1 for the 0:00–0:28 production timeline)*
+- **URL:** `https://youtu.be/1banmPTIGEQ` *(28-second narrated video cut synchronized with ElevenLabs voiceover and Google Flow / web captures; see Section 4.1 for the 0:00–0:28 production timeline)*
 - **Requirements:**
   - Hosted as a **≤ 30-second video** (target runtime: `27–28 s`) on a public platform (YouTube, Google Drive, GitHub, OneDrive, or Dropbox).
   - **No password, login, permission request, or registration required.**
