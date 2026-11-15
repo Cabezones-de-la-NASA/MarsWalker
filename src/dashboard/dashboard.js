@@ -15,6 +15,7 @@ import { createMissionPanel } from './panels/mission_panel.js';
 import { createOnboarding } from './onboarding.js';
 import { createDropPin } from './map/drop_pin.js';
 import { createLaunchBar } from './launch_bar.js';
+import { isFirstContactDone } from '../shared/first_contact.js';
 import { DEFAULT_CREW } from './default_crew.js';
 import { createCrewPanel } from './panels/crew_panel.js';
 import { createTabs } from './views/tabs.js';
@@ -211,7 +212,12 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
   // Barra de lanzamiento e indicador de aterrizaje arrastrable.
   const launchBar = createLaunchBar(ui, {
     dem,
-    onExplore: () => emit('mode:request', 'gameplay'),
+    // La primera vez, el botón principal es la misión guiada "Primer contacto".
+    onExplore() {
+      if (!isFirstContactDone()) state.sortieRequested = true;
+      emit('mode:request', 'gameplay');
+    },
+    // "Aterrizaje realista": exploración libre con la caída en cápsula, sin misión.
     onLanding() {
       state.landingRequested = true;
       emit('mode:request', 'gameplay');
@@ -225,6 +231,8 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
   });
   launchBar.setLanding(...state.astronaut_position_m);
   launchBar.setRealism(state.realism);
+  launchBar.setFirstContact(!isFirstContactDone());
+  on('sortie:complete', () => launchBar.setFirstContact(false));
   world.onFrame((delta_s) => dropPin.update(delta_s));
 
   // Primeros pasos: salen solos la primera vez que el dashboard queda a la vista.

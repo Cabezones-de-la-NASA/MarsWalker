@@ -21,7 +21,8 @@ function el(tag, className, text) {
 }
 
 /**
- * createLaunchBar(ui, { dem, onExplore, onLanding }) -> { element, setLanding(x_m, z_m, dragging), setClick(text) }
+ * createLaunchBar(ui, { dem, onExplore, onLanding }) -> (además setRealism y setFirstContact)
+ * { element, setLanding(x_m, z_m, dragging), setClick(text) }
  */
 export function createLaunchBar(ui, { dem, onExplore, onLanding }) {
   const bar = el('section', 'launch-bar');
@@ -89,10 +90,19 @@ export function createLaunchBar(ui, { dem, onExplore, onLanding }) {
   const exploreLabel = el('span', null, 'Explorar Marte');
   explore.append(el('span', 'launch-button-icon', '▶'), exploreLabel);
   explore.addEventListener('click', onExplore);
+  let realism = false;
+  let firstContact = false;
+  function renderLabel() {
+    // La misión guiada no tiene variante realista: manda sobre ese rótulo.
+    exploreLabel.textContent = firstContact ? 'Primer contacto' : realism ? 'Explorar Marte · realismo' : 'Explorar Marte';
+    explore.title = firstContact
+      ? 'Tu primera misión: aterriza, recoge dos muestras con el rover y vuelve antes de la tormenta'
+      : 'Bajar a la superficie en el indicador';
+  }
   // Repite la bajada en paracaídas (la primera vez sale sola).
   const landingButton = el('button', 'launch-landing-button', 'Aterrizaje realista');
   landingButton.type = 'button';
-  landingButton.title = 'Bajar en paracaídas hasta el indicador';
+  landingButton.title = 'Exploración libre: baja en paracaídas hasta el indicador, sin misión';
   landingButton.addEventListener('click', onLanding);
   const buttons = el('div', 'launch-buttons');
   buttons.append(explore, landingButton);
@@ -110,7 +120,13 @@ export function createLaunchBar(ui, { dem, onExplore, onLanding }) {
     element: bar,
     // Avisa en el botón de que se bajará en modo realista.
     setRealism(on) {
-      exploreLabel.textContent = on ? 'Explorar Marte · realismo' : 'Explorar Marte';
+      realism = on;
+      renderLabel();
+    },
+    // La primera vez el botón principal lleva a la misión guiada "Primer contacto".
+    setFirstContact(pending) {
+      firstContact = pending;
+      renderLabel();
     },
     // Lectura del último clic en el terreno (coordenadas, elevación y pendiente).
     setClick(text) {

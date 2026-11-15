@@ -1,7 +1,7 @@
 // Entrada del modo a pie: teclado y ratón.
 //   WASD movimiento · ratón cámara · Shift correr · Space salto · E interactuar
 //   V cambiar perspectiva · F subir o bajar de la camioneta · G traerla · T velocidad del tiempo
-//   Tab telemetría completa · Esc menú (libera el cursor)
+//   Tab telemetría completa · M sonido · Esc menú (libera el cursor)
 
 const MOVE_KEYS = {
   KeyW: [0, 1], ArrowUp: [0, 1],
@@ -17,10 +17,10 @@ const MOVE_KEYS = {
  *   setEnabled(bool), requestPointerLock(), hasPointerLock(), dispose()
  */
 export function createInput(domElement, {
-  onInteract, onToggleView, onMenu, onPointerLockChange, onVehicle, onSummonVehicle, onTimeScale, onDetails,
+  onInteract, onToggleView, onMenu, onPointerLockChange, onVehicle, onSummonVehicle, onTimeScale, onDetails, onMute,
 }) {
   const pressed = new Set();
-  const state = { forward: 0, right: 0, run: false, jump: false };
+  const state = { forward: 0, right: 0, run: false, jump: false, interact: false };
   let enabled = false;
   let lookX = 0;
   let lookY = 0;
@@ -40,6 +40,7 @@ export function createInput(domElement, {
     state.right = Math.max(-1, Math.min(1, right));
     state.run = pressed.has('ShiftLeft') || pressed.has('ShiftRight');
     state.jump = pressed.has('Space');
+    state.interact = pressed.has('KeyE'); // E mantenida (para tomar muestras)
   }
 
   function onKeyDown(event) {
@@ -52,6 +53,7 @@ export function createInput(domElement, {
     if (event.code === 'KeyV') onToggleView?.();
     if (event.code === 'KeyF') onVehicle?.();
     if (event.code === 'KeyG') onSummonVehicle?.();
+    if (event.code === 'KeyM') onMute?.();
     if (event.code === 'KeyT') onTimeScale?.();
     if (event.code === 'Tab') {
       event.preventDefault();
