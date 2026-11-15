@@ -12,7 +12,7 @@ import {
 } from '../lib/rover.js';
 
 // Si este modelo deja de existir, cambia GEMINI_MODEL en Vercel; no hace falta tocar código.
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+const DEFAULT_MODEL = 'gemini-3.8-flash';
 const DEFAULT_ORIGINS = 'https://cabezones-de-la-nasa.github.io,http://localhost:5173';
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 const allow = createRateLimiter({ max: 20, window_ms: 60000 });

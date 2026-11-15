@@ -9,7 +9,7 @@ sigue en GitHub Pages y solo conoce la URL de esta función.
    y, en **Root Directory**, elige `server`. No necesita comando de build.
 2. En **Settings → Environment Variables** añade:
    - `GEMINI_API_KEY`: tu clave de la API de Gemini. Es un secreto: va solo aquí.
-   - `GEMINI_MODEL` (opcional): el modelo a usar. Por defecto, `gemini-2.5-flash`;
+   - `GEMINI_MODEL` (opcional): el modelo a usar. Por defecto, `gemini-3.8-flash`;
      comprueba en la documentación de Gemini que sigue disponible para tu clave.
    - `ALLOWED_ORIGINS` (opcional): orígenes que pueden llamar, separados por comas. Por
      defecto, `https://cabezones-de-la-nasa.github.io` y `http://localhost:5173`.
