@@ -4,15 +4,22 @@ import { on } from '../../shared/state.js';
 import { buildElevationProfile } from '../../models/routing/profile.js';
 import { drawElevationProfile } from './elevation_profile.js';
 
-// Aviso obligatorio de M15 para la opción inspirada en QAOA.
-export const QAOA_NOTICE =
-  'Heurístico clásico inspirado en QAOA. No ejecuta un circuito cuántico ni promete ventaja cuántica.';
+import { QAOA_NOTICE } from '../../models/routing/qaoa_inspired.js';
+import { PRESETS } from '../../models/routing/astar_health.js';
 
 const ALGORITHMS = [
-  { id: 'astar', label: 'A* O2', available: true },
-  { id: 'health', label: 'Salud (pendiente)', available: false },
-  { id: 'qaoa', label: 'Inspirado en QAOA (pendiente)', available: false, notice: QAOA_NOTICE },
+  { id: 'astar', label: 'A* O2' },
+  { id: 'health', label: 'Salud' },
+  // El aviso de M15 va en la propia opción y debajo del selector.
+  { id: 'qaoa', label: 'Inspirado en QAOA (heurístico clásico)' },
 ];
+
+const PRESET_LABELS = {
+  clasico: 'Clásico',
+  cientifico: 'Científico',
+  balanceado: 'Balanceado',
+  seguridad: 'Seguridad',
+};
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -30,8 +37,8 @@ function formatTime(time_s) {
   return minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`;
 }
 
-// deps: { dem, dataset, routeLine }
-export function createRoutePanel(container, { dem, dataset, routeLine }) {
+// deps: { dem, dataset, routeLine, crew }  (crew: tripulación para la ruta por salud)
+export function createRoutePanel(container, { dem, dataset, routeLine, crew }) {
   const panel = el('section', 'panel route-panel');
   panel.append(el('h2', null, 'Ruta'));
 
@@ -41,12 +48,23 @@ export function createRoutePanel(container, { dem, dataset, routeLine }) {
   for (const algorithm of ALGORITHMS) {
     const option = el('option', null, algorithm.label);
     option.value = algorithm.id;
-    option.disabled = !algorithm.available;
     select.append(option);
   }
   algoRow.append(el('span', null, 'Algoritmo'), select);
   const notice = el('div', 'route-notice', `Sobre la opción "Inspirado en QAOA": ${QAOA_NOTICE}`);
-  panel.append(algoRow, notice);
+
+  // Preajuste de dimensiones de M14; solo se usa con el algoritmo "Salud".
+  const presetRow = el('label', 'route-row route-preset');
+  const presetSelect = el('select');
+  for (const key of Object.keys(PRESETS)) {
+    const option = el('option', null, PRESET_LABELS[key] ?? key);
+    option.value = key;
+    presetSelect.append(option);
+  }
+  presetSelect.value = 'seguridad';
+  presetRow.append(el('span', null, 'Preajuste'), presetSelect);
+  presetRow.hidden = true;
+  panel.append(algoRow, notice, presetRow);
 
   // --- Inicio y destino
   const points = { start: null, goal: null };
@@ -157,11 +175,21 @@ export function createRoutePanel(container, { dem, dataset, routeLine }) {
       type: 'route',
       id: requestId,
       algorithm: select.value,
+      preset: presetSelect.value,
+      crew,
       start_m: points.start,
       goal_m: points.goal,
       config: {},
     });
   });
+
+  function onAlgorithmChange() {
+    presetRow.hidden = select.value !== 'health';
+    status.textContent = '';
+    clearRoute();
+  }
+  select.addEventListener('change', onAlgorithmChange);
+  presetSelect.addEventListener('change', onAlgorithmChange);
 
   worker.addEventListener('message', (event) => {
     const message = event.data;
@@ -179,7 +207,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine }) {
     metricValues.oxygen.textContent = `${m.oxygen_l.toFixed(1)} L`;
     metricValues.slope.textContent = `${m.max_slope_deg.toFixed(1)}°`;
     metricValues.risk.textContent = m.risk_score.toFixed(2);
-    metricValues.time.textContent = formatTime(m.time_s);
+    metricValues.time.textContent = Number.isFinite(m.time_s) ? formatTime(m.time_s) : '—';
     routeLine.setPath(route.path_m);
     const unsafe = drawElevationProfile(profile, buildElevationProfile(dem, route.path_m));
     status.textContent =
@@ -205,12 +233,18 @@ export function createRoutePanel(container, { dem, dataset, routeLine }) {
   return {
     panel,
     getRoute: () => route,
+    getStart: () => points.start,
+    setAlgorithm(id) {
+      select.value = id;
+      onAlgorithmChange();
+    },
     // Para otros paneles (por ejemplo, la evacuación): fija los puntos y calcula.
     setPoints(start_m, goal_m) {
       points.start = start_m;
       points.goal = goal_m;
       routeLine.setStart(start_m);
       routeLine.setGoal(goal_m);
+      setPicking(null);
       clearRoute();
     },
     compute: () => computeButton.click(),

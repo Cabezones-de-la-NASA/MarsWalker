@@ -1,0 +1,175 @@
+// Panel Entorno: Sol, hora local, temperatura, viento y polvo (M16 y M17),
+// y el botón "Simular tormenta" que traza la evacuación al refugio más cercano con M4.
+import './panels.css';
+import { state, emit } from '../../shared/state.js';
+import { createSimClock } from '../../shared/sim_clock.js';
+import { solarState, sunDirection, JEZERO_LAT_DEG } from '../../models/environment/solar.js';
+import {
+  weatherState, nearestShelter, NOMINAL_DUST_TAU, STORM_DUST_TAU,
+} from '../../models/environment/weather.js';
+
+const PHASE_LABELS = { day: 'día', twilight: 'crepúsculo', night: 'noche' };
+// [diseño] Segundos simulados por tick al reproducir el tiempo.
+const PLAY_DT_S = 120;
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function formatHour(ltst_h) {
+  const hours = Math.floor(ltst_h);
+  const minutes = Math.floor((ltst_h - hours) * 60);
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+// deps: { view, dataset, routePanel }
+export function createEnvironmentPanel(container, { view, dataset, routePanel }) {
+  const panel = el('section', 'panel environment-panel');
+  panel.append(el('h2', null, 'Entorno'));
+
+  // --- Controles
+  const env = { ls_deg: 0, ltst_h: 12, dust_tau: NOMINAL_DUST_TAU, storm: false };
+  const sliders = {};
+  function addSlider(key, label, min, max, step, format) {
+    const row = el('label', 'env-row');
+    const input = el('input');
+    input.type = 'range';
+    input.min = String(min);
+    input.max = String(max);
+    input.step = String(step);
+    input.value = String(env[key]);
+    input.dataset.env = key;
+    const value = el('span', 'env-value', format(env[key]));
+    input.addEventListener('input', () => {
+      env[key] = Number(input.value);
+      if (key !== 'dust_tau') clock.setStart({ ls_deg: env.ls_deg, ltst_h: env.ltst_h });
+      update();
+    });
+    row.append(el('span', null, label), input, value);
+    panel.append(row);
+    sliders[key] = { input, value, format };
+  }
+  addSlider('ltst_h', 'Hora local', 0, 23.75, 0.25, formatHour);
+  addSlider('ls_deg', 'Estación (Ls)', 0, 359, 1, (v) => `${v.toFixed(0)}°`);
+  addSlider('dust_tau', 'Polvo (τ)', 0, 5, 0.1, (v) => v.toFixed(1));
+
+  // --- Lecturas
+  const readings = el('dl', 'env-readings');
+  const values = {};
+  for (const [key, label] of [
+    ['sun', 'Sol'],
+    ['phase', 'Fase'],
+    ['irradiance', 'Irradiancia en superficie'],
+    ['distance', 'Distancia al Sol'],
+    ['temperature', 'Temperatura'],
+    ['wind', 'Viento'],
+  ]) {
+    const value = el('dd');
+    value.dataset.reading = key;
+    values[key] = value;
+    readings.append(el('dt', null, label), value);
+  }
+  panel.append(readings);
+
+  // --- Acciones
+  const actions = el('div', 'env-actions');
+  const playButton = el('button', 'env-play', 'Reproducir tiempo');
+  playButton.type = 'button';
+  const stormButton = el('button', 'env-storm', 'Simular tormenta');
+  stormButton.type = 'button';
+  actions.append(playButton, stormButton);
+  const status = el('div', 'env-note');
+  status.setAttribute('role', 'status');
+  panel.append(
+    actions,
+    status,
+    el('div', 'env-note', 'Viento: ningún modelo del proyecto lo calcula todavía. Temperatura: modelo de diseño (M17), sin ajustar con datos de MEDA.'),
+  );
+  container.append(panel);
+
+  // --- Reloj de simulación: el Sol se actualiza antes que el clima, y el clima antes que
+  // quien lo consuma (la salud, cuando exista el modo a pie).
+  const clock = createSimClock({ dt_s: PLAY_DT_S, ls_deg: env.ls_deg, ltst_h: env.ltst_h });
+  let sun = null;
+  let weather = null;
+  clock.subscribe((time) => {
+    env.ltst_h = time.ltst_h;
+    env.ls_deg = time.ls_deg;
+    sun = solarState({ ...env, lat_deg: JEZERO_LAT_DEG });
+  });
+  clock.subscribe(() => {
+    weather = weatherState(env);
+  });
+  clock.subscribe(() => render());
+
+  function update() {
+    sun = solarState({ ...env, lat_deg: JEZERO_LAT_DEG });
+    weather = weatherState(env);
+    render();
+  }
+
+  function render() {
+    for (const [key, { input, value, format }] of Object.entries(sliders)) {
+      input.value = String(env[key]);
+      value.textContent = format(env[key]);
+    }
+    values.sun.textContent = `altura ${sun.elevation_deg.toFixed(1)}°, acimut ${sun.azimuth_deg.toFixed(0)}°`;
+    values.phase.textContent = PHASE_LABELS[sun.phase];
+    values.irradiance.textContent = `${sun.surface_w_m2.toFixed(0)} W/m²`;
+    values.distance.textContent = `${sun.sun_distance_au.toFixed(3)} UA`;
+    values.temperature.textContent = `${weather.ambient_temp_c.toFixed(1)} °C`;
+    values.wind.textContent = 'sin dato';
+
+    // Luz de la escena: dirección del Sol de M16; la intensidad sigue a la irradiancia.
+    const daylight = sun.surface_w_m2 / 500;
+    view.setSun(sunDirection(Math.max(sun.elevation_deg, 0), sun.azimuth_deg), daylight);
+    state.environment = { ...env, sun, weather };
+    emit('environment:change', state.environment);
+  }
+
+  let playing = false;
+  view.onFrame(() => {
+    if (playing) clock.tick();
+  });
+  playButton.addEventListener('click', () => {
+    playing = !playing;
+    playButton.classList.toggle('is-active', playing);
+    playButton.textContent = playing ? 'Pausar tiempo' : 'Reproducir tiempo';
+  });
+
+  stormButton.addEventListener('click', () => {
+    env.storm = !env.storm;
+    env.dust_tau = env.storm ? STORM_DUST_TAU : NOMINAL_DUST_TAU;
+    stormButton.classList.toggle('is-active', env.storm);
+    stormButton.textContent = env.storm ? 'Terminar tormenta' : 'Simular tormenta';
+    update();
+    if (!env.storm) {
+      status.textContent = '';
+      return;
+    }
+    // Evacuación con M4 al refugio más cercano, desde el inicio de la ruta si hay uno
+    // y si no desde la posición del astronauta.
+    const points = dataset.poi?.points ?? [];
+    const from_m = routePanel.getStart() ?? state.astronaut_position_m;
+    const shelter = from_m ? nearestShelter(points, from_m) : null;
+    if (!shelter) {
+      status.textContent = 'Tormenta activa. Este dataset no tiene ningún refugio para evacuar.';
+      return;
+    }
+    if (Math.hypot(shelter.position_m[0] - from_m[0], shelter.position_m[1] - from_m[1]) < 1) {
+      status.textContent =
+        `Tormenta activa. El astronauta ya está en ${shelter.name}. Para trazar una evacuación, elige un inicio en el panel Ruta.`;
+      return;
+    }
+    routePanel.setAlgorithm('astar');
+    routePanel.setPoints([...from_m], [...shelter.position_m]);
+    routePanel.compute();
+    status.textContent = `Tormenta activa. Ruta de evacuación a ${shelter.name} trazada con A* O2.`;
+  });
+
+  update();
+  return { panel, getEnvironment: () => ({ ...env, sun, weather }) };
+}

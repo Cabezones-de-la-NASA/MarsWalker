@@ -8,16 +8,10 @@ import {
   segmentO2Cost_l,
   segmentSlope_deg,
 } from './o2_cost.js';
-import { createMinHeap } from './binary_heap.js';
+import { aStarSearch } from './astar_core.js';
 
 // M4: máximo de nodos por lado de la malla de búsqueda.
 export const MAX_NODES_PER_SIDE = 256;
-
-// 8 vecinos: [dfila, dcolumna].
-const NEIGHBORS = [
-  [-1, 0], [1, 0], [0, -1], [0, 1],
-  [-1, -1], [-1, 1], [1, -1], [1, 1],
-];
 
 /**
  * Malla de búsqueda: el DEM submuestreado a como mucho MAX_NODES_PER_SIDE nodos por lado.
@@ -62,7 +56,7 @@ export function buildSearchGrid(dem, maxNodesPerSide = MAX_NODES_PER_SIDE) {
   return { rows, cols, spacing_m, x_m, z_m, elevation_m, slope_deg };
 }
 
-function nearestNode(grid, dem, point_m) {
+export function nearestNode(grid, dem, point_m) {
   const [width_m, depth_m] = dem.size_m;
   const [px_m, pz_m] = point_m;
   if (
@@ -93,7 +87,7 @@ export function computeRoute({ dem, start_m, goal_m, config = {} }) {
   const settings = { ...ROUTING_DEFAULTS, forbid_unsafe: false, heuristic_scale: 1, ...config };
   const maxNodes = Math.min(settings.max_nodes_per_side ?? MAX_NODES_PER_SIDE, MAX_NODES_PER_SIDE);
   const grid = settings.grid ?? buildSearchGrid(dem, maxNodes);
-  const { rows, cols, x_m, z_m, elevation_m, slope_deg } = grid;
+  const { cols, x_m, z_m, elevation_m, slope_deg } = grid;
 
   const start = nearestNode(grid, dem, start_m);
   const goal = nearestNode(grid, dem, goal_m);
@@ -110,61 +104,62 @@ export function computeRoute({ dem, start_m, goal_m, config = {} }) {
   const heuristic_l = (node) =>
     Math.hypot(x_m[node % cols] - goalX_m, z_m[Math.floor(node / cols)] - goalZ_m) * hPerMeter_l;
 
-  const cost_l = new Float64Array(rows * cols).fill(Infinity);
-  const parent = new Int32Array(rows * cols).fill(-1);
-  const closed = new Uint8Array(rows * cols);
-  const open = createMinHeap();
-  cost_l[start] = 0;
-  open.push(heuristic_l(start), start);
-
-  let found = false;
-  while (open.size > 0) {
-    const node = open.pop().value;
-    if (closed[node]) continue;
-    closed[node] = 1;
-    if (node === goal) {
-      found = true;
-      break;
-    }
-    const row = Math.floor(node / cols);
-    const col = node % cols;
-    for (const [dRow, dCol] of NEIGHBORS) {
-      const nRow = row + dRow;
-      const nCol = col + dCol;
-      if (nRow < 0 || nRow >= rows || nCol < 0 || nCol >= cols) continue;
-      const next = nRow * cols + nCol;
-      if (closed[next]) continue;
-      const distance_m = Math.hypot(x_m[nCol] - x_m[col], z_m[nRow] - z_m[row]);
+  const search = aStarSearch({
+    grid,
+    start,
+    goal,
+    heuristic: heuristic_l,
+    edgeCost(node, next, distance_m) {
       const delta_elev_m = elevation_m[next] - elevation_m[node];
       if (
         settings.forbid_unsafe &&
         segmentSlope_deg(distance_m, delta_elev_m, slope_deg[next]) > settings.max_safe_deg
       ) {
-        continue;
+        return Infinity;
       }
-      const candidate_l =
-        cost_l[node] +
-        segmentO2Cost_l({ distance_m, delta_elev_m, slope_deg: slope_deg[next], config: settings });
-      if (candidate_l < cost_l[next]) {
-        cost_l[next] = candidate_l;
-        parent[next] = node;
-        open.push(candidate_l + heuristic_l(next), next);
-      }
-    }
-  }
+      return segmentO2Cost_l({ distance_m, delta_elev_m, slope_deg: slope_deg[next], config: settings });
+    },
+  });
 
-  if (!found) {
+  if (!search.found) {
     return {
       failed: true,
       error: `No hay camino entre los dos puntos sin cruzar pendientes de más de ${settings.max_safe_deg}°.`,
     };
   }
+  const { nodes } = search;
 
-  const nodes = [];
-  for (let node = goal; node !== -1; node = parent[node]) nodes.push(node);
-  nodes.reverse();
+  const stats = pathStats(grid, nodes, settings);
 
+  return {
+    dataset_id: dem.dataset_id ?? null,
+    algorithm: 'astar',
+    path_m: nodesToPath(grid, nodes),
+    metrics: {
+      distance_m: stats.distance_m,
+      oxygen_l: search.cost,
+      max_slope_deg: stats.max_slope_deg,
+      // M4: promedio de M2 ponderado por distancia.
+      risk_score: stats.risk_score,
+      // Extra (no está en la sección 3): tiempo de marcha a velocidad constante.
+      time_s: stats.distance_m / settings.speed_ms,
+    },
+  };
+}
+
+export function nodesToPath(grid, nodes) {
+  return nodes.map((node) => [grid.x_m[node % grid.cols], grid.z_m[Math.floor(node / grid.cols)]]);
+}
+
+/**
+ * Métricas de un camino sobre la malla, con el criterio de M3 y M4:
+ * distancia, O2 (M3), pendiente máxima y riesgo (M2 ponderado por distancia).
+ */
+export function pathStats(grid, nodes, config = {}) {
+  const settings = { ...ROUTING_DEFAULTS, ...config };
+  const { cols, x_m, z_m, elevation_m, slope_deg } = grid;
   let distance_m = 0;
+  let oxygen_l = 0;
   let max_slope_deg = 0;
   let riskTimesDistance = 0;
   for (let i = 1; i < nodes.length; i++) {
@@ -174,24 +169,17 @@ export function computeRoute({ dem, start_m, goal_m, config = {} }) {
       x_m[b % cols] - x_m[a % cols],
       z_m[Math.floor(b / cols)] - z_m[Math.floor(a / cols)],
     );
-    const theta_deg = segmentSlope_deg(step_m, elevation_m[b] - elevation_m[a], slope_deg[b]);
+    const delta_elev_m = elevation_m[b] - elevation_m[a];
+    const theta_deg = segmentSlope_deg(step_m, delta_elev_m, slope_deg[b]);
     distance_m += step_m;
+    oxygen_l += segmentO2Cost_l({ distance_m: step_m, delta_elev_m, slope_deg: slope_deg[b], config: settings });
     max_slope_deg = Math.max(max_slope_deg, theta_deg);
     riskTimesDistance += riskIndex(theta_deg, settings.max_safe_deg) * step_m;
   }
-
   return {
-    dataset_id: dem.dataset_id ?? null,
-    algorithm: 'astar',
-    path_m: nodes.map((node) => [x_m[node % cols], z_m[Math.floor(node / cols)]]),
-    metrics: {
-      distance_m,
-      oxygen_l: cost_l[goal],
-      max_slope_deg,
-      // M4: promedio de M2 ponderado por distancia.
-      risk_score: distance_m > 0 ? riskTimesDistance / distance_m : 0,
-      // Extra (no está en la sección 3): tiempo de marcha a velocidad constante.
-      time_s: distance_m / settings.speed_ms,
-    },
+    distance_m,
+    oxygen_l,
+    max_slope_deg,
+    risk_score: distance_m > 0 ? riskTimesDistance / distance_m : 0,
   };
 }

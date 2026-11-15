@@ -6,6 +6,8 @@ export const state = {
   mode: 'intro',
   // Posición del astronauta en el mapa, [x_m, z_m], o null si aún no se ha colocado.
   astronaut_position_m: null,
+  // Entorno actual: { ls_deg, ltst_h, dust_tau, storm, sun, weather }, o null al arrancar.
+  environment: null,
 };
 
 const handlers = new Map();

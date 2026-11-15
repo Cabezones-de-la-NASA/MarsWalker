@@ -13,6 +13,8 @@ import { createCompositor } from './layers/compositor.js';
 import { createLayersPanel } from './panels/layers_panel.js';
 import { createRouteLine } from './map/route_line.js';
 import { createRoutePanel } from './panels/route_panel.js';
+import { createEnvironmentPanel } from './panels/environment_panel.js';
+import { DEFAULT_CREW } from './default_crew.js';
 import './panels/panels.css';
 
 function el(tag, className, text) {
@@ -73,11 +75,12 @@ export async function startDashboard(container) {
 
   const routeLine = createRouteLine(view.scene, dem, view.renderer);
   view.onFrame(() => routeLine.update(view.camera));
-  const routePanel = createRoutePanel(ui, { dem, dataset, routeLine });
+  const routePanel = createRoutePanel(ui, { dem, dataset, routeLine, crew: DEFAULT_CREW });
+  const environmentPanel = createEnvironmentPanel(ui, { view, dataset, routePanel });
 
   const popup = createPoiPopup(ui);
   on('poi:click', (poi) => popup.show(poi, state.astronaut_position_m));
 
   view.start();
-  return { view, dem, dataset, compositor, mesh, orbit, routePanel };
+  return { view, dem, dataset, compositor, mesh, orbit, routePanel, environmentPanel };
 }

@@ -179,5 +179,39 @@ class DatasetTest(unittest.TestCase):
         self.assertEqual(validate.main([self.tmp.name]), 1)
 
 
+class MedaFitTest(unittest.TestCase):
+    def test_fit_recovers_mean_and_amplitude_from_synthetic_csv(self):
+        import contextlib
+        import io
+        import math
+        import fit_meda_temperature as meda
+
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = os.path.join(tmp.name, "meda.csv")
+        ls = 120.0
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write("LTST,AIR_TEMP\n")
+            for i in range(96):
+                hours = i * 0.25
+                temp_c = -60 + meda.orbital_term_c(ls) + 28 * math.cos(
+                    2 * math.pi * (hours - 14.2) / 24)
+                handle.write("%02d:%02d:00,%.4f\n" % (int(hours), int(hours % 1 * 60), temp_c + 273.15))
+            handle.write("no-es-hora,nan\n")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = meda.main([path, "--time-column", "LTST", "--temp-column", "AIR_TEMP",
+                              "--kelvin", "--ls", str(ls)])
+        self.assertEqual(code, 0)
+        result = json.loads(out.getvalue())
+        self.assertAlmostEqual(result["mean_c"], -60, places=1)
+        self.assertAlmostEqual(result["amplitude_c"], 28, places=1)
+        self.assertEqual(result["rows_used"], 96)
+        self.assertEqual(result["rows_skipped"], 1)
+        self.assertEqual(meda.parse_hours("00123M14:30:00"), 14.5)
+        self.assertEqual(meda.parse_hours("6.75"), 6.75)
+        self.assertEqual(meda.main([path, "--time-column", "X", "--temp-column", "AIR_TEMP"]), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
