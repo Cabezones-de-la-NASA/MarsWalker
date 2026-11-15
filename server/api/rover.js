@@ -63,8 +63,14 @@ export default async function handler(req, res) {
       console.error('Gemini respondió', response.status, (await response.text()).slice(0, 500));
       return res.status(502).json({ error: 'El modelo no respondió' });
     }
-    const text = fromGeminiResponse(await response.json());
-    if (!text) return res.status(502).json({ error: 'El modelo no devolvió texto' });
+    const data = await response.json();
+    const text = fromGeminiResponse(data);
+    if (!text) {
+      // El motivo (p. ej. MAX_TOKENS o SAFETY) ayuda a diagnosticar y no revela nada sensible.
+      const reason = data?.candidates?.[0]?.finishReason ?? data?.promptFeedback?.blockReason ?? 'desconocido';
+      console.error('Gemini no devolvió texto. Motivo:', reason);
+      return res.status(502).json({ error: 'El modelo no devolvió texto', reason });
+    }
     return res.status(200).json({ text });
   } catch (error) {
     const timedOut = error?.name === 'TimeoutError' || error?.name === 'AbortError';

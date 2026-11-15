@@ -6,7 +6,9 @@ export const LIMITS = Object.freeze({
   context_chars: 9000,
   message_chars: 600,
   messages: 10,
-  output_tokens: 220,
+  // Holgado a propósito: en los modelos que razonan antes de contestar, ese razonamiento
+  // también gasta de este tope. La brevedad la pide el personaje, no este número.
+  output_tokens: 2048,
 });
 
 const RULES = [
