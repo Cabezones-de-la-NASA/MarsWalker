@@ -1,9 +1,14 @@
+
+
 // Carga un dataset de public/data/<dataset_id>/ (docs/modelosydb.md, sección 3).
 // Lo usan el dashboard y el gameplay. Devuelve datos crudos; el DEM se arma con
 // createDem de src/models/terrain/ en quien lo consume.
 
 export const DEFAULT_DATASET_ID = 'hirise_jezero';
-
+// Vite define BASE_URL según el entorno:
+// - Desarrollo: '/'
+// - GitHub Pages: '/MarsWalker/'
+const BASE_URL = import.meta.env.BASE_URL;
 const DATASET_ID_PATTERN = /^[a-z0-9_]+$/;
 
 // Lee ?dataset= de la URL; si falta o no es un nombre de carpeta válido, usa el de por defecto.
@@ -14,7 +19,9 @@ export function datasetIdFromUrl(search = window.location.search) {
 
 async function fetchOk(url) {
   const response = await fetch(url);
-  if (!response.ok) throw new Error(`No se pudo cargar ${url} (HTTP ${response.status})`);
+  if (!response.ok) {
+    throw new Error(`No se pudo cargar ${url} (HTTP ${response.status})`);
+  }
   return response;
 }
 
@@ -22,8 +29,15 @@ async function fetchOk(url) {
 // -> [{ dataset_id, label, source, resolution_m, size_m, has_poi }], o [] si no hay índice.
 export async function loadDatasetIndex() {
   try {
-    const response = await fetch('/data/index.json');
-    if (!response.ok || !(response.headers.get('content-type') || '').includes('json')) return [];
+    const response = await fetch(`${BASE_URL}data/index.json`);
+
+    if (
+      !response.ok ||
+      !(response.headers.get('content-type') || '').includes('json')
+    ) {
+      return [];
+    }
+
     const index = await response.json();
     return Array.isArray(index.datasets) ? index.datasets : [];
   } catch {
@@ -37,14 +51,22 @@ export async function loadDataset(dataset_id) {
   if (!DATASET_ID_PATTERN.test(dataset_id)) {
     throw new Error(`dataset_id no válido: ${dataset_id}`);
   }
-  const baseUrl = `/data/${dataset_id}/`;
+
+  const baseUrl = `${BASE_URL}data/${dataset_id}/`;
+
   const metadataResponse = await fetchOk(`${baseUrl}metadata.json`);
+
   // El servidor de desarrollo responde index.html cuando la carpeta no existe.
   if (!(metadataResponse.headers.get('content-type') || '').includes('json')) {
     throw new Error(`No existe el dataset "${dataset_id}" en public/data/`);
   }
+
   const metadata = await metadataResponse.json();
-  const buffer = await (await fetchOk(baseUrl + metadata.heightmap.file)).arrayBuffer();
+
+  const buffer = await (
+    await fetchOk(baseUrl + metadata.heightmap.file)
+  ).arrayBuffer();
+
   // heightmap.f32 es little-endian, igual que Float32Array en los navegadores actuales.
   const heights_m = new Float32Array(buffer);
 
@@ -52,12 +74,17 @@ export async function loadDataset(dataset_id) {
   const textureUrl = baseUrl + (base ? base.file : 'texture.png');
 
   let poi = null;
+
   try {
     const response = await fetch(`${baseUrl}poi.json`);
     const type = response.headers.get('content-type') || '';
-    if (response.ok && type.includes('json')) poi = await response.json();
+
+    if (response.ok && type.includes('json')) {
+      poi = await response.json();
+    }
   } catch {
     poi = null; // poi.json es opcional
   }
+
   return { metadata, heights_m, baseUrl, textureUrl, poi };
 }
