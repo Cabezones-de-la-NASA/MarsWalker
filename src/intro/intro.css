@@ -1,0 +1,394 @@
+/* Escena de introducción: cabina, ventanilla con Marte 3D, video y zoom hacia Jezero. */
+
+.intro-root {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  overflow: hidden;
+  isolation: isolate;
+  background: #060a0e;
+  opacity: 1;
+  transition: opacity 1.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.intro-root.is-fading-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.intro-root::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 60% 43%, #162c39, transparent 69%),
+    linear-gradient(150deg, #060a0e, #0b141b 65%, #06070a);
+  pointer-events: none;
+}
+
+.intro-cabin {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 50%;
+  width: max(100vw, calc(100svh * 740 / 494));
+  aspect-ratio: 740 / 494;
+  transform: translate(-50%, -50%);
+}
+
+.intro-glass {
+  position: absolute;
+  /* Sigue la abertura circular de la imagen base de 740 x 494. */
+  top: 19%;
+  left: 30.95%;
+  width: 37.9%;
+  height: 58%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #020204;
+}
+
+.intro-glass::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(130deg, transparent 12%, #c9f0ff13 29%, transparent 47%),
+    linear-gradient(20deg, #07192450 2%, transparent 24%, transparent 80%, #d5f4ff16 100%);
+  box-shadow: inset 0 0 22px #14364869, inset 0 0 3px 1px #a8f4ff87;
+  pointer-events: none;
+}
+
+.intro-cabin-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  filter: brightness(0.84) contrast(1.04) saturate(0.91);
+  pointer-events: none;
+}
+
+.intro-root canvas {
+  display: block;
+  pointer-events: none;
+}
+
+.intro-stars {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity 1.8s ease;
+}
+
+.intro-mars {
+  position: absolute;
+  width: 204%;
+  aspect-ratio: 1;
+  transform: translate(29.8%, 4%);
+  will-change: transform, filter;
+}
+
+.intro-astronaut {
+  position: absolute;
+  z-index: 3;
+  left: -5vw;
+  bottom: -18svh;
+  display: block;
+  width: min(53vw, 75svh, 880px);
+  height: auto;
+  filter: brightness(0.83) contrast(1.11) drop-shadow(12px 3px 30px #0008);
+  pointer-events: none;
+}
+
+.intro-shade {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  background:
+    linear-gradient(0deg, #050506c4, transparent 27%),
+    radial-gradient(ellipse at 54% 42%, transparent 42%, #0006 100%);
+  pointer-events: none;
+}
+
+@media (max-aspect-ratio: 4/5) {
+  .intro-cabin {
+    top: 43%;
+    left: 56%;
+    width: min(202vw, 112svh);
+    mask-image: linear-gradient(transparent, #000 10% 88%, transparent);
+  }
+  .intro-astronaut {
+    left: -18vw;
+    bottom: -8svh;
+    width: min(86vw, 61svh, 620px);
+  }
+}
+
+.intro-cta {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  bottom: clamp(32px, 11svh, 104px);
+  width: max-content;
+  max-width: calc(100% - 2rem);
+  padding: 0.5rem 1rem;
+  border: 0;
+  background: none;
+  transform: translateX(-50%);
+  color: #fffdf8;
+  text-align: center;
+  text-shadow: 0 2px 8px #080505d9, 0 4px 27px #080505f2;
+  cursor: pointer;
+  transition: transform 0.25s ease, opacity 0.4s ease;
+}
+
+.intro-cta:hover {
+  transform: translateX(-50%) scale(1.03);
+}
+
+.intro-cta:focus-visible {
+  outline: 2px solid #b5e8ff;
+  outline-offset: 6px;
+  border-radius: 12px;
+}
+
+.intro-cta:disabled {
+  cursor: default;
+  pointer-events: none;
+}
+
+.intro-cta h1 {
+  margin: 0;
+  font-family: 'Orbitron', system-ui, sans-serif;
+  font-size: clamp(1.25rem, 2.55vw, 2.35rem);
+  font-weight: 900;
+  line-height: 1.12;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.intro-cta p {
+  margin: 0.6rem 0 0;
+  color: #e3e9ee;
+  font: 500 clamp(0.875rem, 1.05vw, 1rem) / 1.4 'Space Grotesk', system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  animation: introPulse 2.8s ease-in-out infinite;
+}
+
+.intro-cta:hover h1 {
+  text-shadow: 0 2px 14px #b5e8ff66, 0 4px 27px #080505f2;
+}
+
+@keyframes introPulse {
+  0%, 100% {
+    opacity: 0.68;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.intro-sound-control {
+  position: absolute;
+  z-index: 6;
+  top: max(1rem, env(safe-area-inset-top));
+  right: max(1rem, env(safe-area-inset-right));
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid #b5d7e778;
+  border-radius: 999px;
+  background: #07141ee8;
+  color: #edf7fb;
+  font: 500 0.875rem / 1.2 'Space Grotesk', system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.intro-sound-control svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.intro-sound-control .icon-sound-on {
+  display: none;
+}
+
+.intro-sound-control .icon-sound-off {
+  display: block;
+}
+
+.intro-sound-control.is-unmuted .icon-sound-on {
+  display: block;
+}
+
+.intro-sound-control.is-unmuted .icon-sound-off {
+  display: none;
+}
+
+.intro-sound-control:hover {
+  background: #183242;
+}
+
+.intro-sound-control:focus-visible {
+  outline: 2px solid #b5e8ff;
+  outline-offset: 3px;
+}
+
+@media (max-aspect-ratio: 4/5) {
+  .intro-cta {
+    bottom: max(8svh, calc(env(safe-area-inset-bottom) + 1.25rem));
+  }
+  .intro-cta h1 {
+    font-size: clamp(1.125rem, 5vw, 1.875rem);
+  }
+}
+
+.intro-transition-overlay {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.9s ease;
+}
+
+.intro-transition-overlay.is-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.intro-trip-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.8s ease;
+}
+
+.intro-trip-video.is-playing {
+  opacity: 1;
+}
+
+.intro-skip-story {
+  position: absolute;
+  z-index: 21;
+  right: max(1.25rem, env(safe-area-inset-right));
+  bottom: max(1.25rem, env(safe-area-inset-bottom));
+  min-height: 44px;
+  padding: 0.55rem 1rem;
+  border: 1px solid #b5d7e778;
+  border-radius: 999px;
+  background: #07141ecc;
+  color: #edf7fb;
+  font: 500 0.875rem / 1.2 'Space Grotesk', system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease, background-color 0.2s ease;
+}
+
+.intro-skip-story.is-visible {
+  opacity: 0.78;
+  pointer-events: auto;
+}
+
+.intro-skip-story.is-visible:hover,
+.intro-skip-story.is-visible:focus-visible {
+  opacity: 1;
+}
+
+.intro-skip-story:hover {
+  background: #183242;
+}
+
+.intro-skip-story:focus-visible {
+  outline: 2px solid #b5e8ff;
+  outline-offset: 3px;
+}
+
+.intro-video-loader {
+  position: absolute;
+  z-index: 21;
+  color: #d7e5ee;
+  font: 500 0.9rem / 1.4 'Space Grotesk', system-ui, sans-serif;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.intro-video-loader.is-visible {
+  opacity: 0.85;
+}
+
+.intro-root.is-mars-solo {
+  background: #000;
+}
+
+.intro-root.is-mars-solo::before,
+.intro-root.is-mars-solo .intro-cabin-image,
+.intro-root.is-mars-solo .intro-astronaut,
+.intro-root.is-mars-solo .intro-shade,
+.intro-root.is-mars-solo .intro-cta,
+.intro-root.is-mars-solo .intro-sound-control,
+.intro-root.is-mars-solo .intro-brand-mark,
+.intro-root.is-mars-solo .intro-glass::after {
+  display: none;
+}
+
+.intro-root.is-mars-solo .intro-cabin {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  transform: none;
+  mask-image: none;
+}
+
+.intro-root.is-mars-solo .intro-glass {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  background: transparent;
+}
+
+.intro-root.is-mars-solo .intro-mars {
+  width: min(74vw, 74svh, 760px);
+  transform: none;
+}
+
+.intro-root.is-zooming-jezero .intro-stars {
+  opacity: 0.15;
+}
+
+.intro-brand-mark {
+  position: absolute;
+  z-index: 6;
+  right: max(1.25rem, env(safe-area-inset-right));
+  bottom: max(1.25rem, env(safe-area-inset-bottom));
+  color: #fffdf8;
+  opacity: 0.84;
+  font: 700 clamp(0.875rem, 1.3vw, 1.125rem) / 1 'Orbitron', system-ui, sans-serif;
+  letter-spacing: 0.16em;
+  text-shadow: 0 2px 10px #000c;
+  pointer-events: none;
+  user-select: none;
+}

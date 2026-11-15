@@ -143,6 +143,11 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
       zone: dataset.metadata.dataset_id,
       // Cambiar de zona recarga la página con ?dataset=: se rehacen el terreno y los modelos.
       onZone(id) {
+        try {
+          window.sessionStorage.setItem('marswalk_skip_intro', '1');
+        } catch {
+          // Ignorar si sessionStorage está restringido.
+        }
         const url = new URL(window.location.href);
         url.searchParams.set('dataset', id);
         window.location.href = url.toString();
@@ -152,6 +157,11 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
       // El perfil gráfico se aplica al recargar: cambia el renderer y las mallas.
       onQuality(id) {
         saveQuality(id);
+        try {
+          window.sessionStorage.setItem('marswalk_skip_intro', '1');
+        } catch {
+          // Ignorar si sessionStorage está restringido.
+        }
         window.location.reload();
       },
       onExplore: () => emit('mode:request', 'gameplay'),
@@ -163,8 +173,12 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
 
   return {
     world, dem, dataset, compositor, mesh: terrain.mesh, orbit, routePanel, environmentPanel,
-    models, modelsReady, tabs, picking,
+    models, modelsReady, tabs, picking, ui,
     getRoute: () => routePanel.getRoute(),
+    setUiVisible(visible) {
+      ui.classList.toggle('is-intro-hidden', !visible);
+      orbit.controls.enabled = active && visible;
+    },
     setActive(next) {
       if (next === active) return;
       active = next;

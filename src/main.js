@@ -11,6 +11,7 @@ import { createRocks } from './world/rocks.js';
 import { createDust } from './world/dust.js';
 import { startDashboard } from './dashboard/dashboard.js';
 import { createGameplay } from './gameplay/gameplay.js';
+import { startIntro } from './intro/intro.js';
 
 // [diseño] Duración del fundido entre el mapa y la superficie, en milisegundos.
 const FADE_MS = 320;
@@ -24,7 +25,23 @@ function showFatal(message) {
   document.body.append(box);
 }
 
-async function start() {
+function animateCameraDescent(world, dashboard, fromPos, toPos, durationMs) {
+  const startTime = performance.now();
+  function step(now) {
+    const t = Math.min(1, (now - startTime) / durationMs);
+    const eased = 1 - Math.pow(1 - t, 4);
+    world.camera.position.lerpVectors(fromPos, toPos, eased);
+    dashboard.orbit.controls.update();
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      dashboard.orbit.controls.enabled = true;
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+async function initScene() {
   const [dataset, zones] = await Promise.all([loadDataset(datasetIdFromUrl()), loadDatasetIndex()]);
   const dem = createDem(dataset.metadata, dataset.heights_m);
 
@@ -39,7 +56,6 @@ async function start() {
   const rocks = createRocks(world.scene, dem, quality);
   const dust = createDust(world.scene, quality);
 
-  state.mode = 'dashboard';
   const dashboard = await startDashboard(document.body, { world, dem, dataset, terrain, zones });
   const gameplay = createGameplay(document.body, { world, dem, dataset, terrain, rocks, dust });
 
@@ -66,12 +82,64 @@ async function start() {
       switching = false;
     }, FADE_MS);
   });
-  world.start();
 
   // Solo en desarrollo: acceso desde la consola y las pruebas de navegador.
   if (import.meta.env.DEV) {
     window.__marswalk = { ...dashboard, state, terrain, rocks, dust, gameplay, on };
   }
+
+  return { world, dashboard };
+}
+
+function consumeSkipIntroFlag() {
+  if (new URLSearchParams(window.location.search).has('skipIntro')) return true;
+  try {
+    if (window.sessionStorage.getItem('marswalk_skip_intro') === '1') {
+      window.sessionStorage.removeItem('marswalk_skip_intro');
+      return true;
+    }
+  } catch {
+    // Ignorar si sessionStorage está restringido.
+  }
+  return false;
+}
+
+async function start() {
+  const skipIntro = consumeSkipIntroFlag();
+
+  if (skipIntro) {
+    const { world } = await initScene();
+    state.mode = 'dashboard';
+    world.start();
+    return;
+  }
+
+  state.mode = 'intro';
+  const scenePromise = initScene().then(({ world, dashboard }) => {
+    dashboard.setUiVisible(false);
+    const targetCamPos = world.camera.position.clone();
+    const highCamPos = targetCamPos.clone().multiplyScalar(2.6);
+    world.camera.position.copy(highCamPos);
+    dashboard.orbit.controls.update();
+    return { world, dashboard, highCamPos, targetCamPos };
+  });
+
+  startIntro(document.body, {
+    waitReady: () => scenePromise.then(() => undefined),
+    onRevealStart: async () => {
+      const { world, dashboard, highCamPos, targetCamPos } = await scenePromise;
+      world.start();
+      animateCameraDescent(world, dashboard, highCamPos, targetCamPos, 2400);
+      window.setTimeout(() => {
+        dashboard.setUiVisible(true);
+      }, 900);
+    },
+    onComplete: () => {
+      state.mode = 'dashboard';
+    },
+  });
+
+  await scenePromise;
 }
 
 start().catch((error) => {
