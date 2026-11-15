@@ -19,6 +19,7 @@ import { createFootprints } from './footprints.js';
 import { createCompanion } from './companion.js';
 import { createVehicle } from './vehicle.js';
 import { createParachute } from '../models3d/parachute.js';
+import { createCapsule, CAPSULE_RADIUS_M, CAPSULE_HEIGHT_M } from '../models3d/capsule.js';
 import { DESCENT, descentState } from '../models/locomotion/descent.js';
 import { createRoverChat } from './rover_chat/chat_panel.js';
 import { VEHICLE } from '../models/locomotion/vehicle.js';
@@ -48,8 +49,13 @@ const DEFAULT_TIME_SCALE = 4;
 const HUD_REFRESH_S = 0.15;
 // El aterrizaje en paracaídas sale solo la primera vez; después, a petición.
 const LANDED_KEY = 'marswalk.landed';
-// [diseño] Altura de los hombros del astronauta, donde se enganchan las cuerdas.
-const SHOULDER_HEIGHT_M = 1.5;
+// [diseño] Tras aterrizar, la cápsula queda hundida y ladeada, y el astronauta sale a
+// unos metros de ella.
+const CAPSULE_SINK_M = 0.4;
+const CAPSULE_TILT_RAD = 0.14;
+const CAPSULE_EXIT_M = 4.5;
+// [diseño] El paracaídas de la cápsula es mayor que uno personal.
+const PARACHUTE_SCALE = 1.7;
 
 /**
  * createGameplay(container, { world, dem, terrain, rocks, dust, mission }) ->
@@ -78,10 +84,20 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     if (distance_m >= reach_m || distance_m < 1e-6) return [px, pz];
     return [base.position_m[0] + (dx / distance_m) * reach_m, base.position_m[1] + (dz / distance_m) * reach_m];
   }
+  function avoidCapsule(px, pz, radius_m) {
+    if (!capsuleSite) return [px, pz];
+    const dx = px - capsuleSite.x_m;
+    const dz = pz - capsuleSite.z_m;
+    const distance_m = Math.hypot(dx, dz);
+    const reach_m = CAPSULE_RADIUS_M + radius_m;
+    if (distance_m >= reach_m || distance_m < 1e-6) return [px, pz];
+    return [capsuleSite.x_m + (dx / distance_m) * reach_m, capsuleSite.z_m + (dz / distance_m) * reach_m];
+  }
   function resolveCollision(x_m, z_m) {
     let [px, pz] = resolveRockCollision(dem, x_m, z_m, LOCOMOTION.body_radius_m);
     [px, pz] = companion.resolveCollision(px, pz, LOCOMOTION.body_radius_m);
     [px, pz] = truck.resolveCollision(px, pz, LOCOMOTION.body_radius_m);
+    [px, pz] = avoidCapsule(px, pz, LOCOMOTION.body_radius_m);
     return avoidBase(px, pz, LOCOMOTION.body_radius_m);
   }
   const bounds = { halfWidth_m: width_m / 2 - MAP_MARGIN_M, halfDepth_m: depth_m / 2 - MAP_MARGIN_M };
@@ -92,6 +108,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     resolveCollision(x_m, z_m) {
       let [px, pz] = resolveRockCollision(dem, x_m, z_m, VEHICLE_ROCK_RADIUS_M);
       [px, pz] = companion.resolveCollision(px, pz, VEHICLE_ROCK_RADIUS_M);
+      [px, pz] = avoidCapsule(px, pz, VEHICLE.body_radius_m);
       return avoidBase(px, pz, VEHICLE.body_radius_m);
     },
     ...bounds,
@@ -133,7 +150,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   mission.onChange(rebuildMissionObjects);
 
   const footprints = createFootprints(world.scene, world.quality.footprints);
-  const interaction = createInteraction({ dem, getPoints, companion });
+  const interaction = createInteraction({ dem, getPoints, companion, getCapsule: () => capsuleSite });
   const followCamera = createFollowCamera(world.camera, groundAt);
   const vitals = createVitals({
     dem,
@@ -152,8 +169,13 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   // Aterrizaje en curso: { t_s, scale, ground_m, yaw0_rad } o null.
   let landing = null;
   const parachute = createParachute();
+  parachute.scale.setScalar(PARACHUTE_SCALE);
   parachute.visible = false;
-  world.scene.add(parachute);
+  // La cápsula en la que baja el astronauta; después se queda en el suelo.
+  const capsule = createCapsule({ shadows: world.quality.shadows });
+  capsule.visible = false;
+  let capsuleSite = null; // { x_m, z_m } donde quedó, o null
+  world.scene.add(parachute, capsule);
   let timeScale = DEFAULT_TIME_SCALE;
 
   function setTimeScale(scale) {
@@ -305,7 +327,11 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   function startLanding() {
     landing = { t_s: 0, scale: 1, ground_m: groundAt(player.x_m, player.z_m), yaw0_rad: player.yaw_rad };
     parachute.visible = true;
-    rig.setVisible(true);
+    // El astronauta va dentro de la cápsula: durante la caída solo se ve ella.
+    capsuleSite = null;
+    capsule.visible = true;
+    capsule.rotation.set(0, 0, 0);
+    rig.setVisible(false);
     followCamera.setVehicleMode(true); // cámara alejada para ver la campana
     followCamera.snap();
     hud.setLanding({ ...descentState(0), scale: 1 });
@@ -314,12 +340,25 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   function finishLanding(cancel = false) {
     landing = null;
     parachute.visible = false;
-    rig.object.rotation.z = 0;
     hud.setLanding(null);
     followCamera.setVehicleMode(false);
-    player = { ...player, y_m: groundAt(player.x_m, player.z_m), vy_ms: 0, grounded: true };
+    if (cancel) {
+      capsule.visible = false;
+      player = { ...player, y_m: groundAt(player.x_m, player.z_m), vy_ms: 0, grounded: true };
+      placeAstronaut();
+      return;
+    }
+    // La cápsula se queda donde cayó, algo hundida y ladeada; el astronauta sale a unos
+    // metros, del lado de la escotilla.
+    capsuleSite = { x_m: player.x_m, z_m: player.z_m };
+    capsule.position.set(player.x_m, groundAt(player.x_m, player.z_m) - CAPSULE_SINK_M, player.z_m);
+    capsule.rotation.set(CAPSULE_TILT_RAD, player.yaw_rad, CAPSULE_TILT_RAD * 0.6);
+    const [x_m, z_m] = resolveCollision(
+      player.x_m + Math.sin(player.yaw_rad) * CAPSULE_EXIT_M, player.z_m + Math.cos(player.yaw_rad) * CAPSULE_EXIT_M,
+    );
+    player = { ...player, x_m, z_m, y_m: groundAt(x_m, z_m), vx_ms: 0, vy_ms: 0, vz_ms: 0, grounded: true };
     placeAstronaut();
-    if (cancel) return;
+    followCamera.snap();
     rig.setVisible(!followCamera.isFirstPerson());
     vitals.reset(player.x_m, player.z_m);
     try {
@@ -393,10 +432,10 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       const fall = descentState(landing.t_s);
       player = { ...player, y_m: landing.ground_m + fall.altitude_m, yaw_rad: landing.yaw0_rad + fall.spin_rad, grounded: false };
       placeAstronaut();
-      rig.object.rotation.z = fall.sway_rad;
-      parachute.position.set(player.x_m, player.y_m + SHOULDER_HEIGHT_M, player.z_m);
+      capsule.position.set(player.x_m, player.y_m, player.z_m);
+      capsule.rotation.set(0, player.yaw_rad, fall.sway_rad);
+      parachute.position.set(player.x_m, player.y_m + CAPSULE_HEIGHT_M, player.z_m);
       parachute.rotation.set(0, player.yaw_rad, fall.sway_rad * 0.6);
-      rig.update(delta_s, { speed_ms: 0, walk_speed_ms: LOCOMOTION.walk_speed_ms, run_speed_ms: LOCOMOTION.run_speed_ms, airborne: true });
       companion.update(delta_s, null, world.camera);
       truck.update(delta_s, null, vehicleEnv, world.camera);
       hud.setLanding({ ...fall, scale: landing.scale });
@@ -507,7 +546,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     // Referencias para las pruebas de navegador.
     debug: {
       getPlayer: () => player, vitals, followCamera, input, hud, interaction, rig, env, companion, station, beacons,
-      truck, chat, toggleVehicle, parachute, getLanding: () => landing, openChat, isDriving: () => driving, getTimeScale: () => timeScale, setTimeScale, roverSnapshot,
+      truck, chat, toggleVehicle, parachute, capsule, getCapsuleSite: () => capsuleSite, getLanding: () => landing, openChat, isDriving: () => driving, getTimeScale: () => timeScale, setTimeScale, roverSnapshot,
     },
     enter() {
       if (active) return;
