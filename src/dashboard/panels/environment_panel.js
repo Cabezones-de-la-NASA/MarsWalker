@@ -2,7 +2,7 @@
 // y el botón "Simular tormenta" que traza la evacuación al refugio más cercano con M4.
 import './panels.css';
 import { createPanelShell } from './panel_shell.js';
-import { state, emit } from '../../shared/state.js';
+import { state, on, emit } from '../../shared/state.js';
 import { createSimClock } from '../../shared/sim_clock.js';
 import { solarState, sunDirection, JEZERO_LAT_DEG } from '../../models/environment/solar.js';
 import {
@@ -10,8 +10,10 @@ import {
 } from '../../models/environment/weather.js';
 
 const PHASE_LABELS = { day: 'día', twilight: 'crepúsculo', night: 'noche' };
-// [diseño] Segundos simulados por tick al reproducir el tiempo.
-const PLAY_DT_S = 120;
+// [diseño] Segundos simulados por tick del reloj.
+const CLOCK_DT_S = 20;
+// [diseño] Ticks por cuadro al pulsar "Reproducir tiempo" en el mapa (120 s simulados).
+const PLAY_TICKS_PER_FRAME = 6;
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -93,7 +95,7 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
 
   // --- Reloj de simulación: el Sol se actualiza antes que el clima, y el clima antes que
   // quien lo consuma (la salud, cuando exista el modo a pie).
-  const clock = createSimClock({ dt_s: PLAY_DT_S, ls_deg: env.ls_deg, ltst_h: env.ltst_h });
+  const clock = createSimClock({ dt_s: CLOCK_DT_S, ls_deg: env.ls_deg, ltst_h: env.ltst_h });
   let sun = null;
   let weather = null;
   clock.subscribe((time) => {
@@ -136,7 +138,12 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
 
   let playing = false;
   world.onFrame(() => {
-    if (playing) clock.tick();
+    if (playing) clock.tick(PLAY_TICKS_PER_FRAME);
+  });
+  // En la superficie el tiempo corre solo: el modo a pie avisa de cuántos segundos
+  // simulados pasan en cada cuadro (su velocidad se elige allí).
+  on('time:advance', (seconds) => {
+    if (!playing) clock.advance(seconds);
   });
   playButton.addEventListener('click', () => {
     playing = !playing;

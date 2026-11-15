@@ -1,4 +1,4 @@
-// Panel Ruta: inicio y destino con clic en el mapa, tres algoritmos, métricas, perfil de
+// Panel Plan de EVA: inicio y destino con clic en el mapa, tres algoritmos, métricas, perfil de
 // elevación, comparación de la ruta clásica contra la de salud y exportación.
 import './panels.css';
 import { createPanelShell } from './panel_shell.js';
@@ -10,9 +10,9 @@ import { nearestShelter } from '../../models/environment/weather.js';
 import { drawElevationProfile } from './elevation_profile.js';
 
 const ALGORITHMS = [
-  { id: 'astar', label: 'A* O₂', title: 'Ruta clásica: menor coste de oxígeno (M3 y M4)' },
-  { id: 'health', label: 'Salud', title: 'Ruta por salud: coste con las métricas elegidas (M14)' },
-  { id: 'qaoa', label: 'Corredor', title: `Inspirado en QAOA. ${QAOA_NOTICE}` },
+  { id: 'astar', label: 'Ahorra oxígeno', sub: 'A* clásico: el menor gasto de O₂', title: 'Ruta clásica: menor coste de oxígeno (M3 y M4)' },
+  { id: 'health', label: 'Cuida al astronauta', sub: 'Tú eliges qué pesa: pulso, calor, pendiente…', title: 'Ruta por salud: coste con las métricas elegidas (M14)' },
+  { id: 'qaoa', label: 'Corredor inspirado en QAOA', sub: 'Heurística clásica, no computación cuántica', title: `Inspirado en QAOA. ${QAOA_NOTICE}` },
 ];
 
 // Dimensiones de M14, en el orden de la ficha.
@@ -60,7 +60,8 @@ function formatTime(time_s) {
 //   getCrew: tripulación actual, para la ruta por salud
 //   getPoints: puntos de interés de la zona más la base y los objetivos propios
 export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, getPoints }) {
-  const shell = createPanelShell('Ruta', 'route-panel');
+  const shell = createPanelShell('Plan de EVA', 'route-panel');
+  shell.body.append(el('div', 'route-section', '1 · Marca inicio y destino en el mapa'));
   const panel = shell.body;
 
   // --- Inicio y destino: el clic en el mapa fija el punto resaltado.
@@ -93,13 +94,14 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
   panel.append(quick, hint);
 
   // --- Algoritmo
-  panel.append(el('div', 'route-section', 'Algoritmo'));
-  const segmented = el('div', 'segmented');
+  panel.append(el('div', 'route-section', '2 · Elige cómo planificar'));
+  const segmented = el('div', 'route-cards');
   segmented.setAttribute('role', 'radiogroup');
   let algorithm = 'astar';
   const algoButtons = {};
   for (const item of ALGORITHMS) {
-    const button = el('button', null, item.label);
+    const button = el('button', 'route-card');
+    button.append(el('strong', null, item.label), el('small', null, item.sub));
     button.type = 'button';
     button.dataset.algorithm = item.id;
     button.title = item.title;
@@ -155,7 +157,8 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
   actions.append(computeButton, compareButton, exportButton);
   const status = el('div', 'route-status');
   status.setAttribute('role', 'status');
-  panel.append(actions, status);
+  const verdict = el('div', 'route-verdict');
+  panel.append(el('div', 'route-section', '3 · Tu ruta'), actions, status, verdict);
 
   // --- Métricas
   const metrics = el('dl', 'route-metrics');
@@ -168,7 +171,9 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
     metricValues[key] = value;
     metrics.append(el('dt', null, label), value);
   }
-  panel.append(metrics);
+  const detail = el('details', 'route-detail');
+  detail.append(el('summary', null, 'Ver los números y el perfil'), metrics);
+  panel.append(detail);
 
   // --- Comparación: las dos rutas a la vez en el mapa y sus cifras lado a lado.
   const compareBox = el('div', 'route-compare-box');
@@ -184,7 +189,11 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
 
   // --- Perfil de elevación
   const profile = el('canvas', 'route-profile');
-  panel.append(profile, el('div', 'route-hint', 'Perfil de elevación. En rojo, tramos de más de 25°.'));
+  detail.append(profile, el('div', 'route-hint', 'Perfil de elevación. En rojo, tramos de más de 25°.'));
+  // El perfil se dibuja al abrir el detalle: plegado, el lienzo no tiene tamaño.
+  detail.addEventListener('toggle', () => {
+    if (detail.open) drawElevationProfile(profile, route ? buildElevationProfile(dem, route.path_m) : null);
+  });
   container.append(shell.root);
   drawElevationProfile(profile, null);
 
@@ -222,6 +231,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
     routeLine.clear();
     compareBox.hidden = true;
     for (const value of Object.values(metricValues)) value.textContent = '—';
+    verdict.textContent = '';
     drawElevationProfile(profile, null);
     refresh();
   }
@@ -347,6 +357,13 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
     status.textContent =
       `Ruta calculada en ${message.elapsed_ms.toFixed(0)} ms.` +
       (unsafe > 0 ? ` Cruza ${unsafe} tramo(s) de más de 25°.` : '');
+    // Veredicto en una frase; los números completos quedan en el detalle.
+    verdict.textContent =
+      `${metricValues.distance.textContent}${Number.isFinite(m.time_s) ? ` en ${formatTime(m.time_s)}` : ''}, ` +
+      `${m.oxygen_l.toFixed(0)} L de oxígeno. ` +
+      (m.max_slope_deg > 25
+        ? `Ojo: hay pendientes de hasta ${m.max_slope_deg.toFixed(0)}°, por encima del límite seguro de 25°.`
+        : `Pendiente máxima de ${m.max_slope_deg.toFixed(0)}°: dentro del límite seguro.`);
     refresh();
   });
 

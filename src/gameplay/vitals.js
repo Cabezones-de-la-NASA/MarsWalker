@@ -11,7 +11,8 @@ const SEGMENT_S = 1;
 /**
  * createVitals({ dem, getMember, getAmbientTemp_c }) ->
  *   update(delta_s, x_m, z_m)   acumula lo caminado; devuelve true si cerró un tramo
- *   get()   -> { member, vitals (estado de member.js), status, distance_m, elapsed_s, time_scale }
+ *   get()   -> { member, vitals (estado de member.js), status, distance_m (a pie), driven_m (en
+ *              camioneta), elapsed_s, time_scale }
  *   setTimeScale(n), reset(x_m, z_m)
  *
  * time_scale acelera el reloj de la fisiología para poder ver cambios en una demostración:
@@ -24,6 +25,7 @@ export function createVitals({ dem, getMember, getAmbientTemp_c }) {
   let vitals = initMemberState(member, cfg);
   let time_scale = 1;
   let distance_m = 0;
+  let driven_m = 0;
   let elapsed_s = 0;
   let pending_s = 0;
   let pending_m = 0;
@@ -35,6 +37,7 @@ export function createVitals({ dem, getMember, getAmbientTemp_c }) {
     member = getMember();
     vitals = initMemberState(member, cfg);
     distance_m = 0;
+    driven_m = 0;
     elapsed_s = 0;
     pending_s = 0;
     pending_m = 0;
@@ -48,15 +51,22 @@ export function createVitals({ dem, getMember, getAmbientTemp_c }) {
     setTimeScale(next) {
       time_scale = next;
     },
-    update(delta_s, x_m, z_m) {
+    // riding: va en la camioneta. Lo recorrido no cuenta como caminata: la fisiología
+    // avanza como si estuviera quieto (distancia y desnivel cero) y los metros van aparte.
+    update(delta_s, x_m, z_m, { riding = false } = {}) {
       const step_m = Math.hypot(x_m - lastX_m, z_m - lastZ_m);
       lastX_m = x_m;
       lastZ_m = z_m;
-      distance_m += step_m;
       elapsed_s += delta_s;
-      pending_m += step_m;
       pending_s += delta_s;
-      if (pending_s < SEGMENT_S) return false;
+      if (riding) {
+        driven_m += step_m;
+        segmentStartElev_m = dem.sampleElevation_m(x_m, z_m);
+      } else {
+        distance_m += step_m;
+        pending_m += step_m;
+      }
+      if (pending_s < SEGMENT_S || time_scale <= 0) return false;
 
       // Desnivel y pendiente del tramo, del DEM (no del microrrelieve visual).
       const elev_m = dem.sampleElevation_m(x_m, z_m);
@@ -81,7 +91,7 @@ export function createVitals({ dem, getMember, getAmbientTemp_c }) {
       return true;
     },
     get() {
-      return { member, vitals, status: memberStatus(vitals.flags), distance_m, elapsed_s, time_scale };
+      return { member, vitals, status: memberStatus(vitals.flags), distance_m, driven_m, elapsed_s, time_scale };
     },
   };
 }

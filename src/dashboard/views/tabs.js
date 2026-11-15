@@ -1,5 +1,5 @@
-// Barra superior del dashboard: marca, pestañas (Mapa, Tripulación, Fórmulas, Créditos),
-// perfil gráfico y el botón para bajar a la superficie.
+// Barra superior del dashboard: marca, pestañas y selector de zona. Las vistas técnicas
+// (secondary) y el perfil gráfico se entregan aparte para el cajón "Modo ingeniero".
 import './views.css';
 import logoUrl from '../../assets/space_apps_logo.png';
 
@@ -11,9 +11,10 @@ function el(tag, className, text) {
 }
 
 /**
- * views: [{ id, label, element?, onShow? }]; la primera es el mapa (sin elemento).
+ * views: [{ id, label, element?, onShow?, secondary? }]; la primera es el mapa (sin elemento).
  * options: { subtitle, zones, zone, onZone(id), qualityOptions: [[id, label]], quality,
- *            onQuality(id), onExplore() }
+ *            onQuality(id), detachQuality, onHelp() }
+ * -> { show(id), getActive(), secondaryButtons, qualityControl }
  */
 export function createTabs(container, views, options = {}) {
   const bar = el('header', 'top-bar');
@@ -24,6 +25,8 @@ export function createTabs(container, views, options = {}) {
   bar.append(brand, nav);
 
   const buttons = new Map();
+  const secondaryButtons = [];
+  let qualityControl = null;
   let active = views[0].id;
 
   function show(id) {
@@ -44,7 +47,9 @@ export function createTabs(container, views, options = {}) {
     button.dataset.view = view.id;
     button.addEventListener('click', () => show(view.id));
     buttons.set(view.id, button);
-    nav.append(button);
+    // Las vistas secundarias (técnicas) no van en la barra: su botón se entrega aparte.
+    if (view.secondary) secondaryButtons.push(button);
+    else nav.append(button);
     if (view.element) {
       view.element.classList.add('view');
       view.element.hidden = true;
@@ -79,7 +84,8 @@ export function createTabs(container, views, options = {}) {
     select.value = options.quality;
     select.addEventListener('change', () => options.onQuality(select.value));
     label.append(select);
-    bar.append(label);
+    qualityControl = label;
+    if (!options.detachQuality) bar.append(label);
   }
 
   if (options.onHelp) {
@@ -91,13 +97,6 @@ export function createTabs(container, views, options = {}) {
     bar.append(help);
   }
 
-  if (options.onExplore) {
-    const explore = el('button', 'explore-button btn-primary', 'Explorar a pie');
-    explore.type = 'button';
-    explore.addEventListener('click', options.onExplore);
-    bar.append(explore);
-  }
-
   const logo = el('img', 'tab-logo');
   logo.src = logoUrl;
   logo.alt = 'NASA Space Apps Challenge';
@@ -105,5 +104,5 @@ export function createTabs(container, views, options = {}) {
 
   container.append(bar);
   show(active);
-  return { show, getActive: () => active };
+  return { show, getActive: () => active, secondaryButtons, qualityControl };
 }

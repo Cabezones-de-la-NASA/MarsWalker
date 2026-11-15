@@ -1,0 +1,300 @@
+/* Barra de lanzamiento: el elemento más grande del mapa. */
+
+.launch-bar {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-4);
+  transform: translateX(-50%);
+  width: min(620px, calc(100vw - 2 * var(--panel-width) - 64px));
+  min-width: 340px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  pointer-events: none;
+  z-index: 15;
+}
+
+.has-open-view .launch-bar {
+  display: none;
+}
+
+.dashboard-ui .launch-fact {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  background: linear-gradient(to bottom, rgba(20, 12, 9, 0.88), rgba(20, 12, 9, 0.72));
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-md);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.launch-fact.is-in .launch-fact-text,
+.launch-fact.is-in .launch-fact-source {
+  animation: launch-fact-in 0.5s var(--ease) both;
+}
+
+@keyframes launch-fact-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.launch-fact-kicker {
+  font: 500 var(--text-xs) / 1 var(--font-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.launch-fact-text {
+  font: 400 17px / 1.4 var(--font-ui);
+  color: var(--text);
+}
+
+.launch-fact-source {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+}
+
+.dashboard-ui .launch-button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 14px 44px;
+  font: 600 22px / 1 var(--font-ui);
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  pointer-events: auto;
+  box-shadow: 0 6px 28px rgba(198, 91, 39, 0.5);
+  animation: launch-pulse 2.4s ease-in-out infinite;
+  transition: transform 0.15s var(--ease);
+}
+
+.dashboard-ui .launch-button:hover {
+  transform: scale(1.05);
+}
+
+.launch-button-icon {
+  font-size: 16px;
+}
+
+@keyframes launch-pulse {
+  0%,
+  100% {
+    box-shadow: 0 6px 28px rgba(198, 91, 39, 0.5), 0 0 0 0 rgba(255, 180, 92, 0.5);
+  }
+  50% {
+    box-shadow: 0 6px 28px rgba(198, 91, 39, 0.5), 0 0 0 14px rgba(255, 180, 92, 0);
+  }
+}
+
+.launch-landing {
+  padding: 4px var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  background: rgba(15, 9, 7, 0.7);
+  border-radius: 999px;
+  text-align: center;
+}
+
+.launch-landing.is-ok {
+  color: var(--ok);
+}
+
+.launch-landing.is-warn {
+  color: var(--warn);
+}
+
+.launch-landing.is-danger {
+  color: var(--danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-ui .launch-button,
+  .launch-fact.is-in .launch-fact-text,
+  .launch-fact.is-in .launch-fact-source {
+    animation: none;
+  }
+}
+
+/* ---- Modo ingeniero: lo técnico, plegado pero a un clic ---- */
+.engineer-drawer {
+  pointer-events: auto;
+}
+
+.engineer-drawer > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  list-style: none;
+  cursor: pointer;
+  background: var(--surface-1);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font: 500 var(--text-sm) / 1.2 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.engineer-drawer > summary::-webkit-details-marker {
+  display: none;
+}
+
+.engineer-drawer > summary:hover,
+.engineer-drawer[open] > summary {
+  color: var(--accent);
+  border-color: var(--line-strong);
+}
+
+.engineer-drawer > summary small {
+  margin-left: auto;
+  font: 400 var(--text-xs) / 1 var(--font-ui);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-dim);
+}
+
+.engineer-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.engineer-links {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+.engineer-links label {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.dashboard-ui .engineer-links .tab-button {
+  height: auto;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+}
+
+.dashboard-ui .engineer-links .tab-button.is-active {
+  border-color: var(--accent);
+}
+
+/* La lectura de coordenadas del clic solo interesa en modo ingeniero. */
+.dashboard-ui:not(.is-engineer) .readout {
+  display: none;
+}
+
+/* ---- Tarjeta de punto de interés: grande, con la imagen como protagonista ---- */
+.poi-host {
+  position: absolute;
+  left: var(--space-3);
+  bottom: var(--space-4);
+  width: min(400px, calc(100vw - 32px));
+  pointer-events: none;
+  z-index: 16;
+}
+
+.poi-host .poi-popup {
+  pointer-events: auto;
+  padding: var(--space-4);
+  border-top: 2px solid var(--accent);
+  animation: panel-in 0.3s var(--ease) both;
+}
+
+.poi-host .poi-name {
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.poi-host .poi-description {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.poi-host .poi-image {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+}
+
+/* ---- Plan de EVA: las rutas como tarjetas ---- */
+.route-cards {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.dashboard-ui .route-card {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  background: rgba(38, 22, 15, 0.5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.dashboard-ui .route-card.is-active {
+  border-color: var(--accent);
+  background: rgba(255, 180, 92, 0.14);
+}
+
+.route-card strong {
+  font: 600 var(--text-md) / 1.2 var(--font-ui);
+  color: var(--text);
+}
+
+.route-card.is-active strong {
+  color: var(--accent);
+}
+
+.route-card small {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.route-verdict {
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-md);
+  line-height: 1.4;
+  color: var(--text);
+  border-left: 3px solid var(--accent);
+  background: rgba(255, 180, 92, 0.08);
+}
+
+.route-verdict:empty {
+  display: none;
+}
+
+.route-detail > summary {
+  cursor: pointer;
+  padding: var(--space-1) 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.route-detail > summary:hover {
+  color: var(--accent);
+}

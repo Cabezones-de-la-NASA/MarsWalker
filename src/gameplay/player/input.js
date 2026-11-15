@@ -1,6 +1,7 @@
 // Entrada del modo a pie: teclado y ratón.
 //   WASD movimiento · ratón cámara · Shift correr · Space salto · E interactuar
-//   V cambiar perspectiva · Esc menú (libera el cursor)
+//   V cambiar perspectiva · F subir o bajar de la camioneta · T velocidad del tiempo
+//   Tab telemetría completa · Esc menú (libera el cursor)
 
 const MOVE_KEYS = {
   KeyW: [0, 1], ArrowUp: [0, 1],
@@ -15,7 +16,9 @@ const MOVE_KEYS = {
  *   consumeLook() -> [dx_px, dy_px] del ratón desde la última llamada
  *   setEnabled(bool), requestPointerLock(), hasPointerLock(), dispose()
  */
-export function createInput(domElement, { onInteract, onToggleView, onMenu, onPointerLockChange }) {
+export function createInput(domElement, {
+  onInteract, onToggleView, onMenu, onPointerLockChange, onVehicle, onTimeScale, onDetails,
+}) {
   const pressed = new Set();
   const state = { forward: 0, right: 0, run: false, jump: false };
   let enabled = false;
@@ -47,6 +50,12 @@ export function createInput(domElement, { onInteract, onToggleView, onMenu, onPo
     }
     if (event.code === 'KeyE') onInteract?.();
     if (event.code === 'KeyV') onToggleView?.();
+    if (event.code === 'KeyF') onVehicle?.();
+    if (event.code === 'KeyT') onTimeScale?.();
+    if (event.code === 'Tab') {
+      event.preventDefault();
+      onDetails?.();
+    }
     if (MOVE_KEYS[event.code] || event.code === 'Space') event.preventDefault();
     pressed.add(event.code);
     refresh();

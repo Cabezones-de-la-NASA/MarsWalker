@@ -1,9 +1,9 @@
-// Rover de compañía: sigue al astronauta por el terreno y cuenta datos de Marte.
+// Rover de compañía: sigue al astronauta por el terreno. La conversación con él está en
+// src/gameplay/rover_chat/.
 // El movimiento sale del modelo puro src/models/locomotion/follow.js.
 import * as THREE from 'three';
 import { createPerseverance, PERSEVERANCE_LENGTH_M } from '../models3d/rover.js';
 import { stepFollower } from '../models/locomotion/follow.js';
-import { MARS_FACTS } from './mars_facts.js';
 
 // [diseño] Radio de colisión del rover y distancia para hablarle, en metros.
 export const COMPANION_RADIUS_M = 1.9;
@@ -16,13 +16,13 @@ const DRAW_DISTANCE_M = 700;
 /**
  * createCompanion({ world, groundAt }) ->
  *   ready (promesa), place(x_m, z_m), update(delta_s, target, camera)
- *   position() -> { x_m, z_m } o null, canTalk(x_m, z_m), nextFact() -> { text, source }
+ *   position() -> { x_m, z_m } o null, canTalk(x_m, z_m)
+ *   update admite un cuarto argumento con otra configuración de seguimiento (ver follow.js)
  *   resolveCollision(x_m, z_m, bodyRadius_m) -> [x_m, z_m]
  */
 export function createCompanion({ world, groundAt }) {
   let object = null;
   let follower = null;
-  let factIndex = 0;
   const up = new THREE.Vector3();
   const forward = new THREE.Vector3();
   const side = new THREE.Vector3();
@@ -79,9 +79,9 @@ export function createCompanion({ world, groundAt }) {
       }
     },
     position: () => (follower ? { x_m: follower.x_m, z_m: follower.z_m } : null),
-    update(delta_s, target, camera) {
+    update(delta_s, target, camera, cfg) {
       if (!follower) return;
-      if (target) follower = stepFollower(follower, target, delta_s);
+      if (target) follower = stepFollower(follower, target, delta_s, cfg);
       if (!object) return;
       object.visible = camera.position.distanceTo(object.position) < DRAW_DISTANCE_M;
       // La inclinación se suaviza para que no dé saltos entre celdas del terreno.
@@ -89,12 +89,6 @@ export function createCompanion({ world, groundAt }) {
     },
     canTalk(x_m, z_m) {
       return Boolean(follower) && Math.hypot(follower.x_m - x_m, follower.z_m - z_m) <= TALK_REACH_M;
-    },
-    // Los datos salen en orden y, al terminar la lista, vuelven a empezar.
-    nextFact() {
-      const fact = MARS_FACTS[factIndex % MARS_FACTS.length];
-      factIndex += 1;
-      return fact;
     },
     resolveCollision(x_m, z_m, bodyRadius_m) {
       if (!follower) return [x_m, z_m];

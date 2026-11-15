@@ -4,6 +4,7 @@ import * as THREE from 'three';
 // [diseño] Parámetros de cámara, en metros y radianes.
 const EYE_HEIGHT_M = 1.74; // altura del visor del astronauta
 const THIRD_DISTANCE_M = 5.2;
+const VEHICLE_DISTANCE_M = 11; // en la camioneta la cámara se aleja
 const THIRD_TARGET_HEIGHT_M = 1.45;
 const MIN_GROUND_CLEARANCE_M = 0.35;
 const LOOK_SENSITIVITY = 0.0024; // radianes por píxel de ratón
@@ -22,6 +23,9 @@ export function createFollowCamera(camera, groundAt) {
   let yaw = Math.PI; // de entrada, mirando al norte
   let pitch = 0.22;
   let firstPerson = false;
+  let distance_m = THIRD_DISTANCE_M;
+  let targetHeight_m = THIRD_TARGET_HEIGHT_M;
+  let eyeHeight_m = EYE_HEIGHT_M;
   const position = new THREE.Vector3();
   const target = new THREE.Vector3();
   const desired = new THREE.Vector3();
@@ -34,14 +38,14 @@ export function createFollowCamera(camera, groundAt) {
     const dirY = -Math.sin(pitch);
     const dirZ = Math.cos(yaw) * cosPitch;
     if (firstPerson) {
-      desired.set(player.x_m, player.y_m + EYE_HEIGHT_M, player.z_m);
+      desired.set(player.x_m, player.y_m + eyeHeight_m, player.z_m);
       target.set(desired.x + dirX, desired.y + dirY, desired.z + dirZ);
     } else {
-      target.set(player.x_m, player.y_m + THIRD_TARGET_HEIGHT_M, player.z_m);
+      target.set(player.x_m, player.y_m + targetHeight_m, player.z_m);
       desired.set(
-        target.x - dirX * THIRD_DISTANCE_M,
-        target.y - dirY * THIRD_DISTANCE_M,
-        target.z - dirZ * THIRD_DISTANCE_M,
+        target.x - dirX * distance_m,
+        target.y - dirY * distance_m,
+        target.z - dirZ * distance_m,
       );
       // La cámara nunca se mete en el terreno: si la ladera sube detrás, se eleva.
       const floor_m = groundAt(desired.x, desired.z) + MIN_GROUND_CLEARANCE_M;
@@ -66,6 +70,12 @@ export function createFollowCamera(camera, groundAt) {
     },
     setYaw(next) {
       yaw = next;
+    },
+    // En la camioneta la cámara va más lejos y más alta.
+    setVehicleMode(on) {
+      distance_m = on ? VEHICLE_DISTANCE_M : THIRD_DISTANCE_M;
+      targetHeight_m = on ? 2.1 : THIRD_TARGET_HEIGHT_M;
+      eyeHeight_m = on ? 2.05 : EYE_HEIGHT_M;
     },
     update(delta_s, player, look) {
       yaw -= look[0] * LOOK_SENSITIVITY;

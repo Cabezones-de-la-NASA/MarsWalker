@@ -18,7 +18,7 @@ const STEPS = [
   },
   {
     title: 'Baja a la superficie',
-    text: 'Pulsa "Explorar a pie" para caminar por el terreno con tu astronauta.',
+    text: 'Arrastra el indicador naranja para elegir dónde aterrizar y pulsa "Explorar Marte". Allí te esperan el rover y la camioneta.',
     target: '.explore-button',
   },
 ];

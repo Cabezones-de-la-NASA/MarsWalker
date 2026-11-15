@@ -13,6 +13,8 @@ import { createRoutePanel } from './panels/route_panel.js';
 import { createEnvironmentPanel } from './panels/environment_panel.js';
 import { createMissionPanel } from './panels/mission_panel.js';
 import { createOnboarding } from './onboarding.js';
+import { createDropPin } from './map/drop_pin.js';
+import { createLaunchBar } from './launch_bar.js';
 import { DEFAULT_CREW } from './default_crew.js';
 import { createCrewPanel } from './panels/crew_panel.js';
 import { createTabs } from './views/tabs.js';
@@ -31,6 +33,7 @@ function el(tag, className, text) {
 // [diseño] El astronauta empieza a unos metros del refugio o de la base, fuera de su
 // círculo de colisión.
 const ASTRONAUT_START_OFFSET_M = 9;
+const ENGINEER_KEY = 'marswalk.engineer';
 
 /**
  * startDashboard(container, { world, dem, dataset, terrain, mission, zones }) ->
@@ -43,6 +46,29 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
   const dockLeft = el('div', 'dock dock-left');
   const dockRight = el('div', 'dock dock-right');
   ui.append(dockLeft, dockRight);
+
+  // Modo ingeniero: capas, entorno, tripulación, fórmulas y gráficos. Plegado de entrada
+  // para que el mapa y la exploración manden; un clic lo abre y se recuerda abierto.
+  const engineer = el('details', 'engineer-drawer');
+  const engineerSummary = el('summary', null, 'Modo ingeniero');
+  engineerSummary.append(el('small', null, 'capas · entorno · fórmulas'));
+  const engineerBody = el('div', 'engineer-body');
+  engineer.append(engineerSummary, engineerBody);
+  dockLeft.append(engineer);
+  try {
+    engineer.open = window.localStorage.getItem(ENGINEER_KEY) === '1';
+  } catch {
+    // Sin almacenamiento: empieza plegado.
+  }
+  ui.classList.toggle('is-engineer', engineer.open);
+  engineer.addEventListener('toggle', () => {
+    ui.classList.toggle('is-engineer', engineer.open);
+    try {
+      window.localStorage.setItem(ENGINEER_KEY, engineer.open ? '1' : '0');
+    } catch {
+      // Sin almacenamiento: no se recuerda.
+    }
+  });
 
   // Capas: el compositor pinta un canvas que es la textura del terreno.
   const compositor = await createCompositor(dem, dataset);
@@ -80,7 +106,9 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
     isEnabled: () => active,
   });
 
-  createLayersPanel(dockLeft, compositor);
+  const engineerLinks = el('div', 'panel engineer-links');
+  engineerBody.append(engineerLinks);
+  createLayersPanel(engineerBody, compositor);
 
   const readout = el('div', 'panel readout', 'Haz clic sobre el terreno');
   ui.append(readout);
@@ -93,14 +121,15 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
   const routeLine = createRouteRibbon(world.scene, dem);
   world.onFrame((delta_s) => routeLine.update(world.camera, delta_s));
   state.crew = DEFAULT_CREW.map((member) => ({ ...member }));
-  const popupHost = el('div');
-  dockRight.append(popupHost);
+  // La tarjeta de un punto de interés sale grande, abajo a la izquierda.
+  const popupHost = el('div', 'poi-host');
+  ui.append(popupHost);
   const routePanel = createRoutePanel(dockRight, {
     dem, dataset, routeLine, getCrew: () => state.crew.map((member) => ({ ...member })),
     getPoints: () => mission.getPoints(),
   });
   createMissionPanel(dockRight, { mission });
-  const environmentPanel = createEnvironmentPanel(dockLeft, {
+  const environmentPanel = createEnvironmentPanel(engineerBody, {
     world, routePanel, getPoints: () => mission.getPoints(),
   });
 
@@ -117,8 +146,8 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
     ui,
     [
       { id: 'map', label: 'Mapa' },
-      { id: 'crew', label: 'Tripulación', element: crewPanel.element, onShow: crewPanel.render },
-      { id: 'formulas', label: 'Fórmulas', element: formulasView.element, onShow: formulasView.render },
+      { id: 'crew', label: 'Tripulación', element: crewPanel.element, onShow: crewPanel.render, secondary: true },
+      { id: 'formulas', label: 'Fórmulas', element: formulasView.element, onShow: formulasView.render, secondary: true },
       { id: 'credits', label: 'Créditos', element: creditsView.element },
     ],
     {
@@ -137,6 +166,7 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
       },
       qualityOptions: Object.values(QUALITY_PROFILES).map((profile) => [profile.id, profile.label]),
       quality: world.quality.id,
+      detachQuality: true,
       // El perfil gráfico se aplica al recargar: cambia el renderer y las mallas.
       onQuality(id) {
         saveQuality(id);
@@ -147,10 +177,22 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
         }
         window.location.reload();
       },
-      onExplore: () => emit('mode:request', 'gameplay'),
       onHelp: () => onboarding.start(true),
     },
   );
+  engineerLinks.append(...tabs.secondaryButtons);
+  if (tabs.qualityControl) engineerLinks.append(tabs.qualityControl);
+
+  // Barra de lanzamiento e indicador de aterrizaje arrastrable.
+  const launchBar = createLaunchBar(ui, { dem, onExplore: () => emit('mode:request', 'gameplay') });
+  const dropPin = createDropPin({
+    scene: world.scene, camera: world.camera, domElement: world.renderer.domElement, mesh: terrain.mesh, dem,
+    controls: orbit.controls,
+    isEnabled: () => active && tabs.getActive() === 'map',
+    onMove: (x_m, z_m, dragging) => launchBar.setLanding(x_m, z_m, dragging),
+  });
+  launchBar.setLanding(...state.astronaut_position_m);
+  world.onFrame((delta_s) => dropPin.update(delta_s));
 
   // Primeros pasos: salen solos la primera vez que el dashboard queda a la vista.
   const onboarding = createOnboarding(ui, { orbitControls: orbit.controls });
@@ -160,7 +202,7 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
 
   return {
     world, dem, dataset, compositor, mesh: terrain.mesh, orbit, routePanel, environmentPanel,
-    models, modelsReady, tabs, picking, ui,
+    models, modelsReady, tabs, picking, ui, dropPin, launchBar, engineer,
     getRoute: () => routePanel.getRoute(),
     onboarding,
     setUiVisible(visible) {
@@ -175,6 +217,12 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
       orbit.controls.enabled = active;
       // La cinta de la ruta cambia de medidas: ancha desde la órbita, estrecha a pie.
       routeLine.setView(active ? 'orbit' : 'surface');
+      // Al volver al mapa el indicador aparece donde quedó el astronauta.
+      dropPin.setVisible(active);
+      if (active && state.astronaut_position_m) {
+        dropPin.setPosition(...state.astronaut_position_m);
+        launchBar.setLanding(...state.astronaut_position_m);
+      }
       // Al salir del mapa, un clic pendiente de colocar base u objetivo se cancela.
       state.clickMode = 'route';
       poiGroup.visible = true; // los marcadores también sirven de referencia a pie

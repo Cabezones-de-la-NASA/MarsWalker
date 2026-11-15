@@ -12,7 +12,8 @@ const POI_KIND = { shelter: 'Refugio', sampling: 'Punto de muestreo', hazard: 'Z
 /**
  * createInteraction({ dem, getPoints, companion }) ->
  *   nearest(x_m, z_m) -> { type: 'rover' | 'poi' | 'rock', prompt, ... } o null
- *   use(target) -> { kind, title, lines } para la tarjeta del visor
+ *   use(target) -> { kind, title, lines } para la tarjeta del visor (puntos y rocas; con el
+ *                  rover se conversa: lo abre el modo a pie)
  *   progress() -> { samples, sampleSites, visited, objectives }
  * getPoints: puntos de la zona más la base y los objetivos propios (pueden cambiar).
  */
@@ -31,6 +32,26 @@ export function createInteraction({ dem, getPoints, companion }) {
         visited: objectives.filter((poi) => visited.has(poi.id)).length,
         objectives: objectives.length,
       };
+    },
+    // Objetivo sin visitar más cercano (para el visor) -> { name, distance_m } o null.
+    nearestObjective(x_m, z_m) {
+      let best = null;
+      for (const poi of getPoints()) {
+        if (poi.type === 'shelter' || visited.has(poi.id)) continue;
+        const distance_m = Math.hypot(poi.position_m[0] - x_m, poi.position_m[1] - z_m);
+        if (!best || distance_m < best.distance_m) best = { name: poi.name, distance_m };
+      }
+      return best;
+    },
+    // Puntos de interés más cercanos, para el contexto del rover.
+    nearby(x_m, z_m, count = 4) {
+      return getPoints()
+        .map((poi) => ({
+          name: poi.name, type: poi.type, description: poi.description,
+          distance_m: Math.hypot(poi.position_m[0] - x_m, poi.position_m[1] - z_m),
+        }))
+        .sort((a, b) => a.distance_m - b.distance_m)
+        .slice(0, count);
     },
     nearest(x_m, z_m) {
       let best = null;
@@ -57,10 +78,6 @@ export function createInteraction({ dem, getPoints, companion }) {
       return rock ? { type: 'rock', rock, distance_m: rock.distance_m, prompt: 'Inspeccionar roca' } : null;
     },
     use(target) {
-      if (target.type === 'rover') {
-        const fact = companion.nextFact();
-        return { kind: 'Rover', title: '¿Sabías que…?', lines: [fact.text, `Fuente: ${fact.source}`] };
-      }
       if (target.type === 'poi') {
         const { poi } = target;
         visited.add(poi.id);

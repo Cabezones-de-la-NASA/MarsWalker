@@ -55,8 +55,8 @@ function formatDuration(hours) {
 
 /**
  * createHud(container, { onResume, onExit, onTimeScale, timeScales }) ->
- *   setVisible(bool), update(data), setPrompt(text | null), showCard({ kind, title, lines }),
- *   hideCard(), setMenu(bool), isMenuOpen()
+ *   setVisible(bool), update(data), setPrompts([[tecla, texto]]), showCard({ kind, title, lines }),
+ *   hideCard(), setMenu(bool), isMenuOpen(), setTimeScale(n), toggleDetails()
  */
 export function createHud(container, { onResume, onExit, onTimeScale, timeScales = [1] }) {
   const hud = el('div', 'hud');
@@ -76,17 +76,25 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   vitals.append(o2);
   const fields = {
     autonomy: row(vitals, 'Autonomía'),
-    heart: row(vitals, 'Pulso'),
-    temp: row(vitals, 'Temp. corporal'),
-    hydration: row(vitals, 'Deshidratación'),
-    radiation: row(vitals, 'Radiación'),
-    metabolic: row(vitals, 'Gasto'),
   };
+  // Lo que sigue es telemetría para curiosos: se despliega con Tab.
+  const vitalsMore = el('div', 'hud-more');
+  vitals.append(vitalsMore);
+  Object.assign(fields, {
+    heart: row(vitalsMore, 'Pulso'),
+    temp: row(vitalsMore, 'Temp. corporal'),
+    hydration: row(vitalsMore, 'Deshidratación'),
+    radiation: row(vitalsMore, 'Radiación'),
+    metabolic: row(vitalsMore, 'Gasto'),
+  });
   const vitalsNote = el('div', 'hud-note');
-  vitals.append(vitalsNote);
+  vitalsMore.append(vitalsNote);
+  const moreHint = el('div', 'hud-more-hint');
+  moreHint.append(el('kbd', null, 'Tab'), 'telemetría completa');
+  vitals.append(moreHint);
 
-  // ---- Navegación
-  const nav = el('section', 'hud-block hud-nav');
+  // ---- Navegación (telemetría: solo con Tab)
+  const nav = el('section', 'hud-block hud-nav hud-detail-only');
   nav.append(el('h2', 'hud-title', 'Navegación'));
   Object.assign(fields, {
     coords: row(nav, 'Posición'),
@@ -112,12 +120,33 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   compass.append(strip);
   const heading = el('div', 'hud-heading', '—');
 
+  // ---- Reloj de Marte y velocidad del tiempo
+  const clock = el('div', 'hud-clock');
+  const clockHour = el('span', 'hud-clock-hour', '—');
+  const clockScale = el('span', 'hud-clock-scale', '—');
+  const clockKey = el('kbd', null, 'T');
+  clock.append(clockHour, clockScale, clockKey);
+
+  // ---- Aviso de vehículo
+  const vehicleBadge = el('div', 'hud-vehicle');
+  vehicleBadge.hidden = true;
+  const vehicleSpeed = el('strong', null, '0');
+  vehicleBadge.append(el('span', 'hud-vehicle-title', 'En camioneta'), vehicleSpeed, el('small', null, 'km/h'),
+    el('span', 'hud-vehicle-note', 'Estos kilómetros no cuentan como caminata'));
+
   // ---- Misión
   const mission = el('section', 'hud-block hud-mission');
   mission.append(el('h2', 'hud-title', 'Estado de misión'));
   const status = el('div', 'hud-status', '—');
   const alerts = el('ul', 'hud-alerts');
+  const objective = el('div', 'hud-objective');
+  const objectiveName = el('span', 'hud-objective-name', '—');
+  const objectiveDistance = el('strong', null, '');
+  objective.append(el('small', null, 'Objetivo más cercano'), objectiveName, objectiveDistance);
+  mission.append(objective);
   const objectives = row(mission, 'Objetivos');
+  const walked = row(mission, 'A pie');
+  const driven = row(mission, 'En camioneta');
   const samples = row(mission, 'Muestras');
   const elapsed = row(mission, 'Tiempo de EVA');
   mission.append(status, alerts);
@@ -133,7 +162,9 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   helpLine(['W', 'A', 'S', 'D'], 'moverse');
   helpLine(['Shift'], 'correr');
   helpLine(['Space'], 'saltar');
-  helpLine(['E'], 'interactuar');
+  helpLine(['E'], 'interactuar · hablar con el rover');
+  helpLine(['F'], 'camioneta');
+  helpLine(['T'], 'velocidad del tiempo');
   helpLine(['V'], 'cambiar vista');
   helpLine(['Esc'], 'menú');
   const fps = el('div', 'hud-fps');
@@ -164,10 +195,10 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   actions.append(resume, exit);
   box.append(actions);
 
-  const scaleLabel = el('label', null, 'Reloj de la fisiología');
+  const scaleLabel = el('label', null, 'Velocidad del tiempo');
   const scaleSelect = el('select', 'hud-time-scale');
   for (const scale of timeScales) {
-    const option = el('option', null, scale === 1 ? 'Tiempo real' : `${scale}× más rápido`);
+    const option = el('option', null, scale === 0 ? 'En pausa' : scale === 1 ? 'Tiempo real' : `${scale}× más rápido`);
     option.value = String(scale);
     scaleSelect.append(option);
   }
@@ -175,12 +206,14 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   scaleLabel.append(scaleSelect);
   box.append(
     scaleLabel,
-    el('div', 'hud-note', 'Acelerar el reloj hace que cada segundo cuente como varios caminando al ritmo actual. Sirve para ver cómo cambian el oxígeno y la hidratación en una demostración; la distancia mostrada sigue siendo la real.'),
+    el('div', 'hud-note', 'El tiempo mueve el Sol, el clima y la fisiología. Acelerado, cada segundo cuenta como varios caminando al ritmo actual: el oxígeno y la hidratación bajan más deprisa; la distancia mostrada sigue siendo la real. También se cambia con la tecla T.'),
   );
   const controls = el('dl', 'hud-controls');
   for (const [keys, text] of [
     ['W A S D', 'Moverse'], ['Ratón', 'Mirar'], ['Shift', 'Correr'], ['Space', 'Saltar'],
-    ['E', 'Interactuar'], ['V', 'Primera o tercera persona'], ['Esc', 'Este menú'],
+    ['E', 'Interactuar y hablar con el rover'], ['F', 'Subir o bajar de la camioneta'],
+    ['T', 'Velocidad del tiempo'], ['Tab', 'Telemetría completa'],
+    ['V', 'Primera o tercera persona'], ['Esc', 'Este menú'],
   ]) {
     const dt = el('dt');
     dt.append(el('kbd', null, keys));
@@ -189,7 +222,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   box.append(controls);
   menu.append(box);
 
-  hud.append(vitals, nav, compass, heading, mission, help, reticle, prompt, card, menu);
+  hud.append(vitals, nav, compass, heading, clock, vehicleBadge, mission, help, reticle, prompt, card, menu);
   container.append(hud);
 
   return {
@@ -197,11 +230,24 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
     setVisible(visible) {
       hud.hidden = !visible;
     },
-    setPrompt(text) {
-      prompt.hidden = !text;
-      if (text) {
-        prompt.replaceChildren(el('kbd', null, 'E'), text);
+    // prompts: [[tecla, texto], ...]; vacío lo oculta.
+    setPrompts(prompts) {
+      prompt.hidden = prompts.length === 0;
+      prompt.replaceChildren();
+      for (const [key, text] of prompts) {
+        const line = el('div');
+        line.append(el('kbd', null, key), text);
+        prompt.append(line);
       }
+    },
+    setTimeScale(scale) {
+      scaleSelect.value = String(scale);
+      clockScale.textContent = scale === 0 ? 'tiempo en pausa' : scale === 1 ? 'tiempo real' : `tiempo ${scale}×`;
+      clock.classList.toggle('is-paused', scale === 0);
+    },
+    // Tab: muestra u oculta la telemetría completa.
+    toggleDetails() {
+      return hud.classList.toggle('is-detailed');
     },
     // lines: textos; kind: etiqueta corta sobre el título.
     showCard({ kind, title, lines }) {
@@ -244,8 +290,10 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
       setLevel(fields.metabolic.line, flags.over_sustainable ? 'warn' : null);
       vitalsNote.textContent = data.running
         ? 'Al correr, el gasto es una extrapolación: el modelo M5 está medido caminando.'
-        : data.time_scale > 1
-          ? `Reloj de la fisiología acelerado ${data.time_scale}×.`
+        : data.vehicle?.driving
+          ? 'En la camioneta el gasto es el de estar quieto.'
+          : data.time_scale > 1
+            ? `Tiempo acelerado ${data.time_scale}×: el consumo también.`
           : 'Radiación: solo rayos cósmicos de fondo; las tormentas solares no están modeladas.';
 
       const n = data.nav;
@@ -256,6 +304,25 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
       fields.speed.value.textContent = `${n.speed_ms.toFixed(2)} m/s`;
       fields.distance.value.textContent =
         n.distance_m >= 1000 ? `${(n.distance_m / 1000).toFixed(2)} km` : `${n.distance_m.toFixed(0)} m`;
+      walked.value.textContent = fields.distance.value.textContent;
+      const driven_m = data.vehicle?.driven_m ?? 0;
+      driven.value.textContent = driven_m >= 1000 ? `${(driven_m / 1000).toFixed(2)} km` : `${driven_m.toFixed(0)} m`;
+      driven.line.hidden = driven_m < 1;
+      vehicleBadge.hidden = !data.vehicle?.driving;
+      vehicleSpeed.textContent = (n.speed_ms * 3.6).toFixed(0);
+      if (data.objective) {
+        objectiveName.textContent = data.objective.name;
+        const d = data.objective.distance_m;
+        objectiveDistance.textContent = d >= 1000 ? `${(d / 1000).toFixed(1)} km` : `${d.toFixed(0)} m`;
+      } else {
+        objectiveName.textContent = 'Todos visitados';
+        objectiveDistance.textContent = '';
+      }
+      if (Number.isFinite(data.ltst_h)) {
+        const hours = Math.floor(data.ltst_h);
+        const minutes = Math.floor((data.ltst_h - hours) * 60);
+        clockHour.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} hora local`;
+      }
       fields.ambient.value.textContent = data.environment
         ? `${data.environment.ambient_temp_c.toFixed(0)} °C · ${PHASES[data.environment.phase]}`
         : 'sin dato';

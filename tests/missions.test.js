@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createMissionStore, BASE_ID, MAX_OBJECTIVES } from '../src/shared/missions.js';
 import { stepFollower, FOLLOW } from '../src/models/locomotion/follow.js';
-import { MARS_FACTS } from '../src/gameplay/mars_facts.js';
+import { MARS_FACTS } from '../src/shared/mars_facts.js';
 
 function memoryStorage() {
   const data = new Map();

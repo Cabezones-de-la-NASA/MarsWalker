@@ -1,8 +1,9 @@
-// Modo a pie: el astronauta camina sobre el terreno del DEM en primera o tercera persona.
+// Modo a pie: el astronauta camina sobre el terreno del DEM en primera o tercera persona,
+// conduce la camioneta y conversa con el rover.
 // Junta la locomoción (modelo puro), la cámara, el astronauta, las constantes vitales
 // (modelos M5 a M12) y el visor. No importa nada del dashboard.
 import * as THREE from 'three';
-import { state, emit } from '../shared/state.js';
+import { state, on, emit } from '../shared/state.js';
 import { sampleSlope_deg } from '../models/terrain/slope.js';
 import { stepPlayer, horizontalSpeed_ms, LOCOMOTION } from '../models/locomotion/kinematics.js';
 import { visualGround_m } from '../world/surface_detail.js';
@@ -16,6 +17,11 @@ import { createHud } from './hud/hud.js';
 import { createInteraction } from './interact.js';
 import { createFootprints } from './footprints.js';
 import { createCompanion } from './companion.js';
+import { createVehicle } from './vehicle.js';
+import { createRoverChat } from './rover_chat/chat_panel.js';
+import { VEHICLE } from '../models/locomotion/vehicle.js';
+import { FOLLOW } from '../models/locomotion/follow.js';
+import { memberStatus } from '../models/physiology/group.js';
 import { createStation, STATION_RADIUS_M } from '../models3d/station.js';
 
 // [diseño] Margen hasta el borde del mapa, en metros.
@@ -24,8 +30,19 @@ const MAP_MARGIN_M = 4;
 const COMPANION_START_OFFSET_M = 5;
 // [diseño] Color de la baliza de cada tipo de punto de interés.
 const BEACON_COLORS = { shelter: 0x3d8bfd, sampling: 0x2bb673, hazard: 0xe5484d };
-// [diseño] Aceleraciones disponibles para el reloj de la fisiología.
-const TIME_SCALES = [1, 20, 120];
+// [diseño] La camioneta aparece a esta distancia del astronauta al empezar.
+const VEHICLE_START_OFFSET_M = [7, 3];
+// [diseño] Radio con el que la camioneta choca con las rocas (menor que su largo, para
+// que no se enganche en cada piedra).
+const VEHICLE_ROCK_RADIUS_M = 1.4;
+// [diseño] Con el astronauta en la camioneta, el rover corre para no quedarse atrás.
+const FOLLOW_VEHICLE = Object.freeze({
+  ...FOLLOW, max_speed_ms: VEHICLE.max_speed_ms + 1, acceleration_ms2: 6, keep_distance_m: 8, resume_distance_m: 10,
+});
+// [diseño] Velocidades del tiempo respecto al real: 0 es pausa. Al bajar a la superficie
+// el tiempo corre solo a DEFAULT_TIME_SCALE.
+const TIME_SCALES = [0, 1, 4, 16, 60];
+const DEFAULT_TIME_SCALE = 4;
 const HUD_REFRESH_S = 0.15;
 
 /**
@@ -35,34 +52,43 @@ const HUD_REFRESH_S = 0.15;
  *   exit()    vuelve al mapa y guarda la posición en state.astronaut_position_m
  *   isActive()
  */
-export function createGameplay(container, { world, dem, terrain, rocks, dust, mission }) {
+export function createGameplay(container, { world, dem, dataset, terrain, rocks, dust, mission }) {
   const getPoints = () => mission.getPoints();
   const [width_m, depth_m] = dem.size_m;
   const groundAt = (x_m, z_m) => visualGround_m(dem, x_m, z_m);
 
   const companion = createCompanion({ world, groundAt });
+  const truck = createVehicle({ world, groundAt });
 
   // Colisiones: rocas grandes, el rover y la base. La malla del astronauta no interviene:
   // el cuerpo de colisión es un cilindro de radio fijo, independiente del modelo visual.
+  function avoidBase(px, pz, radius_m) {
+    const base = mission.getBase();
+    if (!base) return [px, pz];
+    const dx = px - base.position_m[0];
+    const dz = pz - base.position_m[1];
+    const distance_m = Math.hypot(dx, dz);
+    const reach_m = STATION_RADIUS_M + radius_m;
+    if (distance_m >= reach_m || distance_m < 1e-6) return [px, pz];
+    return [base.position_m[0] + (dx / distance_m) * reach_m, base.position_m[1] + (dz / distance_m) * reach_m];
+  }
   function resolveCollision(x_m, z_m) {
     let [px, pz] = resolveRockCollision(dem, x_m, z_m, LOCOMOTION.body_radius_m);
     [px, pz] = companion.resolveCollision(px, pz, LOCOMOTION.body_radius_m);
-    const base = mission.getBase();
-    if (base) {
-      const dx = px - base.position_m[0];
-      const dz = pz - base.position_m[1];
-      const distance_m = Math.hypot(dx, dz);
-      const reach_m = STATION_RADIUS_M + LOCOMOTION.body_radius_m;
-      if (distance_m < reach_m && distance_m > 1e-6) {
-        px = base.position_m[0] + (dx / distance_m) * reach_m;
-        pz = base.position_m[1] + (dz / distance_m) * reach_m;
-      }
-    }
-    return [px, pz];
+    [px, pz] = truck.resolveCollision(px, pz, LOCOMOTION.body_radius_m);
+    return avoidBase(px, pz, LOCOMOTION.body_radius_m);
   }
-  const env = {
-    groundAt, resolveCollision,
-    halfWidth_m: width_m / 2 - MAP_MARGIN_M, halfDepth_m: depth_m / 2 - MAP_MARGIN_M,
+  const bounds = { halfWidth_m: width_m / 2 - MAP_MARGIN_M, halfDepth_m: depth_m / 2 - MAP_MARGIN_M };
+  const env = { groundAt, resolveCollision, ...bounds };
+  // La camioneta choca con rocas, con el rover y con la base.
+  const vehicleEnv = {
+    groundAt,
+    resolveCollision(x_m, z_m) {
+      let [px, pz] = resolveRockCollision(dem, x_m, z_m, VEHICLE_ROCK_RADIUS_M);
+      [px, pz] = companion.resolveCollision(px, pz, VEHICLE_ROCK_RADIUS_M);
+      return avoidBase(px, pz, VEHICLE.body_radius_m);
+    },
+    ...bounds,
   };
 
   const rig = createAstronautRig({ shadows: world.quality.shadows });
@@ -115,13 +141,85 @@ export function createGameplay(container, { world, dem, terrain, rocks, dust, mi
   let target = null;
   let hudClock = 0;
   let jumpHeld = false;
+  let driving = false;
+  let chatOpen = false;
+  let timeScale = DEFAULT_TIME_SCALE;
+
+  function setTimeScale(scale) {
+    timeScale = scale;
+    vitals.setTimeScale(scale);
+    hud.setTimeScale(scale);
+  }
 
   const hud = createHud(container, {
     timeScales: TIME_SCALES,
     onResume: () => setPaused(false),
     onExit: () => emit('mode:request', 'dashboard'),
-    onTimeScale: (scale) => vitals.setTimeScale(scale),
+    onTimeScale: setTimeScale,
   });
+  setTimeScale(DEFAULT_TIME_SCALE);
+
+  // Estado de la caminata que el rover conoce al responder (src/shared/rover_context.js).
+  function roverSnapshot() {
+    const snapshot = vitals.get();
+    const v = snapshot.vitals;
+    const environment = state.environment;
+    return {
+      zone: { label: dataset?.metadata.label ?? 'Marte', resolution_m: dem.resolution_m },
+      position_m: [player.x_m, player.z_m],
+      elevation_m: dem.sampleElevation_m(player.x_m, player.z_m),
+      slope_deg: sampleSlope_deg(dem, player.x_m, player.z_m),
+      vitals: {
+        o2_l: v.o2_l, o2_fraction: v.o2_fraction, autonomy_h: v.autonomy_h,
+        heart_rate_bpm: v.heart_rate_bpm, core_temp_c: v.core_temp_c, status: memberStatus(v.flags),
+      },
+      environment: environment && {
+        ltst_h: environment.ltst_h, ambient_temp_c: environment.weather.ambient_temp_c,
+        phase: environment.sun.phase, dust_tau: environment.dust_tau, storm: environment.storm,
+      },
+      progress: interaction.progress(),
+      walked_m: snapshot.distance_m, driven_m: snapshot.driven_m, in_vehicle: driving, time_scale: timeScale,
+      nearby: interaction.nearby(player.x_m, player.z_m),
+    };
+  }
+
+  // Conversación con el rover: mientras está abierta el astronauta no se mueve y el
+  // cursor queda libre para escribir o pulsar el micrófono.
+  const chat = createRoverChat(hud.element, {
+    getSnapshot: roverSnapshot,
+    onClose() {
+      chatOpen = false;
+      if (active && !paused) {
+        input.setEnabled(true);
+        input.requestPointerLock();
+      }
+    },
+  });
+  function openChat() {
+    chatOpen = true;
+    hud.hideCard();
+    input.setEnabled(false);
+    chat.open();
+  }
+
+  function setDriving(next) {
+    driving = next;
+    followCamera.setVehicleMode(driving);
+    followCamera.snap();
+    rig.setVisible(!driving && !followCamera.isFirstPerson());
+    hud.hideCard();
+  }
+  function toggleVehicle() {
+    if (driving) {
+      // Baja a la izquierda de la camioneta, sin atravesar rocas ni la base.
+      const [x_m, z_m] = resolveCollision(...truck.exitPosition());
+      player = { ...player, x_m, z_m, y_m: groundAt(x_m, z_m), vx_ms: 0, vy_ms: 0, vz_ms: 0, grounded: true };
+      setDriving(false);
+      placeAstronaut();
+    } else if (truck.canBoard(player.x_m, player.z_m)) {
+      setDriving(true);
+    }
+  }
 
   const input = createInput(world.renderer.domElement, {
     onInteract() {
@@ -130,22 +228,40 @@ export function createGameplay(container, { world, dem, terrain, rocks, dust, mi
         hud.hideCard();
         return;
       }
-      if (target) hud.showCard(interaction.use(target));
+      if (!target || driving) return;
+      if (target.type === 'rover') openChat();
+      else hud.showCard(interaction.use(target));
     },
     onToggleView() {
       if (!active || paused) return;
-      rig.setVisible(!followCamera.toggle());
+      const firstPerson = followCamera.toggle();
+      rig.setVisible(!firstPerson && !driving);
+    },
+    onVehicle() {
+      if (active && !paused) toggleVehicle();
+    },
+    // T pasa a la siguiente velocidad del tiempo (la pausa se elige en el menú).
+    onTimeScale() {
+      if (!active || paused) return;
+      const speeds = TIME_SCALES.filter((scale) => scale > 0);
+      setTimeScale(speeds[(speeds.indexOf(timeScale) + 1) % speeds.length]);
+    },
+    onDetails() {
+      if (active) hud.toggleDetails();
     },
     onMenu() {
       if (active) setPaused(!paused);
     },
     onPointerLockChange(locked) {
       // Al soltar el cursor con Esc el navegador no entrega la tecla: se abre el menú aquí.
-      if (active && !locked && !paused) setPaused(true);
+      if (active && !locked && !paused && !chatOpen) setPaused(true);
     },
   });
   world.renderer.domElement.addEventListener('click', () => {
-    if (active && !paused) input.requestPointerLock();
+    if (!active || paused) return;
+    // Un clic fuera de la conversación la cierra y devuelve el control.
+    if (chatOpen) chat.close();
+    else input.requestPointerLock();
   });
 
   function setPaused(next) {
@@ -177,6 +293,27 @@ export function createGameplay(container, { world, dem, terrain, rocks, dust, mi
   }
   placeCompanion();
 
+  function placeVehicle() {
+    const [x_m, z_m] = resolveRockCollision(
+      dem, player.x_m + VEHICLE_START_OFFSET_M[0], player.z_m + VEHICLE_START_OFFSET_M[1], VEHICLE.body_radius_m,
+    );
+    truck.place(
+      Math.min(Math.max(x_m, -bounds.halfWidth_m), bounds.halfWidth_m),
+      Math.min(Math.max(z_m, -bounds.halfDepth_m), bounds.halfDepth_m),
+      Math.PI,
+    );
+  }
+  placeVehicle();
+
+  // Si en el mapa se arrastra el indicador de aterrizaje, el astronauta, el rover y la
+  // camioneta se mudan con él.
+  on('astronaut:moved', (position_m) => {
+    if (active) return;
+    spawn(position_m);
+    placeCompanion();
+    placeVehicle();
+  });
+
   world.onFrame((delta_s) => {
     if (!active) {
       // En el mapa el astronauta descansa en su sitio.
@@ -185,7 +322,26 @@ export function createGameplay(container, { world, dem, terrain, rocks, dust, mi
       return;
     }
     const look = paused ? [0, 0] : input.consumeLook();
-    if (!paused) {
+    // El tiempo de Marte (Sol, clima) avanza con la velocidad elegida. Lo escucha quien
+    // lleve el reloj de simulación.
+    if (!paused && timeScale > 0) emit('time:advance', delta_s * timeScale);
+    if (!paused && driving) {
+      // W y S aceleran y frenan; A y D giran el volante. La cámara gira con la camioneta.
+      const yawBefore = truck.state().yaw_rad;
+      truck.update(delta_s, { throttle: input.state.forward, steer: input.state.right }, vehicleEnv, world.camera);
+      const car = truck.state();
+      followCamera.setYaw(followCamera.yaw + (car.yaw_rad - yawBefore));
+      player = {
+        ...player, x_m: car.x_m, z_m: car.z_m, y_m: truck.height_m(), yaw_rad: car.yaw_rad,
+        vx_ms: Math.sin(car.yaw_rad) * car.speed_ms, vy_ms: 0, vz_ms: Math.cos(car.yaw_rad) * car.speed_ms, grounded: true,
+      };
+      placeAstronaut();
+      vitals.update(delta_s, player.x_m, player.z_m, { riding: true });
+      companion.update(delta_s, player, world.camera, FOLLOW_VEHICLE);
+      state.astronaut_position_m = [player.x_m, player.z_m];
+      target = null;
+    } else if (!paused) {
+      truck.update(delta_s, null, vehicleEnv, world.camera);
       // Dirección deseada respecto a la cámara: W avanza hacia donde se mira.
       const yaw = followCamera.yaw;
       const { forward, right } = input.state;
@@ -231,8 +387,20 @@ export function createGameplay(container, { world, dem, terrain, rocks, dust, mi
       // Rumbo desde el norte (-Z) hacia el este (+X), en grados.
       const heading_deg = ((Math.atan2(Math.sin(yaw), -Math.cos(yaw)) * 180) / Math.PI + 360) % 360;
       const speed_ms = horizontalSpeed_ms(player);
-      hud.setPrompt(!paused && !hud.isCardOpen() && target ? target.prompt : null);
+      const prompts = [];
+      if (!paused && !hud.isCardOpen() && !chatOpen) {
+        if (driving) {
+          if (speed_ms < 2) prompts.push(['F', 'Bajar de la camioneta']);
+        } else {
+          if (target) prompts.push(['E', target.prompt]);
+          if (truck.canBoard(player.x_m, player.z_m)) prompts.push(['F', 'Subir a la camioneta']);
+        }
+      }
+      hud.setPrompts(prompts);
       hud.update({
+        vehicle: { driving, driven_m: snapshot.driven_m },
+        objective: interaction.nearestObjective(player.x_m, player.z_m),
+        ltst_h: state.environment?.ltst_h ?? null,
         vitals: snapshot.vitals,
         status: snapshot.status,
         time_scale: snapshot.time_scale,
@@ -251,7 +419,7 @@ export function createGameplay(container, { world, dem, terrain, rocks, dust, mi
           ? { ambient_temp_c: state.environment.weather.ambient_temp_c, phase: state.environment.sun.phase }
           : null,
         ...interaction.progress(),
-        running: speed_ms > LOCOMOTION.walk_speed_ms + 0.05,
+        running: !driving && speed_ms > LOCOMOTION.walk_speed_ms + 0.05,
         firstPerson: followCamera.isFirstPerson(),
         fps: world.stats.fps,
       });
@@ -261,12 +429,20 @@ export function createGameplay(container, { world, dem, terrain, rocks, dust, mi
   return {
     isActive: () => active,
     // Referencias para las pruebas de navegador.
-    debug: { getPlayer: () => player, vitals, followCamera, input, hud, interaction, rig, env, companion, station, beacons },
+    debug: {
+      getPlayer: () => player, vitals, followCamera, input, hud, interaction, rig, env, companion, station, beacons,
+      truck, chat, toggleVehicle, openChat, isDriving: () => driving, getTimeScale: () => timeScale, setTimeScale, roverSnapshot,
+    },
     enter() {
       if (active) return;
       active = true;
       paused = false;
+      if (driving) setDriving(false);
       spawn(state.astronaut_position_m ?? [0, 0]);
+      // La camioneta espera cerca del punto de aterrizaje.
+      const parked = truck.state();
+      if (!parked || Math.hypot(parked.x_m - player.x_m, parked.z_m - player.z_m) > 40) placeVehicle();
+      setTimeScale(DEFAULT_TIME_SCALE);
       // Si el astronauta se movió en el mapa, el rover reaparece a su lado.
       const rover = companion.position();
       if (!rover || Math.hypot(rover.x_m - player.x_m, rover.z_m - player.z_m) > 30) placeCompanion();
@@ -281,6 +457,7 @@ export function createGameplay(container, { world, dem, terrain, rocks, dust, mi
       footprints.setActive(true);
       beacons.visible = true;
       rig.setVisible(!followCamera.isFirstPerson());
+      followCamera.setVehicleMode(false);
       followCamera.snap();
       hud.setVisible(true);
       hud.setMenu(false);
@@ -291,6 +468,8 @@ export function createGameplay(container, { world, dem, terrain, rocks, dust, mi
     },
     exit() {
       if (!active) return;
+      chat.close();
+      if (driving) toggleVehicle();
       active = false;
       input.setEnabled(false);
       hud.setVisible(false);
