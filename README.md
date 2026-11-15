@@ -6,7 +6,7 @@
 > **Division:** Planetary Science Division / Space Operations  
 
 <div align="center">
-  <img src="Promts/captura-marte-cabina.png" alt="Alone in Mars — Introductory Cockpit View of Mars" width="100%">
+  <img src="Promts/captura-marte-cabina.jpeg" alt="Alone in Mars — Introductory Cockpit View of Mars" width="100%">
   <br>
   <p><i>"On Earth, a map tells you how to get there. 225 million kilometers from home, a map decides whether you'll breathe again..."</i></p>
 </div>
@@ -30,7 +30,7 @@
 ## 2. Project Links
 
 ### Project Demonstration *
-- **URL:** `https://youtu.be/1banmPTIGEQ` *(28-second narrated video cut synchronized with ElevenLabs voiceover and Google Flow / web captures; see Section 4.1 for the 0:00–0:28 production timeline)*
+- **URL:** `https://www.youtube.com/watch?v=eoZ0J0Kj09E` *(28-second narrated video cut synchronized with ElevenLabs voiceover and Google Flow / web captures; see Section 4.1 for the 0:00–0:28 production timeline)*
 - **Requirements:**
   - Hosted as a **≤ 30-second video** (target runtime: `27–28 s`) on a public platform (YouTube, Google Drive, GitHub, OneDrive, or Dropbox).
   - **No password, login, permission request, or registration required.**
