@@ -9,7 +9,7 @@ import { stepPlayer, horizontalSpeed_ms, LOCOMOTION } from '../models/locomotion
 import { visualGround_m } from '../world/surface_detail.js';
 import { resolveRockCollision } from '../world/rock_field.js';
 import { createAstronautRig } from '../models3d/explorer.js';
-import { createBeacon } from '../models3d/props.js';
+import { createBeacon, createInterestMark } from '../models3d/props.js';
 import { createInput } from './player/input.js';
 import { createFollowCamera } from './camera/follow_camera.js';
 import { createVitals } from './vitals.js';
@@ -179,7 +179,13 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   const capsule = createCapsule({ shadows: world.quality.shadows });
   capsule.visible = false;
   let capsuleSite = null; // { x_m, z_m } donde quedó, o null
-  world.scene.add(parachute, capsule);
+  // Signos de admiración sobre lo que aún no se ha usado: la cápsula y la camioneta.
+  const capsuleMark = createInterestMark();
+  const truckMark = createInterestMark();
+  let capsuleSeen = false;
+  let truckUsed = false;
+  let markClock = 0;
+  world.scene.add(parachute, capsule, capsuleMark, truckMark);
   let timeScale = DEFAULT_TIME_SCALE;
 
   function setTimeScale(scale) {
@@ -260,6 +266,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       setDriving(false);
       placeAstronaut();
     } else if (truck.canBoard(player.x_m, player.z_m)) {
+      truckUsed = true;
       setDriving(true);
     }
   }
@@ -273,7 +280,10 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       }
       if (!target || driving || landing) return;
       if (target.type === 'rover') openChat();
-      else hud.showCard(interaction.use(target));
+      else {
+        if (target.type === 'capsule') capsuleSeen = true;
+        hud.showCard(interaction.use(target));
+      }
     },
     onToggleView() {
       if (!active || paused) return;
@@ -304,11 +314,25 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       if (active) hud.toggleDetails();
     },
     onMenu() {
-      if (active) setPaused(!paused);
+      if (!active) return;
+      // El primer Esc cierra la tarjeta abierta (como E); el segundo abre el menú.
+      if (hud.isCardOpen() && !paused) {
+        hud.hideCard();
+        return;
+      }
+      setPaused(!paused);
     },
     onPointerLockChange(locked) {
       // Al soltar el cursor con Esc el navegador no entrega la tecla: se abre el menú aquí.
-      if (active && !locked && !paused && !chatOpen) setPaused(true);
+      if (!active || locked || paused || chatOpen) return;
+      // Con una tarjeta abierta, ese Esc solo la cierra. El cursor queda libre: un clic
+      // lo vuelve a capturar y mientras tanto se puede mirar arrastrando.
+      if (hud.isCardOpen()) {
+        hud.hideCard();
+        input.requestPointerLock();
+        return;
+      }
+      setPaused(true);
     },
   });
   world.renderer.domElement.addEventListener('click', () => {
@@ -333,6 +357,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     parachute.visible = true;
     // El astronauta va dentro de la cápsula: durante la caída solo se ve ella.
     capsuleSite = null;
+    capsuleSeen = false;
     capsule.visible = true;
     capsule.rotation.set(0, 0, 0);
     rig.setVisible(false);
@@ -489,6 +514,14 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     dust?.update(delta_s, world.camera, state.environment?.dust_tau ?? 0.5);
     world.setShadowFocus(rig.object.position);
 
+    // Marcas de interés: flotan con un vaivén suave y desaparecen al usar la cosa.
+    markClock += delta_s;
+    const bob_m = Math.sin(markClock * 2.2) * 0.08;
+    capsuleMark.visible = Boolean(capsuleSite) && !capsuleSeen;
+    if (capsuleMark.visible) capsuleMark.position.set(capsuleSite.x_m, capsule.position.y + CAPSULE_HEIGHT_M + 0.9 + bob_m, capsuleSite.z_m);
+    const parked = truck.state();
+    truckMark.visible = Boolean(parked) && !truckUsed && !landing;
+    if (truckMark.visible) truckMark.position.set(parked.x_m, truck.height_m() + 3.6 + bob_m, parked.z_m);
     // La cuenta de los avisos en el centro empieza al pisar el suelo, no durante la caída.
     if (!paused && !landing && promptIntro_s > 0) {
       promptIntro_s -= delta_s;
@@ -507,8 +540,10 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
         if (driving) {
           if (speed_ms < 2) prompts.push(['F', 'Bajar de la camioneta']);
         } else {
-          if (target) prompts.push(['E', target.prompt]);
-          if (truck.canBoard(player.x_m, player.z_m)) prompts.push(['F', 'Subir a la camioneta']);
+          // El tercer valor marca lo que merece el centro de la pantalla: algo con lo
+          // que interactuar. Hablar con el rover y traer la camioneta van solo al panel.
+          if (target) prompts.push(['E', target.prompt, target.type !== 'rover']);
+          if (truck.canBoard(player.x_m, player.z_m)) prompts.push(['F', 'Subir a la camioneta', true]);
           else if (truck.state()) prompts.push(['G', `Traer la camioneta (está a ${formatDistance(truckDistance_m())})`]);
         }
       }
@@ -546,7 +581,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     // Referencias para las pruebas de navegador.
     debug: {
       getPlayer: () => player, vitals, followCamera, input, hud, interaction, rig, env, companion, station, beacons,
-      truck, chat, toggleVehicle, parachute, capsule, getCapsuleSite: () => capsuleSite, getLanding: () => landing, openChat, isDriving: () => driving, getTimeScale: () => timeScale, setTimeScale, roverSnapshot,
+      truck, chat, toggleVehicle, parachute, capsule, capsuleMark, truckMark, getCapsuleSite: () => capsuleSite, getLanding: () => landing, openChat, isDriving: () => driving, getTimeScale: () => timeScale, setTimeScale, roverSnapshot,
     },
     enter() {
       if (active) return;
@@ -604,6 +639,8 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       dust?.setActive(false);
       footprints.setActive(false);
       beacons.visible = false;
+      capsuleMark.visible = false;
+      truckMark.visible = false;
       rig.setVisible(true);
       state.astronaut_position_m = [player.x_m, player.z_m];
       world.setView('orbit');
