@@ -18,6 +18,8 @@ import { createInteraction } from './interact.js';
 import { createFootprints } from './footprints.js';
 import { createCompanion } from './companion.js';
 import { createVehicle } from './vehicle.js';
+import { createParachute } from '../models3d/parachute.js';
+import { DESCENT, descentState } from '../models/locomotion/descent.js';
 import { createRoverChat } from './rover_chat/chat_panel.js';
 import { VEHICLE } from '../models/locomotion/vehicle.js';
 import { FOLLOW } from '../models/locomotion/follow.js';
@@ -41,9 +43,13 @@ const FOLLOW_VEHICLE = Object.freeze({
 });
 // [diseño] Velocidades del tiempo respecto al real: 0 es pausa. Al bajar a la superficie
 // el tiempo corre solo a DEFAULT_TIME_SCALE.
-const TIME_SCALES = [0, 1, 4, 16, 60, 120, 200, 300];
+const TIME_SCALES = [0, 1, 4, 16, 60, 120, 200, 300, 350, 400, 430];
 const DEFAULT_TIME_SCALE = 4;
 const HUD_REFRESH_S = 0.15;
+// El aterrizaje en paracaídas sale solo la primera vez; después, a petición.
+const LANDED_KEY = 'marswalk.landed';
+// [diseño] Altura de los hombros del astronauta, donde se enganchan las cuerdas.
+const SHOULDER_HEIGHT_M = 1.5;
 
 /**
  * createGameplay(container, { world, dem, terrain, rocks, dust, mission }) ->
@@ -143,6 +149,11 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   let jumpHeld = false;
   let driving = false;
   let chatOpen = false;
+  // Aterrizaje en curso: { t_s, scale, ground_m, yaw0_rad } o null.
+  let landing = null;
+  const parachute = createParachute();
+  parachute.visible = false;
+  world.scene.add(parachute);
   let timeScale = DEFAULT_TIME_SCALE;
 
   function setTimeScale(scale) {
@@ -234,7 +245,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
         hud.hideCard();
         return;
       }
-      if (!target || driving) return;
+      if (!target || driving || landing) return;
       if (target.type === 'rover') openChat();
       else hud.showCard(interaction.use(target));
     },
@@ -244,15 +255,22 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       rig.setVisible(!firstPerson && !driving);
     },
     onVehicle() {
-      if (active && !paused) toggleVehicle();
+      if (active && !paused && !landing) toggleVehicle();
     },
     // G trae la camioneta junto al astronauta, esté donde esté.
     onSummonVehicle() {
-      if (active && !paused && !driving && !chatOpen && !state.realism) placeVehicle();
+      if (active && !paused && !driving && !chatOpen && !state.realism && !landing) placeVehicle();
     },
     // T pasa a la siguiente velocidad del tiempo (la pausa se elige en el menú).
     onTimeScale() {
-      if (!active || paused || state.realism) return;
+      if (!active || paused) return;
+      // Durante el aterrizaje, T acelera la caída (hasta 100×), también con realismo.
+      if (landing) {
+        const steps = DESCENT.time_scales;
+        landing.scale = steps[(steps.indexOf(landing.scale) + 1) % steps.length];
+        return;
+      }
+      if (state.realism) return;
       const speeds = TIME_SCALES.filter((scale) => scale > 0);
       setTimeScale(speeds[(speeds.indexOf(timeScale) + 1) % speeds.length]);
     },
@@ -281,6 +299,41 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       if (input.hasPointerLock()) document.exitPointerLock();
     } else {
       input.requestPointerLock();
+    }
+  }
+
+  function startLanding() {
+    landing = { t_s: 0, scale: 1, ground_m: groundAt(player.x_m, player.z_m), yaw0_rad: player.yaw_rad };
+    parachute.visible = true;
+    rig.setVisible(true);
+    followCamera.setVehicleMode(true); // cámara alejada para ver la campana
+    followCamera.snap();
+    hud.setLanding({ ...descentState(0), scale: 1 });
+  }
+  // cancel: se sale al mapa a media caída; no cuenta como aterrizaje visto.
+  function finishLanding(cancel = false) {
+    landing = null;
+    parachute.visible = false;
+    rig.object.rotation.z = 0;
+    hud.setLanding(null);
+    followCamera.setVehicleMode(false);
+    player = { ...player, y_m: groundAt(player.x_m, player.z_m), vy_ms: 0, grounded: true };
+    placeAstronaut();
+    if (cancel) return;
+    rig.setVisible(!followCamera.isFirstPerson());
+    vitals.reset(player.x_m, player.z_m);
+    try {
+      window.localStorage.setItem(LANDED_KEY, '1');
+    } catch {
+      // Sin almacenamiento: el aterrizaje volverá a salir en la próxima visita.
+    }
+  }
+  function shouldLand() {
+    if (state.landingRequested) return true;
+    try {
+      return window.localStorage.getItem(LANDED_KEY) !== '1';
+    } catch {
+      return false;
     }
   }
 
@@ -333,8 +386,22 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     const look = paused ? [0, 0] : input.consumeLook();
     // El tiempo de Marte (Sol, clima) avanza con la velocidad elegida. Lo escucha quien
     // lleve el reloj de simulación.
-    if (!paused && timeScale > 0) emit('time:advance', delta_s * timeScale);
-    if (!paused && driving) {
+    if (!paused && landing) emit('time:advance', delta_s * landing.scale);
+    else if (!paused && timeScale > 0) emit('time:advance', delta_s * timeScale);
+    if (landing) {
+      if (!paused) landing.t_s += delta_s * landing.scale;
+      const fall = descentState(landing.t_s);
+      player = { ...player, y_m: landing.ground_m + fall.altitude_m, yaw_rad: landing.yaw0_rad + fall.spin_rad, grounded: false };
+      placeAstronaut();
+      rig.object.rotation.z = fall.sway_rad;
+      parachute.position.set(player.x_m, player.y_m + SHOULDER_HEIGHT_M, player.z_m);
+      parachute.rotation.set(0, player.yaw_rad, fall.sway_rad * 0.6);
+      rig.update(delta_s, { speed_ms: 0, walk_speed_ms: LOCOMOTION.walk_speed_ms, run_speed_ms: LOCOMOTION.run_speed_ms, airborne: true });
+      companion.update(delta_s, null, world.camera);
+      truck.update(delta_s, null, vehicleEnv, world.camera);
+      hud.setLanding({ ...fall, scale: landing.scale });
+      if (fall.landed) finishLanding();
+    } else if (!paused && driving) {
       // W y S aceleran y frenan; A y D giran el volante. La cámara gira con la camioneta.
       const yawBefore = truck.state().yaw_rad;
       truck.update(delta_s, { throttle: input.state.forward, steer: input.state.right }, vehicleEnv, world.camera);
@@ -397,7 +464,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       const heading_deg = ((Math.atan2(Math.sin(yaw), -Math.cos(yaw)) * 180) / Math.PI + 360) % 360;
       const speed_ms = horizontalSpeed_ms(player);
       const prompts = [];
-      if (!paused && !hud.isCardOpen() && !chatOpen) {
+      if (!paused && !hud.isCardOpen() && !chatOpen && !landing) {
         if (driving) {
           if (speed_ms < 2) prompts.push(['F', 'Bajar de la camioneta']);
         } else {
@@ -440,7 +507,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     // Referencias para las pruebas de navegador.
     debug: {
       getPlayer: () => player, vitals, followCamera, input, hud, interaction, rig, env, companion, station, beacons,
-      truck, chat, toggleVehicle, openChat, isDriving: () => driving, getTimeScale: () => timeScale, setTimeScale, roverSnapshot,
+      truck, chat, toggleVehicle, parachute, getLanding: () => landing, openChat, isDriving: () => driving, getTimeScale: () => timeScale, setTimeScale, roverSnapshot,
     },
     enter() {
       if (active) return;
@@ -479,10 +546,14 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       input.setEnabled(true);
       input.requestPointerLock();
       hudClock = HUD_REFRESH_S;
+      // La primera bajada (o si se pide en el mapa) empieza colgando del paracaídas.
+      if (shouldLand()) startLanding();
+      state.landingRequested = false;
     },
     exit() {
       if (!active) return;
       chat.close();
+      if (landing) finishLanding(true);
       if (driving) toggleVehicle();
       active = false;
       input.setEnabled(false);

@@ -118,3 +118,25 @@ test('rover sin LLM: elige el dato que responde a la pregunta o sigue la lista',
   assert.equal(none.fact, MARS_FACTS[2]);
   assert.equal(pickMockReply('', MARS_FACTS, 0).fact, MARS_FACTS[0]);
 });
+
+test('descenso: dura 12.5 min, baja sin parar y llega al suelo a su hora', async () => {
+  const { DESCENT, descentState } = await import('../src/models/locomotion/descent.js');
+  assert.equal(DESCENT.duration_s, 750);
+  close(DESCENT.duration_s / Math.max(...DESCENT.time_scales), 7.5); // a 100× dura 7.5 s
+  const start = descentState(0);
+  close(start.altitude_m, DESCENT.start_altitude_m);
+  let previous = start.altitude_m;
+  for (let t = 5; t <= DESCENT.duration_s; t += 5) {
+    const now = descentState(t);
+    assert.ok(now.altitude_m < previous, `no baja en t = ${t}`);
+    assert.ok(Math.abs(now.sway_rad) <= (DESCENT.sway_deg * Math.PI) / 180 + 1e-9);
+    previous = now.altitude_m;
+  }
+  const flare = descentState(DESCENT.duration_s - DESCENT.flare_s);
+  close(flare.altitude_m, DESCENT.flare_altitude_m);
+  assert.ok(descentState(DESCENT.duration_s - 1).speed_ms < descentState(10).speed_ms); // frena al final
+  const end = descentState(DESCENT.duration_s);
+  close(end.altitude_m, 0);
+  assert.ok(end.landed && end.speed_ms === 0 && end.sway_rad === 0);
+  assert.ok(descentState(1e6).landed && !descentState(DESCENT.duration_s - 0.01).landed);
+});
