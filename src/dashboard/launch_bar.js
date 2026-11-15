@@ -90,7 +90,7 @@ export function createLaunchBar(ui, { dem, onExplore, onLanding }) {
   explore.append(el('span', 'launch-button-icon', '▶'), exploreLabel);
   explore.addEventListener('click', onExplore);
   // Repite la bajada en paracaídas (la primera vez sale sola).
-  const landingButton = el('button', 'launch-landing-button', '🪂 Aterrizaje realista');
+  const landingButton = el('button', 'launch-landing-button', 'Aterrizaje realista');
   landingButton.type = 'button';
   landingButton.title = 'Bajar en paracaídas hasta el indicador';
   landingButton.addEventListener('click', onLanding);

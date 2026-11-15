@@ -11,6 +11,7 @@ const LOOK_SENSITIVITY = 0.0024; // radianes por píxel de ratón
 const PITCH_MIN = -1.2;
 const PITCH_MAX_THIRD = 0.55;
 const PITCH_MAX_FIRST = 1.35;
+const PITCH_FREE = 1.5; // casi vertical: mirada libre durante el aterrizaje
 const FOLLOW_STIFFNESS = 9; // cuanto mayor, más pegada va la cámara
 
 /**
@@ -23,6 +24,7 @@ export function createFollowCamera(camera, groundAt) {
   let yaw = Math.PI; // de entrada, mirando al norte
   let pitch = 0.22;
   let firstPerson = false;
+  let freeLook = false;
   let distance_m = THIRD_DISTANCE_M;
   let targetHeight_m = THIRD_TARGET_HEIGHT_M;
   let eyeHeight_m = EYE_HEIGHT_M;
@@ -71,6 +73,13 @@ export function createFollowCamera(camera, groundAt) {
     setYaw(next) {
       yaw = next;
     },
+    // Mirada libre: se puede mirar en cualquier dirección, de casi el cenit a casi el
+    // nadir (el giro horizontal ya es de 360°). Se usa durante el aterrizaje.
+    setFreeLook(on) {
+      freeLook = on;
+      // Al terminar, la mirada vuelve a los límites normales.
+      if (!on) pitch = THREE.MathUtils.clamp(pitch, PITCH_MIN, firstPerson ? PITCH_MAX_FIRST : PITCH_MAX_THIRD);
+    },
     // En la camioneta la cámara va más lejos y más alta.
     setVehicleMode(on) {
       distance_m = on ? VEHICLE_DISTANCE_M : THIRD_DISTANCE_M;
@@ -79,9 +88,11 @@ export function createFollowCamera(camera, groundAt) {
     },
     update(delta_s, player, look) {
       yaw -= look[0] * LOOK_SENSITIVITY;
-      pitch = THREE.MathUtils.clamp(
-        pitch + look[1] * LOOK_SENSITIVITY, PITCH_MIN, firstPerson ? PITCH_MAX_FIRST : PITCH_MAX_THIRD,
-      );
+      pitch = freeLook
+        ? THREE.MathUtils.clamp(pitch + look[1] * LOOK_SENSITIVITY, -PITCH_FREE, PITCH_FREE)
+        : THREE.MathUtils.clamp(
+          pitch + look[1] * LOOK_SENSITIVITY, PITCH_MIN, firstPerson ? PITCH_MAX_FIRST : PITCH_MAX_THIRD,
+        );
       compute(player);
       if (needsSnap || firstPerson) {
         position.copy(desired);
