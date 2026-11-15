@@ -33,6 +33,9 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # URL pública de la función del rover (server/README.md). Vacía = sin LLM.
+          VITE_ROVER_LLM_URL: ${{ vars.VITE_ROVER_LLM_URL }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

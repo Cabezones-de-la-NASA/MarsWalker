@@ -1,0 +1,6 @@
+{
+  "name": "marswalk-rover-server",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" }
+}

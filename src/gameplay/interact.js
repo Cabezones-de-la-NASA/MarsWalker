@@ -82,7 +82,7 @@ export function createInteraction({ dem, getPoints, companion, getCapsule = () =
       if (companion?.canTalk(x_m, z_m)) {
         const position = companion.position();
         const distance_m = Math.hypot(position.x_m - x_m, position.z_m - z_m);
-        if (!best || distance_m < best.distance_m) best = { type: 'rover', distance_m, prompt: 'Hablar con el rover' };
+        if (!best || distance_m < best.distance_m) best = { type: 'rover', distance_m, prompt: 'Pedirle un dato al rover' };
       }
       const capsule = getCapsule();
       if (capsule) {

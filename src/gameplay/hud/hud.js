@@ -31,8 +31,8 @@ const COMPASS_EDGE_PX = 190;
 // Duración del vuelo de los avisos hacia el panel de teclas (igual que en hud.css).
 const DOCK_TRANSITION_MS = 700;
 // [diseño] Burbujas del rover a la vez, y segundos que dura cada una.
-const FEED_MAX = 3;
-const FEED_SECONDS = 11;
+const FEED_MAX = 4;
+const FEED_SECONDS = 13;
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -181,7 +181,9 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   helpLine(['W', 'A', 'S', 'D'], 'moverse');
   helpLine(['Shift'], 'correr');
   helpLine(['Space'], 'saltar');
-  helpLine(['E'], 'interactuar · hablar con el rover');
+  helpLine(['E'], 'interactuar');
+  helpLine(['R'], 'mantén para hablarle al rover');
+  helpLine(['Enter'], 'escribirle al rover');
   helpLine(['F'], 'subir o bajar de la camioneta');
   helpLine(['G'], 'traer la camioneta');
   helpLine(['T'], 'velocidad del tiempo');
@@ -192,7 +194,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   help.append(fps);
   // Con la lista plegada queda solo esta pista.
   const helpHint = el('div', 'hud-help-hint');
-  helpHint.append(el('kbd', null, 'Tab'), 'controles y telemetría');
+  helpHint.append(el('kbd', null, 'R'), 'mantén para hablarle al rover', el('br'), el('kbd', null, 'Tab'), 'controles y telemetría');
   help.append(helpHint);
 
   // ---- Aterrizaje en paracaídas
@@ -222,8 +224,25 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   let sortieKeysSignature = '';
 
   // ---- Lo que dice el rover: burbujas a la derecha que se van solas
-  const feed = el('div', 'hud-feed');
+  const feedBox = el('div', 'hud-feed');
+  const feed = el('div', 'hud-feed-list');
   feed.setAttribute('aria-live', 'polite');
+  feedBox.append(feed);
+  let line = null;
+  function addBubble(who) {
+    const root = el('div', who === 'Tú' ? 'hud-bubble is-user' : 'hud-bubble');
+    const text = el('p');
+    root.append(el('span', 'hud-bubble-who', who), text);
+    feed.append(root);
+    while (feed.children.length > FEED_MAX) feed.firstChild.remove();
+    return {
+      root, text,
+      expire() {
+        window.setTimeout(() => root.classList.add('is-leaving'), FEED_SECONDS * 1000);
+        window.setTimeout(() => root.remove(), FEED_SECONDS * 1000 + 700);
+      },
+    };
+  }
 
   let promptSignature = '';
   let promptsDocked = false;
@@ -270,7 +289,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   const controls = el('dl', 'hud-controls');
   for (const [keys, text] of [
     ['W A S D', 'Moverse'], ['Ratón', 'Mirar'], ['Shift', 'Correr'], ['Space', 'Saltar'],
-    ['E', 'Interactuar y hablar con el rover'], ['F', 'Subir o bajar de la camioneta'],
+    ['E', 'Interactuar'], ['R (mantener)', 'Hablarle al rover'], ['Enter', 'Escribirle al rover'], ['F', 'Subir o bajar de la camioneta'],
     ['G', 'Traer la camioneta a tu lado'],
     ['T', 'Velocidad del tiempo'], ['Tab', 'Telemetría completa'], ['M', 'Sonido sí o no'],
     ['V', 'Primera o tercera persona'], ['Esc', 'Este menú'],
@@ -282,7 +301,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   box.append(controls);
   menu.append(box);
 
-  hud.append(dustVeil, vitals, nav, compass, heading, compassTarget, clock, vehicleBadge, mission, help, landingBox, sortieBox, feed, reticle, prompt, card, menu);
+  hud.append(dustVeil, vitals, nav, compass, heading, compassTarget, clock, vehicleBadge, mission, help, landingBox, sortieBox, feedBox, reticle, prompt, card, menu);
   container.append(hud);
 
   return {
@@ -385,14 +404,68 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
         : sortie.countdown_s !== null ? `Tormenta en ${Math.ceil(sortie.countdown_s)} s` : '';
     },
     // El rover dice algo: una burbuja a la derecha que se apaga sola.
-    say(text, who = 'Rover') {
-      const bubble = el('div', 'hud-bubble');
-      bubble.append(el('span', 'hud-bubble-who', who), el('p', null, text));
-      feed.append(bubble);
-      while (feed.children.length > FEED_MAX) feed.firstChild.remove();
-      window.setTimeout(() => bubble.classList.add('is-leaving'), FEED_SECONDS * 1000);
-      window.setTimeout(() => bubble.remove(), FEED_SECONDS * 1000 + 700);
+    // who: quién habla ('Rover' o 'Tú'); note: línea pequeña opcional (la fuente del dato).
+    say(text, who = 'Rover', note = null) {
+      const bubble = addBubble(who);
+      bubble.text.textContent = text;
+      if (note) bubble.root.append(el('small', 'hud-bubble-note', note));
+      bubble.expire();
     },
+    // Burbuja que se va rellenando (lo que se oye por el micrófono, o "pensando…").
+    // -> { set(text), done(), remove() }; done() la deja como una burbuja normal.
+    sayLive(who, text = '…') {
+      const bubble = addBubble(who);
+      bubble.root.classList.add('is-live');
+      bubble.text.textContent = text;
+      return {
+        set: (next) => { bubble.text.textContent = next; },
+        done() {
+          bubble.root.classList.remove('is-live');
+          bubble.expire();
+        },
+        remove: () => bubble.root.remove(),
+      };
+    },
+    // Línea para escribirle al rover. Enter envía; Esc cancela. Solo una a la vez.
+    openLine({ onSend, onCancel }) {
+      if (line) return;
+      const field = el('input', 'hud-line');
+      field.type = 'text';
+      field.maxLength = 300;
+      field.placeholder = 'Escríbele al rover… (Enter envía, Esc cancela)';
+      field.autocomplete = 'off';
+      const close = (callback, value) => {
+        if (!line) return;
+        line = null;
+        window.removeEventListener('keydown', onEscape, true);
+        field.remove();
+        callback(value);
+      };
+      // Esc cierra la línea esté donde esté el foco, y esa pulsación no llega a nadie más.
+      function onEscape(event) {
+        if (event.code !== 'Escape') return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        close(onCancel);
+      }
+      field.addEventListener('keydown', (event) => {
+        event.stopPropagation();
+        if (event.code === 'Enter' || event.code === 'NumpadEnter') {
+          const text = field.value.trim();
+          if (text) close(onSend, text);
+          else close(onCancel);
+        } else if (event.code === 'Escape') close(onCancel);
+      });
+      field.addEventListener('keyup', (event) => event.stopPropagation());
+      window.addEventListener('keydown', onEscape, true);
+      line = { cancel: () => close(onCancel) };
+      feedBox.append(field);
+      field.focus();
+    },
+    closeLine() {
+      line?.cancel();
+    },
+    isLineOpen: () => Boolean(line),
     clearFeed() {
       feed.replaceChildren();
     },

@@ -8,6 +8,8 @@ import { QAOA_NOTICE } from '../../models/routing/qaoa_inspired.js';
 import { PRESETS } from '../../models/routing/astar_health.js';
 import { nearestShelter } from '../../models/environment/weather.js';
 import { drawElevationProfile } from './elevation_profile.js';
+import { explainRoute } from '../../shared/rover_llm.js';
+import { buildRouteBrief } from '../../shared/route_brief.js';
 
 const ALGORITHMS = [
   { id: 'astar', label: 'Ahorra oxígeno', sub: 'A* clásico: el menor gasto de O₂', title: 'Ruta clásica: menor coste de oxígeno (M3 y M4)' },
@@ -39,6 +41,9 @@ const COMPARE_ROWS = [
 
 // [diseño] Espera tras el último cambio antes de recalcular sola la ruta, en milisegundos.
 const AUTO_COMPUTE_MS = 250;
+// [diseño] Espera antes de pedirle al rover que explique una ruta: si se sigue moviendo
+// el destino, solo se explica la última.
+const EXPLAIN_GAP_MS = 900;
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -207,6 +212,27 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
   let route = null;
   let autoTimer = null;
 
+  const activeDimensionLabels = () =>
+    DIMENSIONS.filter(([key]) => dimensionBoxes[key].checked).map(([, label]) => label.toLowerCase());
+
+  // El rover explica la ruta en lenguaje llano a partir de los números de los modelos.
+  // Si no hay servidor o falla, se queda el resumen fijo. Solo se aplica la respuesta de
+  // la última ruta pedida, y no se pide más de una cada EXPLAIN_GAP_MS.
+  let explainId = 0;
+  let explainTimer = null;
+  function explain(input) {
+    const id = ++explainId;
+    verdict.classList.remove('is-rover');
+    window.clearTimeout(explainTimer);
+    explainTimer = window.setTimeout(async () => {
+      const text = await explainRoute(buildRouteBrief(input));
+      if (text && id === explainId) {
+        verdict.textContent = text;
+        verdict.classList.add('is-rover');
+      }
+    }, EXPLAIN_GAP_MS);
+  }
+
   const activeDimensions = () =>
     DIMENSIONS.map(([key]) => key).filter((key) => dimensionBoxes[key].checked);
 
@@ -233,6 +259,9 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
     compareBox.hidden = true;
     for (const value of Object.values(metricValues)) value.textContent = '—';
     verdict.textContent = '';
+    verdict.classList.remove('is-rover');
+    explainId += 1; // descarta una explicación en camino
+    window.clearTimeout(explainTimer);
     drawElevationProfile(profile, null);
     refresh();
   }
@@ -366,6 +395,7 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
       (m.max_slope_deg > 25
         ? `Ojo: hay pendientes de hasta ${m.max_slope_deg.toFixed(0)}°, por encima del límite seguro de 25°.`
         : `Pendiente máxima de ${m.max_slope_deg.toFixed(0)}°: dentro del límite seguro.`);
+    explain({ algorithm, metrics: m, unsafe_segments: unsafe, dimensions: algorithm === 'health' ? activeDimensionLabels() : null });
     refresh();
   });
 
@@ -428,6 +458,13 @@ export function createRoutePanel(container, { dem, dataset, routeLine, getCrew, 
     }
     compareBox.hidden = false;
     status.textContent = 'Las dos rutas están en el mapa. La diferencia es salud menos clásica.';
+    // Con las dos rutas delante, el rover dice cuál conviene.
+    if (route) {
+      explain({
+        algorithm, metrics: route.metrics, comparison: result.comparison,
+        dimensions: activeDimensionLabels(),
+      });
+    }
   });
 
   exportButton.addEventListener('click', () => {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { VEHICLE, stepVehicle, exitPosition } from '../src/models/locomotion/vehicle.js';
 import { LOCOMOTION } from '../src/models/locomotion/kinematics.js';
 import { createSimClock } from '../src/shared/sim_clock.js';
-import { buildRoverContext, pickMockReply, ROVER_PERSONA } from '../src/shared/rover_context.js';
+import { buildRoverContext, pickMockReply } from '../src/shared/rover_context.js';
 import { MARS_FACTS } from '../src/shared/mars_facts.js';
 
 const close = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps, `${a} vs ${b}`);
@@ -105,7 +105,6 @@ test('rover: el contexto incluye el estado de la caminata y los datos con su fue
     assert.ok(text.includes(piece), `falta "${piece}" en:\n${text}`);
   }
   assert.ok(buildRoverContext({ zone: { label: 'Z', resolution_m: 1 } }).includes('Zona: Z'));
-  assert.ok(ROVER_PERSONA.includes('no inventes'));
 });
 
 test('rover sin LLM: elige el dato que responde a la pregunta o sigue la lista', () => {

@@ -94,7 +94,7 @@ Al inicializar Vite aparecerán en la raíz `index.html`, `package.json`, `vite.
 | `src/gameplay/camera/` | Cámara en primera y tercera persona. | |
 | `src/gameplay/hud/` | El visor del casco: oxígeno, pulso, brújula y radar. | |
 | `src/gameplay/audio/` | Sonido generado con Web Audio (respiración, pasos, viento, motor, avisos); sin archivos de audio. | |
-| `src/gameplay/rover_chat/` | Conversación con el rover: voz del navegador y cliente del LLM. La URL del servidor del LLM va en `VITE_ROVER_LLM_URL` (ver `.env.example` y `llm_client.js`); sin ella responde con datos de muestra. | Claves de API: nunca en el código ni en variables `VITE_`. |
+| `src/gameplay/rover_chat/` | Voz del navegador para hablar con el rover (escuchar y leer en alto). El cliente del LLM está en `src/shared/rover_llm.js` y el servidor, en `server/`. | Claves de API: nunca en el código ni en variables `VITE_`. |
 | `src/world/` | El mundo 3D que comparten el dashboard y el modo a pie: renderer y perfiles gráficos, cielo, atmósfera, material y malla del terreno, parche de detalle, rocas y polvo. | Interfaz, paneles o lógica de juego. |
 | `src/shared/` | Lo que usan todas las partes: estado global, constantes y utilidades. | Código que solo usa una parte. |
 | `tests/` | Pruebas de los modelos matemáticos, un archivo por módulo de `src/models/`. | |

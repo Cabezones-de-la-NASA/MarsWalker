@@ -1,7 +1,7 @@
 // Entrada del modo a pie: teclado y ratón.
 //   WASD movimiento · ratón cámara · Shift correr · Space salto · E interactuar
 //   V cambiar perspectiva · F subir o bajar de la camioneta · G traerla · T velocidad del tiempo
-//   Tab telemetría completa · M sonido · Esc menú (libera el cursor)
+//   Tab telemetría completa · M sonido · R (mantener) hablar con el rover · Enter escribirle · Esc menú (libera el cursor)
 
 const MOVE_KEYS = {
   KeyW: [0, 1], ArrowUp: [0, 1],
@@ -17,7 +17,7 @@ const MOVE_KEYS = {
  *   setEnabled(bool), requestPointerLock(), hasPointerLock(), dispose()
  */
 export function createInput(domElement, {
-  onInteract, onToggleView, onMenu, onPointerLockChange, onVehicle, onSummonVehicle, onTimeScale, onDetails, onMute,
+  onInteract, onToggleView, onMenu, onPointerLockChange, onVehicle, onSummonVehicle, onTimeScale, onDetails, onMute, onTalkStart, onTalkEnd, onChatLine,
 }) {
   const pressed = new Set();
   const state = { forward: 0, right: 0, run: false, jump: false, interact: false };
@@ -54,6 +54,11 @@ export function createInput(domElement, {
     if (event.code === 'KeyF') onVehicle?.();
     if (event.code === 'KeyG') onSummonVehicle?.();
     if (event.code === 'KeyM') onMute?.();
+    if (event.code === 'KeyR') onTalkStart?.();
+    if (event.code === 'Enter') {
+      event.preventDefault();
+      onChatLine?.();
+    }
     if (event.code === 'KeyT') onTimeScale?.();
     if (event.code === 'Tab') {
       event.preventDefault();
@@ -65,6 +70,7 @@ export function createInput(domElement, {
   }
 
   function onKeyUp(event) {
+    if (enabled && event.code === 'KeyR') onTalkEnd?.();
     pressed.delete(event.code);
     refresh();
   }

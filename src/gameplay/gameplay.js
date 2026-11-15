@@ -21,7 +21,7 @@ import { createVehicle } from './vehicle.js';
 import { createParachute } from '../models3d/parachute.js';
 import { createCapsule, CAPSULE_RADIUS_M, CAPSULE_HEIGHT_M } from '../models3d/capsule.js';
 import { DESCENT, descentState } from '../models/locomotion/descent.js';
-import { createRoverChat } from './rover_chat/chat_panel.js';
+import { askRover } from '../shared/rover_llm.js';
 import { createSpeech } from './rover_chat/speech.js';
 import { createSound } from './audio/sound.js';
 import { createSortie } from './sortie.js';
@@ -245,28 +245,81 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     };
   }
 
-  // Conversación con el rover: mientras está abierta el astronauta no se mueve y el
-  // cursor queda libre para escribir o pulsar el micrófono.
-  const chat = createRoverChat(hud.element, {
-    getSnapshot: roverSnapshot,
-    onClose() {
-      chatOpen = false;
-      chatClosed_ms = performance.now();
-      if (active && !paused) {
-        input.setEnabled(true);
-        // El cursor se recaptura un instante después: si se pidiera dentro de la misma
-        // pulsación de Esc, el navegador lo soltaría otra vez con esa tecla.
-        window.setTimeout(() => {
-          if (active && !paused && !chatOpen) input.requestPointerLock();
-        }, CHAT_CLOSE_GRACE_MS);
-      }
-    },
-  });
-  function openChat() {
+  // Conversación con el rover, sin detenerse: se le habla manteniendo R o se le escribe
+  // con Enter, y contesta en burbujas a la derecha y en voz alta. Las respuestas vienen de
+  // askRover (el LLM del servidor o, si no hay, un dato de la lista).
+  const history = [];
+  let asking = false;
+  let listening = null; // burbuja en vivo mientras se mantiene R
+  async function askRoverAloud(question) {
+    if (asking) return;
+    asking = true;
+    const thinking = question ? hud.sayLive('Rover') : null;
+    try {
+      const reply = await askRover({ question, history, snapshot: roverSnapshot() });
+      if (question) history.push({ role: 'user', content: question });
+      history.push({ role: 'assistant', content: reply.text });
+      thinking?.remove();
+      if (!active) return;
+      hud.say(reply.text, 'Rover', reply.source ? `Fuente: ${reply.source}` : null);
+      if (!sound.isMuted()) speech.speak(reply.text);
+    } finally {
+      asking = false;
+    }
+  }
+  function startTalking() {
+    if (listening || chatOpen) return;
+    if (!speech.canListen) {
+      hud.say('Aquí no puedo oírte: este navegador no reconoce la voz. Pulsa Enter y escríbeme.');
+      return;
+    }
+    speech.cancelSpeech();
+    const bubble = hud.sayLive('Tú', 'Te escucho…');
+    listening = bubble;
+    speech.listen({ onPartial: (text) => bubble.set(text) })
+      .then((text) => {
+        if (text) {
+          bubble.set(text);
+          bubble.done();
+          askRoverAloud(text);
+        } else {
+          bubble.remove();
+          hud.say('No te oí. Mantén R mientras hablas, o pulsa Enter y escríbeme.');
+        }
+      })
+      .catch((error) => {
+        bubble.remove();
+        hud.say(`${error.message} Pulsa Enter y escríbeme.`);
+      })
+      .finally(() => {
+        if (listening === bubble) listening = null;
+      });
+  }
+  // Escribirle: mientras la línea está abierta las teclas son letras y el astronauta para.
+  function closeLine() {
+    chatOpen = false;
+    chatClosed_ms = performance.now();
+    if (active && !paused) {
+      input.setEnabled(true);
+      // El cursor se recaptura un instante después: si se pidiera dentro de la misma
+      // pulsación de Esc, el navegador lo soltaría otra vez con esa tecla.
+      window.setTimeout(() => {
+        if (active && !paused && !chatOpen) input.requestPointerLock();
+      }, CHAT_CLOSE_GRACE_MS);
+    }
+  }
+  function openLine() {
+    if (chatOpen || hud.isCardOpen()) return;
     chatOpen = true;
-    hud.hideCard();
     input.setEnabled(false);
-    chat.open();
+    hud.openLine({
+      onSend(text) {
+        closeLine();
+        hud.say(text, 'Tú');
+        askRoverAloud(text);
+      },
+      onCancel: closeLine,
+    });
   }
 
   function setDriving(next) {
@@ -324,7 +377,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
         return;
       }
       if (!target || driving || landing) return;
-      if (target.type === 'rover') openChat();
+      if (target.type === 'rover') askRoverAloud(''); // E junto al rover: cuenta un dato
       else {
         if (target.type === 'capsule') {
           capsuleSeen = true;
@@ -361,6 +414,15 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     onDetails() {
       if (active) hud.toggleDetails();
     },
+    onTalkStart() {
+      if (active && !paused) startTalking();
+    },
+    onTalkEnd() {
+      if (listening) speech.stopListening();
+    },
+    onChatLine() {
+      if (active && !paused && !landing) openLine();
+    },
     onMute() {
       if (!active) return;
       const muted = sound.toggleMuted();
@@ -392,7 +454,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   world.renderer.domElement.addEventListener('click', () => {
     if (!active || paused) return;
     // Un clic fuera de la conversación la cierra y devuelve el control.
-    if (chatOpen) chat.close();
+    if (chatOpen) hud.closeLine();
     else input.requestPointerLock();
   });
 
@@ -669,7 +731,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     debug: {
       getPlayer: () => player, vitals, followCamera, input, hud, interaction, rig, env, companion, station, beacons,
       sortie, sound, isSortieMode: () => sortieMode,
-      truck, chat, toggleVehicle, parachute, capsule, capsuleMark, truckMark, getCapsuleSite: () => capsuleSite, getLanding: () => landing, openChat, isDriving: () => driving, getTimeScale: () => timeScale, setTimeScale, roverSnapshot,
+      truck, toggleVehicle, askRoverAloud, openLine, parachute, capsule, capsuleMark, truckMark, getCapsuleSite: () => capsuleSite, getLanding: () => landing, isDriving: () => driving, getTimeScale: () => timeScale, setTimeScale, roverSnapshot,
     },
     enter() {
       if (active) return;
@@ -725,7 +787,8 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     },
     exit() {
       if (!active) return;
-      chat.close();
+      hud.closeLine();
+      speech.stopListening();
       hud.setCompassTarget(null);
       hud.setDust(0);
       sortie.cancel();

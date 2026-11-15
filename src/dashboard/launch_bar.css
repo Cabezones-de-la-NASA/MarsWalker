@@ -376,3 +376,12 @@
   border: 1px solid var(--line-strong);
   pointer-events: auto;
 }
+
+/* Explicación redactada por el rover (los números siguen saliendo de los modelos). */
+.route-verdict.is-rover::before {
+  content: 'Rover · ';
+  font: 500 var(--text-xs) / 1 var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}

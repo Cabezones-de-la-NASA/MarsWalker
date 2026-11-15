@@ -1034,3 +1034,57 @@
 .hud.is-realism .hud-clock-tiers {
   display: none;
 }
+
+/* ---- Conversación con el rover: burbujas propias, en vivo y línea de texto ---- */
+.hud-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.hud-bubble.is-user {
+  align-self: flex-end;
+  max-width: 88%;
+  border-left: 1px solid var(--line);
+  border-right: 3px solid var(--info);
+}
+
+.hud-bubble.is-user .hud-bubble-who {
+  color: var(--info);
+}
+
+.hud-bubble.is-live p {
+  color: var(--text-muted);
+  animation: hud-storm-pulse 1.1s ease-in-out infinite;
+}
+
+.hud-bubble-note {
+  display: block;
+  margin-top: 3px;
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+}
+
+.hud-line {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font: 400 15px / 1.3 var(--font-ui);
+  color: var(--hud-cream);
+  background: rgba(18, 10, 7, 0.9);
+  border: 1px solid var(--hud-amber);
+  border-radius: var(--radius-sm);
+  pointer-events: auto;
+}
+
+.hud-line::placeholder {
+  color: var(--text-dim);
+}
+
+.hud-line:focus-visible {
+  outline: 2px solid var(--hud-amber);
+  outline-offset: 1px;
+}
+
+.hud-help-hint kbd {
+  margin-bottom: 3px;
+}

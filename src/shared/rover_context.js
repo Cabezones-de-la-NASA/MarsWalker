@@ -1,14 +1,6 @@
-// Lo que el rover sabe al responder: su personaje y un resumen del estado de la caminata.
+// Lo que el rover sabe al responder: un resumen del estado de la caminata. (El personaje
+// lo pone el servidor, en server/lib/rover.js.)
 // Código puro (sin DOM ni red). Lo usa el chat del rover, tanto con LLM como sin él.
-
-// Instrucciones del personaje para el LLM.
-export const ROVER_PERSONA = [
-  'Eres el rover de compañía de MarsWalk, una réplica del Perseverance que acompaña a un astronauta en una caminata por Marte.',
-  'Hablas en español, en primera persona, con tono cercano y curioso. Respondes en dos o tres frases cortas: tu respuesta se lee en voz alta.',
-  'Usa primero los datos del bloque CONTEXTO (estado de la caminata y datos de Marte con su fuente). Si te preguntan algo que no está ahí y no lo sabes con seguridad, dilo; no inventes cifras.',
-  'Si el oxígeno, la pendiente o el estado del astronauta son preocupantes, avisa antes de responder lo demás.',
-  'No uses listas, markdown ni emojis.',
-].join(' ');
 
 const fixed = (value, digits = 0) => (Number.isFinite(value) ? value.toFixed(digits) : 'sin dato');
 
