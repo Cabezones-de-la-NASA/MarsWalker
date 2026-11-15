@@ -26,7 +26,7 @@ import { createSpeech } from './rover_chat/speech.js';
 import { createSound } from './audio/sound.js';
 import { createSortie } from './sortie.js';
 import { markFirstContactDone } from '../shared/first_contact.js';
-import { NOMINAL_DUST_TAU, STORM_DUST_TAU } from '../models/environment/weather.js';
+import { NOMINAL_DUST_TAU, sampleDust } from '../models/environment/dust_storm.js';
 import { VEHICLE } from '../models/locomotion/vehicle.js';
 import { FOLLOW } from '../models/locomotion/follow.js';
 import { memberStatus } from '../models/physiology/group.js';
@@ -342,9 +342,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     hud.say(text);
     if (!sound.isMuted()) speech.speak(text);
   }
-  // Viento para el sonido: 0 en calma y 1 en plena tormenta, según el polvo de la escena.
-  const windLevel = () => Math.min(Math.max(
-    ((state.environment?.dust_tau ?? NOMINAL_DUST_TAU) - NOMINAL_DUST_TAU) / (STORM_DUST_TAU - NOMINAL_DUST_TAU), 0), 1);
+  const nominalDust = sampleDust(NOMINAL_DUST_TAU);
   sortie = createSortie({
     world, dem, groundAt: terrainGroundAt, bounds, hud, sound, say: roverSay, platforms,
     getOxygen_l: () => vitals.get().vitals.o2_l,
@@ -554,13 +552,19 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       return;
     }
     const look = paused ? [0, 0] : input.consumeLook();
+    const dustReading = state.environment?.dust ?? nominalDust;
+    const windSound = {
+      wind: Math.min(1, dustReading.wind_ms / 28),
+      airborneDust: dustReading.load,
+      dustGust: dustReading.gust,
+    };
     // El tiempo de Marte (Sol, clima) avanza con la velocidad elegida. Lo escucha quien
     // lleve el reloj de simulación.
     if (!paused && landing) emit('time:advance', delta_s * landing.scale);
     else if (!paused && timeScale > 0) emit('time:advance', delta_s * timeScale);
     if (landing) {
       if (!paused) landing.t_s += delta_s * landing.scale;
-      sound.update(delta_s, { walking_m: 0, heart_bpm: 70, wind: windLevel(), vehicle_speed_ms: null, falling: true });
+      sound.update(delta_s, { ...windSound, walking_m: 0, heart_bpm: 70, vehicle_speed_ms: null, falling: true });
       const fall = descentState(landing.t_s);
       player = { ...player, y_m: landing.ground_m + fall.altitude_m, yaw_rad: landing.yaw0_rad + fall.spin_rad, grounded: false };
       placeAstronaut();
@@ -585,7 +589,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       placeAstronaut();
       vitals.update(delta_s, player.x_m, player.z_m, { riding: true });
       companion.update(delta_s, player, world.camera, FOLLOW_VEHICLE);
-      sound.update(delta_s, { walking_m: 0, heart_bpm: vitals.get().vitals.heart_rate_bpm, wind: windLevel(), vehicle_speed_ms: car.speed_ms });
+      sound.update(delta_s, { ...windSound, walking_m: 0, heart_bpm: vitals.get().vitals.heart_rate_bpm, vehicle_speed_ms: car.speed_ms });
       state.astronaut_position_m = [player.x_m, player.z_m];
       target = null;
     } else if (!paused) {
@@ -632,8 +636,8 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       sound.update(delta_s, {
         walking_m: player.grounded ? Math.hypot(player.x_m - before.x_m, player.z_m - before.z_m) : 0,
         running: speed_ms > LOCOMOTION.walk_speed_ms + 0.05,
-        heart_bpm: flags.heart_rate_bpm, wind: windLevel(), vehicle_speed_ms: null, drilling: guided.drilling,
-        agitation: windLevel(),
+        ...windSound, heart_bpm: flags.heart_rate_bpm, vehicle_speed_ms: null, drilling: guided.drilling,
+        agitation: .39 * dustReading.load,
       });
       // Aviso sonoro la primera vez que el oxígeno baja del 10 %.
       if (flags.flags.o2_low && !lowOxygenWarned) sound.beep('low');
@@ -645,7 +649,8 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     followCamera.update(delta_s, player, look, cabinEye);
     terrain.patch.update(player.x_m, player.z_m);
     rocks.update(player.x_m, player.z_m);
-    dust?.update(delta_s, world.camera, state.environment?.dust_tau ?? 0.5);
+    dust?.update(delta_s, world.camera, dustReading, world.look, world.renderer.domElement.height);
+    if (!paused) footprints.weather(delta_s, dustReading);
     world.setShadowFocus(rig.object.position);
 
     // Marcas de interés: flotan con un vaivén suave y desaparecen al usar la cosa.
@@ -691,7 +696,8 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
         const bearing_deg = (Math.atan2(goal.x_m - player.x_m, -(goal.z_m - player.z_m)) * 180) / Math.PI;
         hud.setCompassTarget({ offset_deg: ((bearing_deg - heading_deg + 540) % 360) - 180, label: goal.label });
       } else hud.setCompassTarget(null);
-      hud.setDust(windLevel());
+      const visor = followCamera.isFirstPerson() && !landing;
+      hud.setDust(visor ? dustReading.load * (driving ? .63 : 1) : 0, dustReading);
       hud.update({
         vehicle: { driving, driven_m: snapshot.driven_m },
         objective: interaction.nearestObjective(player.x_m, player.z_m),

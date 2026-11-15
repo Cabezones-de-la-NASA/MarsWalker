@@ -16,6 +16,19 @@ export function createFootprints(scene, maxPrints) {
     color: 0x2a140c, transparent: true, opacity: 0.42, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
   });
+  const printDust = new THREE.InstancedBufferAttribute(new Float32Array(maxPrints), 1);
+  printDust.setUsage(THREE.DynamicDrawUsage);
+  geometry.setAttribute('printDust', printDust);
+  const deposit = { value: 0 };
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.dustDeposit = deposit;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float printDust; varying float vPrintDust;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvPrintDust = printDust;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform float dustDeposit; varying float vPrintDust;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= exp(vPrintDust - dustDeposit);');
+  };
   const mesh = new THREE.InstancedMesh(geometry, material, maxPrints);
   mesh.name = 'footprints';
   mesh.count = 0;
@@ -38,8 +51,12 @@ export function createFootprints(scene, maxPrints) {
     setActive(active) {
       mesh.visible = active;
     },
+    weather(delta_s, dust) {
+      deposit.value += delta_s * (dust.load * .105 + dust.gust * .36);
+    },
     reset() {
       mesh.count = 0;
+      deposit.value = 0;
       next = 0;
       walked_m = 0;
       lastX_m = lastZ_m = null;
@@ -67,6 +84,8 @@ export function createFootprints(scene, maxPrints) {
       quaternion.setFromAxisAngle(up, player.yaw_rad);
       matrix.compose(position, quaternion, scale);
       mesh.setMatrixAt(next, matrix);
+      printDust.setX(next, deposit.value);
+      printDust.needsUpdate = true;
       next = (next + 1) % maxPrints;
       mesh.count = Math.min(mesh.count + 1, maxPrints);
       mesh.instanceMatrix.needsUpdate = true;

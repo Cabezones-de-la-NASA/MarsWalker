@@ -6,10 +6,17 @@ import { state, on, emit } from '../../shared/state.js';
 import { createSimClock } from '../../shared/sim_clock.js';
 import { solarState, sunDirection, JEZERO_LAT_DEG } from '../../models/environment/solar.js';
 import {
-  weatherState, nearestShelter, NOMINAL_DUST_TAU, STORM_DUST_TAU,
+  weatherState, nearestShelter,
 } from '../../models/environment/weather.js';
+import {
+  MAX_DUST_TAU, NOMINAL_DUST_TAU, STORM_DUST_TAU, sampleDust, stormTransition,
+} from '../../models/environment/dust_storm.js';
 
 const PHASE_LABELS = { day: 'día', twilight: 'crepúsculo', night: 'noche' };
+const DUST_LABELS = {
+  calm: 'Calma', haze: 'Polvo en suspensión', approaching: 'Frente en camino', crossing: 'Frente de polvo',
+  active: 'Tormenta activa', settling: 'Polvo en suspensión tras el frente',
+};
 // [diseño] Segundos simulados por tick del reloj.
 const CLOCK_DT_S = 20;
 // [diseño] Ticks por cuadro al pulsar "Reproducir tiempo" en el mapa (120 s simulados).
@@ -34,7 +41,14 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
   const panel = shell.body;
 
   // --- Controles
-  const env = { ls_deg: 0, ltst_h: 12, dust_tau: NOMINAL_DUST_TAU, storm: false };
+  const env = { ls_deg: 0, ltst_h: 12, dust_tau: NOMINAL_DUST_TAU, storm: false, storm_phase: 'calm' };
+  let elapsed_s = 0;
+  let lastWeather_s = 0;
+  let baseline_tau = NOMINAL_DUST_TAU;
+  let manualOn = false;
+  let transition = null;
+  let manualDust = { dust_tau: baseline_tau, phase: 'calm' };
+  let missionDust = { dust_tau: NOMINAL_DUST_TAU, phase: 'calm' };
   const sliders = {};
   function addSlider(key, label, min, max, step, format) {
     const row = el('label', 'env-row');
@@ -47,8 +61,16 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
     input.dataset.env = key;
     const value = el('span', 'env-value', format(env[key]));
     input.addEventListener('input', () => {
-      env[key] = Number(input.value);
-      if (key !== 'dust_tau') clock.setStart({ ls_deg: env.ls_deg, ltst_h: env.ltst_h });
+      const next = Number(input.value);
+      if (key === 'dust_tau') {
+        transition = null;
+        if (!manualOn) baseline_tau = next;
+        const phase = manualOn || next >= 2.5 ? 'active' : next > .65 ? 'haze' : 'calm';
+        manualDust = { dust_tau: next, phase };
+      } else {
+        env[key] = next;
+        clock.setStart({ ls_deg: env.ls_deg, ltst_h: env.ltst_h });
+      }
       update();
     });
     row.append(el('span', null, label), input, value);
@@ -57,7 +79,7 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
   }
   addSlider('ltst_h', 'Hora local', 0, 23.75, 0.25, formatHour);
   addSlider('ls_deg', 'Estación (Ls)', 0, 359, 1, (v) => `${v.toFixed(0)}°`);
-  addSlider('dust_tau', 'Polvo (τ)', 0, 5, 0.1, (v) => v.toFixed(1));
+  addSlider('dust_tau', 'Polvo (τ)', 0, MAX_DUST_TAU, 0.1, (v) => v.toFixed(1));
 
   // --- Lecturas
   const readings = el('dl', 'env-readings');
@@ -68,7 +90,9 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
     ['irradiance', 'Irradiancia en superficie'],
     ['distance', 'Distancia al Sol'],
     ['temperature', 'Temperatura'],
-    ['wind', 'Viento'],
+    ['wind', 'Viento simulado'],
+    ['visibility', 'Visibilidad estimada'],
+    ['storm', 'Estado del polvo'],
   ]) {
     const value = el('dd');
     value.dataset.reading = key;
@@ -83,13 +107,14 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
   playButton.type = 'button';
   const stormButton = el('button', 'env-storm', 'Simular tormenta');
   stormButton.type = 'button';
+  stormButton.setAttribute('aria-pressed', 'false');
   actions.append(playButton, stormButton);
   const status = el('div', 'env-note');
   status.setAttribute('role', 'status');
   panel.append(
     actions,
     status,
-    el('div', 'env-note', 'Viento: ningún modelo del proyecto lo calcula todavía. Temperatura: modelo de diseño (M17), sin ajustar con datos de MEDA.'),
+    el('div', 'env-note', 'El viento y la visibilidad son estimaciones del escenario. La evolución de la tormenta se acelera para el juego.'),
   );
   container.append(shell.root);
 
@@ -98,19 +123,26 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
   const clock = createSimClock({ dt_s: CLOCK_DT_S, ls_deg: env.ls_deg, ltst_h: env.ltst_h });
   let sun = null;
   let weather = null;
+  let dust = null;
   clock.subscribe((time) => {
     env.ltst_h = time.ltst_h;
     env.ls_deg = time.ls_deg;
-    sun = solarState({ ...env, lat_deg: JEZERO_LAT_DEG });
+    update();
   });
-  clock.subscribe(() => {
-    weather = weatherState(env);
-  });
-  clock.subscribe(() => render());
 
   function update() {
+    if (transition) {
+      manualDust = stormTransition({ ...transition, elapsed_s: elapsed_s - transition.started_s });
+      if (manualDust.done) transition = null;
+    }
+    const leading = missionDust.dust_tau > manualDust.dust_tau ? missionDust : manualDust;
+    env.dust_tau = leading.dust_tau;
+    env.storm_phase = leading.phase;
+    env.storm = ['crossing', 'active'].includes(leading.phase);
+    dust = sampleDust(env.dust_tau, elapsed_s);
     sun = solarState({ ...env, lat_deg: JEZERO_LAT_DEG });
     weather = weatherState(env);
+    lastWeather_s = elapsed_s;
     render();
   }
 
@@ -124,28 +156,30 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
     values.irradiance.textContent = `${sun.surface_w_m2.toFixed(0)} W/m²`;
     values.distance.textContent = `${sun.sun_distance_au.toFixed(3)} UA`;
     values.temperature.textContent = `${weather.ambient_temp_c.toFixed(1)} °C`;
-    values.wind.textContent = 'sin dato';
+    values.wind.textContent = `${dust.wind_ms.toFixed(0)} m/s · desde ${dust.wind_from_deg.toFixed(0)}°`;
+    values.visibility.textContent = dust.visibility_m >= 1000
+      ? `${(dust.visibility_m / 1000).toFixed(1)} km` : `${dust.visibility_m.toFixed(0)} m`;
+    values.storm.textContent = DUST_LABELS[env.storm_phase];
 
     // Luz, cielo y bruma de la escena: dirección del Sol de M16 y polvo de M17.
     world.setEnvironment({
       sunDirection: sunDirection(sun.elevation_deg, sun.azimuth_deg),
       sun,
-      weather: { dust_tau: env.dust_tau, storm: env.storm },
+      weather: { ...dust, storm: env.storm },
     });
-    state.environment = { ...env, sun, weather };
+    state.environment = { ...env, sun, weather, dust };
     emit('environment:change', state.environment);
   }
 
   let playing = false;
-  world.onFrame(() => {
+  world.onFrame((delta_s) => {
+    elapsed_s += delta_s;
     if (playing) clock.tick(PLAY_TICKS_PER_FRAME);
+    if ((transition || env.dust_tau > 0.65) && elapsed_s - lastWeather_s >= .12) update();
   });
-  // La misión "Primer contacto" trae su propia tormenta, poco a poco.
-  on('environment:dust', ({ dust_tau, storm }) => {
-    env.dust_tau = dust_tau;
-    env.storm = storm;
-    stormButton.classList.toggle('is-active', storm);
-    stormButton.textContent = storm ? 'Terminar tormenta' : 'Simular tormenta';
+  // El frente guionado y el manual pueden coincidir: prevalece el mayor polvo.
+  on('environment:dust', ({ dust_tau, phase }) => {
+    missionDust = { dust_tau, phase };
     update();
   });
   // En la superficie el tiempo corre solo: el modo a pie avisa de cuántos segundos
@@ -160,12 +194,16 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
   });
 
   stormButton.addEventListener('click', () => {
-    env.storm = !env.storm;
-    env.dust_tau = env.storm ? STORM_DUST_TAU : NOMINAL_DUST_TAU;
-    stormButton.classList.toggle('is-active', env.storm);
-    stormButton.textContent = env.storm ? 'Terminar tormenta' : 'Simular tormenta';
+    manualOn = !manualOn;
+    transition = {
+      active: manualOn, started_s: elapsed_s, start_tau: manualDust.dust_tau,
+      target_tau: manualOn ? Math.max(STORM_DUST_TAU, baseline_tau) : baseline_tau,
+    };
+    stormButton.classList.toggle('is-active', manualOn);
+    stormButton.setAttribute('aria-pressed', String(manualOn));
+    stormButton.textContent = manualOn ? 'Terminar tormenta' : 'Simular tormenta';
     update();
-    if (!env.storm) {
+    if (!manualOn) {
       status.textContent = '';
       return;
     }
@@ -175,20 +213,20 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
     const from_m = routePanel.getStart() ?? state.astronaut_position_m;
     const shelter = from_m ? nearestShelter(points, from_m) : null;
     if (!shelter) {
-      status.textContent = 'Tormenta activa. Esta zona no tiene refugio: coloca una base en el panel Misión.';
+      status.textContent = 'Frente de polvo en camino. Coloca una base en el panel Misión para disponer de un refugio.';
       return;
     }
     if (Math.hypot(shelter.position_m[0] - from_m[0], shelter.position_m[1] - from_m[1]) < 1) {
       status.textContent =
-        `Tormenta activa. El astronauta ya está en ${shelter.name}. Para trazar una evacuación, elige un inicio en el panel Ruta.`;
+        `Frente de polvo en camino. El astronauta ya está en ${shelter.name}. Para trazar una evacuación, elige un inicio en el panel Ruta.`;
       return;
     }
     routePanel.setAlgorithm('astar');
     routePanel.setPoints([...from_m], [...shelter.position_m]);
     routePanel.compute();
-    status.textContent = `Tormenta activa. Ruta de evacuación a ${shelter.name} trazada con A* O2.`;
+    status.textContent = `Frente de polvo en camino. Se inició el cálculo de evacuación a ${shelter.name} con A* O₂.`;
   });
 
   update();
-  return { panel: shell.root, getEnvironment: () => ({ ...env, sun, weather }) };
+  return { panel: shell.root, getEnvironment: () => ({ ...env, sun, weather, dust }) };
 }
