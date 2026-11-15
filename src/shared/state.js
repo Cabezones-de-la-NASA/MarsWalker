@@ -16,6 +16,8 @@ export const state = {
   realism: false,
   // El mapa pide repetir el aterrizaje en paracaídas en la próxima bajada.
   landingRequested: false,
+  // El mapa pide la misión guiada "Primer contacto" en la próxima bajada.
+  sortieRequested: false,
 };
 
 const handlers = new Map();

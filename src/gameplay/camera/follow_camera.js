@@ -25,6 +25,7 @@ export function createFollowCamera(camera, groundAt) {
   let pitch = 0.22;
   let firstPerson = false;
   let freeLook = false;
+  let shake_m = 0;
   let distance_m = THIRD_DISTANCE_M;
   let targetHeight_m = THIRD_TARGET_HEIGHT_M;
   let eyeHeight_m = EYE_HEIGHT_M;
@@ -75,6 +76,10 @@ export function createFollowCamera(camera, groundAt) {
     },
     // Mirada libre: se puede mirar en cualquier dirección, de casi el cenit a casi el
     // nadir (el giro horizontal ya es de 360°). Se usa durante el aterrizaje.
+    // Sacude la cámara amount_m metros; se apaga en medio segundo.
+    shake(amount_m) {
+      shake_m = amount_m;
+    },
     setFreeLook(on) {
       freeLook = on;
       // Al terminar, la mirada vuelve a los límites normales.
@@ -104,6 +109,12 @@ export function createFollowCamera(camera, groundAt) {
         if (position.y < floor_m) position.y = floor_m;
       }
       camera.position.copy(position);
+      // Sacudida que se apaga sola (el golpe del aterrizaje).
+      if (shake_m > 0.002) {
+        camera.position.x += (Math.random() - 0.5) * shake_m;
+        camera.position.y += (Math.random() - 0.5) * shake_m;
+        shake_m *= Math.exp(-6 * delta_s);
+      }
       camera.up.set(0, 1, 0);
       camera.lookAt(target);
     },

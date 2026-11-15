@@ -741,3 +741,121 @@
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
+
+/* ---- Misión guiada ---- */
+.hud-sortie {
+  position: absolute;
+  left: 50%;
+  top: 84px;
+  transform: translateX(-50%);
+  min-width: 360px;
+  max-width: 90vw;
+  padding: var(--space-2) var(--space-5);
+  display: grid;
+  gap: 4px;
+  text-align: center;
+  background: rgba(18, 10, 7, 0.72);
+  border: 1px solid var(--line-strong);
+  border-top: 2px solid var(--hud-amber);
+}
+
+.hud-sortie[hidden],
+.hud-sortie [hidden] {
+  display: none;
+}
+
+.hud-sortie-title {
+  font-size: var(--text-xs);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--hud-amber);
+}
+
+.hud-sortie strong {
+  font: 500 20px / 1.25 var(--font-ui);
+}
+
+.hud-sortie-storm {
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--warn);
+  animation: hud-storm-pulse 1s ease-in-out infinite;
+}
+
+.hud-sortie-storm.is-here {
+  color: var(--danger);
+}
+
+@keyframes hud-storm-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* En la misión guiada sobra el panel de misión libre. */
+.hud.is-sortie .hud-mission {
+  display: none;
+}
+
+/* ---- Burbujas del rover ---- */
+.hud-feed {
+  position: absolute;
+  right: var(--space-4);
+  top: 64px;
+  width: min(340px, 34vw);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.hud-bubble {
+  padding: var(--space-2) var(--space-3);
+  background: rgba(18, 10, 7, 0.78);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--hud-amber);
+  white-space: normal;
+  animation: hud-bubble-in 0.35s var(--ease) both;
+  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+}
+
+.hud-bubble.is-leaving {
+  opacity: 0;
+  transform: translateX(16px);
+}
+
+.hud-bubble-who {
+  font-size: var(--text-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hud-amber);
+}
+
+.hud-bubble p {
+  margin: 2px 0 0;
+  font: 400 15px / 1.4 var(--font-ui);
+  color: var(--hud-cream);
+}
+
+@keyframes hud-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+
+/* Con telemetría completa (Tab) las burbujas bajan para no tapar la navegación. */
+.hud.is-detailed .hud-feed {
+  top: 300px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-sortie-storm,
+  .hud-bubble {
+    animation: none;
+  }
+}
+
+/* En la misión guiada el tiempo no se acelera: no se anuncia la tecla T. */
+.hud.is-sortie .hud-clock kbd {
+  display: none;
+}

@@ -22,6 +22,11 @@ import { createParachute } from '../models3d/parachute.js';
 import { createCapsule, CAPSULE_RADIUS_M, CAPSULE_HEIGHT_M } from '../models3d/capsule.js';
 import { DESCENT, descentState } from '../models/locomotion/descent.js';
 import { createRoverChat } from './rover_chat/chat_panel.js';
+import { createSpeech } from './rover_chat/speech.js';
+import { createSound } from './audio/sound.js';
+import { createSortie } from './sortie.js';
+import { markFirstContactDone } from '../shared/first_contact.js';
+import { NOMINAL_DUST_TAU, STORM_DUST_TAU } from '../models/environment/weather.js';
 import { VEHICLE } from '../models/locomotion/vehicle.js';
 import { FOLLOW } from '../models/locomotion/follow.js';
 import { memberStatus } from '../models/physiology/group.js';
@@ -175,6 +180,13 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   let promptIntro_s = PROMPT_INTRO_S;
   // Aterrizaje en curso: { t_s, scale, ground_m, yaw0_rad } o null.
   let landing = null;
+  // Misión "Primer contacto" pedida para esta bajada: sin realismo, sin acelerar el
+  // tiempo y sin camioneta hasta terminarla.
+  let sortieMode = false;
+  const isRealism = () => state.realism && !sortieMode;
+  const sound = createSound();
+  const speech = createSpeech();
+  let lowOxygenWarned = false;
   // La primera bajada de cada visita es siempre con la caída; después, a petición.
   let hasLanded = false;
   const parachute = createParachute();
@@ -195,7 +207,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
 
   function setTimeScale(scale) {
     // Solo mueve el reloj de Marte (Sol y clima). La fisiología va siempre en tiempo real.
-    timeScale = state.realism ? 1 : scale;
+    timeScale = isRealism() || sortieMode ? 1 : scale;
     hud.setTimeScale(timeScale);
   }
 
@@ -281,6 +293,27 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     }
   }
 
+  // El rover habla: burbuja a la derecha y, si el sonido está activo, voz.
+  function roverSay(text) {
+    hud.say(text);
+    if (!sound.isMuted()) speech.speak(text);
+  }
+  // Viento para el sonido: 0 en calma y 1 en plena tormenta, según el polvo de la escena.
+  const windLevel = () => Math.min(Math.max(
+    ((state.environment?.dust_tau ?? NOMINAL_DUST_TAU) - NOMINAL_DUST_TAU) / (STORM_DUST_TAU - NOMINAL_DUST_TAU), 0), 1);
+  const sortie = createSortie({
+    world, dem, groundAt, bounds, hud, sound, say: roverSay,
+    getOxygen_l: () => vitals.get().vitals.o2_l,
+    onDone() {
+      // Misión cumplida: llega la camioneta y todo queda libre.
+      markFirstContactDone();
+      emit('sortie:complete');
+      sortieMode = false;
+      placeVehicle();
+      setTimeScale(DEFAULT_TIME_SCALE);
+    },
+  });
+
   const input = createInput(world.renderer.domElement, {
     onInteract() {
       if (!active || paused) return;
@@ -288,7 +321,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
         hud.hideCard();
         return;
       }
-      if (!target || driving || landing) return;
+      if (!target || driving || landing || sortie.isActive()) return;
       if (target.type === 'rover') openChat();
       else {
         if (target.type === 'capsule') capsuleSeen = true;
@@ -305,7 +338,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     },
     // G trae la camioneta junto al astronauta, esté donde esté.
     onSummonVehicle() {
-      if (active && !paused && !driving && !chatOpen && !state.realism && !landing) placeVehicle();
+      if (active && !paused && !driving && !chatOpen && !isRealism() && !sortieMode && !landing) placeVehicle();
     },
     // T pasa a la siguiente velocidad del tiempo (la pausa se elige en el menú).
     onTimeScale() {
@@ -316,12 +349,18 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
         landing.scale = steps[(steps.indexOf(landing.scale) + 1) % steps.length];
         return;
       }
-      if (state.realism) return;
+      if (isRealism() || sortieMode) return;
       const speeds = TIME_SCALES.filter((scale) => scale > 0);
       setTimeScale(speeds[(speeds.indexOf(timeScale) + 1) % speeds.length]);
     },
     onDetails() {
       if (active) hud.toggleDetails();
+    },
+    onMute() {
+      if (!active) return;
+      const muted = sound.toggleMuted();
+      if (muted) speech.cancelSpeech();
+      hud.say(muted ? 'Sonido apagado. Pulsa M para volver a oírme.' : 'Sonido activado.');
     },
     onMenu() {
       if (!active || justClosedChat()) return;
@@ -403,6 +442,9 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     rig.setVisible(!followCamera.isFirstPerson());
     vitals.reset(player.x_m, player.z_m);
     hasLanded = true;
+    sound.thud();
+    followCamera.shake(0.5);
+    if (sortieMode) sortie.start(capsuleSite);
   }
   const shouldLand = () => state.landingRequested || !hasLanded;
 
@@ -459,6 +501,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     else if (!paused && timeScale > 0) emit('time:advance', delta_s * timeScale);
     if (landing) {
       if (!paused) landing.t_s += delta_s * landing.scale;
+      sound.update(delta_s, { walking_m: 0, heart_bpm: 70, wind: windLevel(), vehicle_speed_ms: null, falling: true });
       const fall = descentState(landing.t_s);
       player = { ...player, y_m: landing.ground_m + fall.altitude_m, yaw_rad: landing.yaw0_rad + fall.spin_rad, grounded: false };
       placeAstronaut();
@@ -483,6 +526,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       placeAstronaut();
       vitals.update(delta_s, player.x_m, player.z_m, { riding: true });
       companion.update(delta_s, player, world.camera, FOLLOW_VEHICLE);
+      sound.update(delta_s, { walking_m: 0, heart_bpm: vitals.get().vitals.heart_rate_bpm, wind: windLevel(), vehicle_speed_ms: car.speed_ms });
       state.astronaut_position_m = [player.x_m, player.z_m];
       target = null;
     } else if (!paused) {
@@ -501,6 +545,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       const jump = input.state.jump && !jumpHeld;
       jumpHeld = input.state.jump;
       const previousYaw = player.yaw_rad;
+      const before = player;
       player = stepPlayer(player, { dirX, dirZ, run: input.state.run, jump }, env, delta_s);
       const speed_ms = horizontalSpeed_ms(player);
       placeAstronaut();
@@ -513,9 +558,24 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       });
       vitals.update(delta_s, player.x_m, player.z_m);
       footprints.update(player, groundAt);
-      companion.update(delta_s, player, world.camera);
+      // Misión guiada: el rover se adelanta hacia la muestra mientras no deje atrás al
+      // astronauta; fuera de ella, lo sigue.
+      const guided = sortie.update(delta_s, { player, holding: input.state.interact && !hud.isCardOpen() });
+      const rover = companion.position();
+      const lead = guided.leadTarget;
+      const leading = lead && rover && Math.hypot(rover.x_m - player.x_m, rover.z_m - player.z_m) < lead.leash_m;
+      companion.update(delta_s, leading ? lead : player, world.camera);
       state.astronaut_position_m = [player.x_m, player.z_m];
-      target = interaction.nearest(player.x_m, player.z_m);
+      target = sortie.isActive() ? null : interaction.nearest(player.x_m, player.z_m);
+      const flags = vitals.get().vitals;
+      sound.update(delta_s, {
+        walking_m: player.grounded ? Math.hypot(player.x_m - before.x_m, player.z_m - before.z_m) : 0,
+        running: speed_ms > LOCOMOTION.walk_speed_ms + 0.05,
+        heart_bpm: flags.heart_rate_bpm, wind: windLevel(), vehicle_speed_ms: null, drilling: guided.drilling,
+      });
+      // Aviso sonoro la primera vez que el oxígeno baja del 10 %.
+      if (flags.flags.o2_low && !lowOxygenWarned) sound.beep('low');
+      lowOxygenWarned = flags.flags.o2_low;
     }
 
     followCamera.update(delta_s, player, look);
@@ -546,7 +606,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       const heading_deg = ((Math.atan2(Math.sin(yaw), -Math.cos(yaw)) * 180) / Math.PI + 360) % 360;
       const speed_ms = horizontalSpeed_ms(player);
       const prompts = [];
-      if (!paused && !hud.isCardOpen() && !chatOpen && !landing) {
+      if (!paused && !hud.isCardOpen() && !chatOpen && !landing && !sortie.isActive()) {
         if (driving) {
           if (speed_ms < 2) prompts.push(['F', 'Bajar de la camioneta']);
         } else {
@@ -591,6 +651,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     // Referencias para las pruebas de navegador.
     debug: {
       getPlayer: () => player, vitals, followCamera, input, hud, interaction, rig, env, companion, station, beacons,
+      sortie, sound, isSortieMode: () => sortieMode,
       truck, chat, toggleVehicle, parachute, capsule, capsuleMark, truckMark, getCapsuleSite: () => capsuleSite, getLanding: () => landing, openChat, isDriving: () => driving, getTimeScale: () => timeScale, setTimeScale, roverSnapshot,
     },
     enter() {
@@ -600,9 +661,18 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       if (driving) setDriving(false);
       spawn(state.astronaut_position_m ?? [0, 0]);
       setTimeScale(DEFAULT_TIME_SCALE);
-      if (state.realism) {
+      // "Primer contacto": siempre con aterrizaje, con rover y sin camioneta hasta acabar.
+      sortieMode = state.sortieRequested;
+      state.sortieRequested = false;
+      setTimeScale(DEFAULT_TIME_SCALE); // en la misión guiada queda en 1×
+      sound.resume();
+      hud.clearFeed();
+      if (isRealism()) {
         // Con realismo se va solo y a pie: sin rover de compañía ni camioneta.
         companion.remove();
+        truck.remove();
+      } else if (sortieMode) {
+        placeCompanion();
         truck.remove();
       } else {
         // Si el astronauta se movió en el mapa, el rover reaparece a su lado.
@@ -610,7 +680,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
         if (!rover || Math.hypot(rover.x_m - player.x_m, rover.z_m - player.z_m) > 30) placeCompanion();
         if (!truck.state()) placeVehicle();
       }
-      hud.setRealism(state.realism);
+      hud.setRealism(isRealism());
       vitals.reset(player.x_m, player.z_m);
       footprints.reset();
       world.setView('surface');
@@ -633,12 +703,16 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       promptIntro_s = PROMPT_INTRO_S;
       hud.dockPrompts(false);
       // La primera bajada (o si se pide en el mapa) empieza colgando del paracaídas.
-      if (shouldLand()) startLanding();
+      if (shouldLand() || sortieMode) startLanding();
       state.landingRequested = false;
     },
     exit() {
       if (!active) return;
       chat.close();
+      sortie.cancel();
+      sortieMode = false;
+      speech.cancelSpeech();
+      sound.suspend();
       if (landing) finishLanding(true);
       if (driving) toggleVehicle();
       active = false;

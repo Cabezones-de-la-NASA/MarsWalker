@@ -140,6 +140,14 @@ export function createEnvironmentPanel(container, { world, routePanel, getPoints
   world.onFrame(() => {
     if (playing) clock.tick(PLAY_TICKS_PER_FRAME);
   });
+  // La misión "Primer contacto" trae su propia tormenta, poco a poco.
+  on('environment:dust', ({ dust_tau, storm }) => {
+    env.dust_tau = dust_tau;
+    env.storm = storm;
+    stormButton.classList.toggle('is-active', storm);
+    stormButton.textContent = storm ? 'Terminar tormenta' : 'Simular tormenta';
+    update();
+  });
   // En la superficie el tiempo corre solo: el modo a pie avisa de cuántos segundos
   // simulados pasan en cada cuadro (su velocidad se elige allí).
   on('time:advance', (seconds) => {

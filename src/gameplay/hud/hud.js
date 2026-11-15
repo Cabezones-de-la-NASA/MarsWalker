@@ -28,6 +28,9 @@ const PHASES = { day: 'día', twilight: 'crepúsculo', night: 'noche' };
 const COMPASS_PX_PER_DEG = 3;
 // Duración del vuelo de los avisos hacia el panel de teclas (igual que en hud.css).
 const DOCK_TRANSITION_MS = 700;
+// [diseño] Burbujas del rover a la vez, y segundos que dura cada una.
+const FEED_MAX = 3;
+const FEED_SECONDS = 11;
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -172,6 +175,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   helpLine(['F'], 'subir o bajar de la camioneta');
   helpLine(['G'], 'traer la camioneta');
   helpLine(['T'], 'velocidad del tiempo');
+  helpLine(['M'], 'sonido sí o no');
   helpLine(['V'], 'cambiar vista');
   helpLine(['Esc'], 'menú');
   const fps = el('div', 'hud-fps');
@@ -187,6 +191,21 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   landingBar.append(landingFill);
   const landingSpeed = el('div', 'hud-landing-speed');
   landingBox.append(el('span', 'hud-landing-title', 'Aterrizaje en paracaídas'), landingAltitude, landingInfo, landingBar, landingSpeed);
+
+  // ---- Misión guiada: qué hacer ahora, cuenta atrás de la tormenta y barra al recoger
+  const sortieBox = el('section', 'hud-sortie');
+  sortieBox.hidden = true;
+  const sortieTitle = el('span', 'hud-sortie-title');
+  const sortieDetail = el('strong');
+  const sortieStorm = el('div', 'hud-sortie-storm');
+  const sortieHold = el('div', 'hud-bar');
+  const sortieHoldFill = el('i');
+  sortieHold.append(sortieHoldFill);
+  sortieBox.append(sortieTitle, sortieDetail, sortieHold, sortieStorm);
+
+  // ---- Lo que dice el rover: burbujas a la derecha que se van solas
+  const feed = el('div', 'hud-feed');
+  feed.setAttribute('aria-live', 'polite');
 
   let promptSignature = '';
   let promptsDocked = false;
@@ -235,7 +254,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
     ['W A S D', 'Moverse'], ['Ratón', 'Mirar'], ['Shift', 'Correr'], ['Space', 'Saltar'],
     ['E', 'Interactuar y hablar con el rover'], ['F', 'Subir o bajar de la camioneta'],
     ['G', 'Traer la camioneta a tu lado'],
-    ['T', 'Velocidad del tiempo'], ['Tab', 'Telemetría completa'],
+    ['T', 'Velocidad del tiempo'], ['Tab', 'Telemetría completa'], ['M', 'Sonido sí o no'],
     ['V', 'Primera o tercera persona'], ['Esc', 'Este menú'],
   ]) {
     const dt = el('dt');
@@ -245,7 +264,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   box.append(controls);
   menu.append(box);
 
-  hud.append(vitals, nav, compass, heading, clock, vehicleBadge, mission, help, landingBox, reticle, prompt, card, menu);
+  hud.append(vitals, nav, compass, heading, clock, vehicleBadge, mission, help, landingBox, sortieBox, feed, reticle, prompt, card, menu);
   container.append(hud);
 
   return {
@@ -300,6 +319,33 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
       clock.classList.toggle('is-paused', scale === 0);
     },
     // Tab: muestra u oculta la telemetría completa.
+    // sortie: { title, detail, countdown_s (o null), storm, hold (0..1) } o null.
+    setSortie(sortie) {
+      sortieBox.hidden = !sortie;
+      hud.classList.toggle('is-sortie', Boolean(sortie));
+      if (!sortie) return;
+      sortieTitle.textContent = sortie.title;
+      sortieDetail.textContent = sortie.detail;
+      sortieHold.hidden = sortie.hold <= 0;
+      sortieHoldFill.style.transform = `scaleX(${Math.min(sortie.hold, 1)})`;
+      sortieStorm.hidden = sortie.countdown_s === null && !sortie.storm;
+      sortieStorm.classList.toggle('is-here', sortie.storm);
+      sortieStorm.textContent = sortie.storm
+        ? 'Tormenta de polvo encima'
+        : sortie.countdown_s !== null ? `Tormenta en ${Math.ceil(sortie.countdown_s)} s` : '';
+    },
+    // El rover dice algo: una burbuja a la derecha que se apaga sola.
+    say(text, who = 'Rover') {
+      const bubble = el('div', 'hud-bubble');
+      bubble.append(el('span', 'hud-bubble-who', who), el('p', null, text));
+      feed.append(bubble);
+      while (feed.children.length > FEED_MAX) feed.firstChild.remove();
+      window.setTimeout(() => bubble.classList.add('is-leaving'), FEED_SECONDS * 1000);
+      window.setTimeout(() => bubble.remove(), FEED_SECONDS * 1000 + 700);
+    },
+    clearFeed() {
+      feed.replaceChildren();
+    },
     // fall: { altitude_m, speed_ms, remaining_s, progress, scale } o null al tocar suelo.
     setLanding(fall) {
       landingBox.hidden = !fall;
