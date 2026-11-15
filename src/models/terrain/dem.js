@@ -56,6 +56,8 @@ export function createDem(metadata, float32Array) {
   }
 
   return {
+    // Identificador del dataset, si el metadata lo trae (lo usa route.json).
+    dataset_id: metadata.dataset_id ?? null,
     sampleElevation_m,
     cols,
     rows,

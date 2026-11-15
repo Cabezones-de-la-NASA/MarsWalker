@@ -11,6 +11,8 @@ import { createPoiMarkers } from './map/poi_markers.js';
 import { createPoiPopup } from './map/poi_popup.js';
 import { createCompositor } from './layers/compositor.js';
 import { createLayersPanel } from './panels/layers_panel.js';
+import { createRouteLine } from './map/route_line.js';
+import { createRoutePanel } from './panels/route_panel.js';
 import './panels/panels.css';
 
 function el(tag, className, text) {
@@ -69,9 +71,13 @@ export async function startDashboard(container) {
       `elevación ${elevation_m.toFixed(1)} m · pendiente ${slope_deg.toFixed(2)}°`;
   });
 
+  const routeLine = createRouteLine(view.scene, dem, view.renderer);
+  view.onFrame(() => routeLine.update(view.camera));
+  const routePanel = createRoutePanel(ui, { dem, dataset, routeLine });
+
   const popup = createPoiPopup(ui);
   on('poi:click', (poi) => popup.show(poi, state.astronaut_position_m));
 
   view.start();
-  return { view, dem, dataset, compositor, mesh, orbit };
+  return { view, dem, dataset, compositor, mesh, orbit, routePanel };
 }
