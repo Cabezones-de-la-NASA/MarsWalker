@@ -67,7 +67,7 @@ export function createSound() {
 
     const wind = chain(noise(), 'bandpass', 320, 0.6);
     const breath = chain(noise(), 'bandpass', 900, 1.4);
-    // Arena contra el casco: ruido agudo que solo se oye en la tormenta.
+    // Impactos del polvo en casco y parabrisas (sonido indirecto).
     const sand = chain(noise(), 'highpass', 3200, 0.7);
     // Motor eléctrico: dos ondas cerca una de otra, para que zumbe.
     const motorGain = ctx.createGain();
@@ -172,9 +172,13 @@ export function createSound() {
       // Ráfagas: en la tormenta el viento sube y baja, no es un soplido plano.
       gustPhase += delta_s;
       const gust = 0.7 + 0.3 * Math.sin(gustPhase * 1.7) * Math.sin(gustPhase * 0.61 + 1.3);
-      glide(nodes.wind.gain.gain, 0.035 + wind * 0.62 * gust, 0.4);
-      glide(nodes.wind.filter.frequency, 280 + wind * 800 * gust, 0.4);
-      glide(nodes.sand.gain.gain, wind > 0.25 ? (wind - 0.25) * 0.16 * gust : 0, 0.3);
+      const gustLevel = state.dustGust ?? gust;
+      const cabin = state.vehicle_speed_ms != null;
+      const damp = cabin ? .34 : 1;
+      glide(nodes.wind.gain.gain, (0.018 + wind * (0.13 + .18 * gustLevel)) * damp, 0.30);
+      glide(nodes.wind.filter.frequency, cabin ? 205 + wind * 140 : 260 + wind * (270 + 230 * gustLevel), 0.32);
+      glide(nodes.sand.filter.frequency, cabin ? 1350 : 3020, 0.26);
+      glide(nodes.sand.gain.gain, (state.airborneDust ?? 0) * (.026 + .078 * gustLevel) * damp, 0.19);
 
       // Agitación (la tormenta encima): respiración más rápida y fuerte, y el latido.
       const agitation = Math.min(Math.max(state.agitation ?? 0, 0), 1);

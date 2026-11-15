@@ -41,6 +41,7 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
   let mission = null; // { state, home, samples_m, hold_s, oxygenStart_l, lastTick }
   let dust_tau = NOMINAL_DUST_TAU;
   let sentDust_tau = NOMINAL_DUST_TAU;
+  let lastDustPhase = 'calm';
   let clearing = false;
   let clock = 0;
 
@@ -83,9 +84,16 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
   world.scene.add(homeMark, station.object);
 
   function sendDust(force = false) {
-    if (!force && Math.abs(dust_tau - sentDust_tau) < DUST_STEP) return;
+    let phase = 'calm';
+    if (dust_tau > NOMINAL_DUST_TAU) {
+      if (clearing) phase = 'settling';
+      else if (!mission?.state.storm) phase = 'approaching';
+      else phase = dust_tau < STORM_DUST_TAU ? 'crossing' : 'active';
+    }
+    if (!force && lastDustPhase === phase && Math.abs(dust_tau - sentDust_tau) < DUST_STEP) return;
     sentDust_tau = dust_tau;
-    emit('environment:dust', { dust_tau, storm: dust_tau > WARNING_DUST_TAU + 0.2 });
+    lastDustPhase = phase;
+    emit('environment:dust', { dust_tau, phase });
   }
 
   function hideMarkers() {
@@ -185,7 +193,8 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
       // Al terminar, el polvo se asienta aunque la misión ya no esté activa.
       if (!mission) {
         if (clearing) {
-          dust_tau = Math.max(NOMINAL_DUST_TAU, dust_tau - ((STORM_DUST_TAU - NOMINAL_DUST_TAU) / STORM_CLEAR_S) * delta_s);
+          dust_tau = NOMINAL_DUST_TAU + (dust_tau - NOMINAL_DUST_TAU) * Math.exp(-3.7 * delta_s / STORM_CLEAR_S);
+          if (dust_tau - NOMINAL_DUST_TAU < 0.06) dust_tau = NOMINAL_DUST_TAU;
           sendDust(dust_tau === NOMINAL_DUST_TAU);
           if (dust_tau === NOMINAL_DUST_TAU) clearing = false;
         }
