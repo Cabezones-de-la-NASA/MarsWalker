@@ -12,7 +12,8 @@ function el(tag, className, text) {
 
 /**
  * views: [{ id, label, element?, onShow? }]; la primera es el mapa (sin elemento).
- * options: { subtitle, qualityOptions: [[id, label]], quality, onQuality(id), onExplore() }
+ * options: { subtitle, zones, zone, onZone(id), qualityOptions: [[id, label]], quality,
+ *            onQuality(id), onExplore() }
  */
 export function createTabs(container, views, options = {}) {
   const bar = el('header', 'top-bar');
@@ -52,6 +53,20 @@ export function createTabs(container, views, options = {}) {
   }
 
   bar.append(el('div', 'top-bar-spacer'));
+
+  if (options.zones && options.zones.length > 1) {
+    const label = el('label', null, 'Zona');
+    const select = el('select', 'zone-select');
+    for (const zone of options.zones) {
+      const option = el('option', null, zone.label);
+      option.value = zone.dataset_id;
+      select.append(option);
+    }
+    select.value = options.zone;
+    select.addEventListener('change', () => options.onZone(select.value));
+    label.append(select);
+    bar.append(label);
+  }
 
   if (options.qualityOptions) {
     const label = el('label', null, 'Gráficos');

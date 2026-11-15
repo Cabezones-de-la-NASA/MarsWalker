@@ -2,7 +2,7 @@
 // El dashboard y el gameplay no se conocen entre sí: aquí se decide cuál está activo.
 import './styles/base.css';
 import { state, on } from './shared/state.js';
-import { datasetIdFromUrl, loadDataset } from './shared/dataset_loader.js';
+import { datasetIdFromUrl, loadDataset, loadDatasetIndex } from './shared/dataset_loader.js';
 import { createDem } from './models/terrain/dem.js';
 import { pickQuality } from './world/quality.js';
 import { createWorld } from './world/world.js';
@@ -10,6 +10,10 @@ import { createTerrainMaterial, createTerrainMesh, createLocalPatch } from './wo
 import { createRocks } from './world/rocks.js';
 import { createDust } from './world/dust.js';
 import { startDashboard } from './dashboard/dashboard.js';
+import { createGameplay } from './gameplay/gameplay.js';
+
+// [diseño] Duración del fundido entre el mapa y la superficie, en milisegundos.
+const FADE_MS = 320;
 
 function showFatal(message) {
   const box = document.createElement('div');
@@ -21,7 +25,7 @@ function showFatal(message) {
 }
 
 async function start() {
-  const dataset = await loadDataset(datasetIdFromUrl());
+  const [dataset, zones] = await Promise.all([loadDataset(datasetIdFromUrl()), loadDatasetIndex()]);
   const dem = createDem(dataset.metadata, dataset.heights_m);
 
   const quality = pickQuality();
@@ -36,12 +40,37 @@ async function start() {
   const dust = createDust(world.scene, quality);
 
   state.mode = 'dashboard';
-  const dashboard = await startDashboard(document.body, { world, dem, dataset, terrain });
+  const dashboard = await startDashboard(document.body, { world, dem, dataset, terrain, zones });
+  const gameplay = createGameplay(document.body, { world, dem, dataset, terrain, rocks, dust });
+
+  // Cambio de modo. La posición del astronauta viaja en state.astronaut_position_m.
+  // El cambio se hace detrás de un fundido a negro, como un corte de cámara.
+  const fade = document.createElement('div');
+  fade.className = 'mode-fade';
+  document.body.append(fade);
+  let switching = false;
+  on('mode:request', (mode) => {
+    if (switching || mode === state.mode || !['gameplay', 'dashboard'].includes(mode)) return;
+    switching = true;
+    fade.classList.add('is-on');
+    window.setTimeout(() => {
+      if (mode === 'gameplay') {
+        dashboard.setActive(false);
+        gameplay.enter();
+      } else {
+        gameplay.exit();
+        dashboard.setActive(true);
+      }
+      state.mode = mode;
+      fade.classList.remove('is-on');
+      switching = false;
+    }, FADE_MS);
+  });
   world.start();
 
   // Solo en desarrollo: acceso desde la consola y las pruebas de navegador.
   if (import.meta.env.DEV) {
-    window.__marswalk = { ...dashboard, state, terrain, rocks, dust, on };
+    window.__marswalk = { ...dashboard, state, terrain, rocks, dust, gameplay, on };
   }
 }
 

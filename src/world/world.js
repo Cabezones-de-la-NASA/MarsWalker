@@ -82,7 +82,7 @@ export function createWorld(container, quality) {
     hemi.intensity = look.hemiIntensity;
     fill.intensity = look.fillIntensity;
     fill.position.set(-sunVector.x, 0.35, -sunVector.z);
-    headlamp.intensity = look.headlamp * 260;
+    headlamp.intensity = look.headlamp * 70;
     renderer.toneMappingExposure = look.exposure;
 
     scene.fog.color.setHex(look.fogColor);
@@ -93,6 +93,18 @@ export function createWorld(container, quality) {
       // Desde la órbita la bruma solo funde el borde lejano del mapa.
       scene.fog.near = camera.far * 0.5;
       scene.fog.far = camera.far;
+    }
+    if (!surface) {
+      // Desde la órbita el mapa flota sobre un fondo negro estrellado: el cielo de la
+      // atmósfera solo se ve al bajar a la superficie.
+      look.skyTop = 0x020204;
+      look.skyHorizon = 0x05060a;
+      look.mieIntensity = 0;
+      look.starOpacity = 0.95;
+      look.moonOpacity = 0;
+      look.sunDisc = 0;
+      look.fogColor = 0x05060a;
+      scene.fog.color.setHex(look.fogColor);
     }
     renderer.setClearColor(look.fogColor, 1);
     world.look = look;

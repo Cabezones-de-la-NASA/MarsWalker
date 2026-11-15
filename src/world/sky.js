@@ -179,7 +179,9 @@ export function createSky(scene, { starCount = 2500 } = {}) {
       sunDisc.scale.setScalar(radius * 0.16);
       sunDisc.material.color.setHex(look.sunColor);
       // El disco se apaga al cruzar el horizonte.
-      sunDisc.material.opacity = THREE.MathUtils.clamp((direction.y + 0.06) / 0.1, 0, 1);
+      sunDisc.material.opacity = THREE.MathUtils.clamp((direction.y + 0.06) / 0.1, 0, 1) * (look.sunDisc ?? 1);
+      // Las estrellas giran muy despacio: da vida al fondo sin distraer.
+      stars.rotation.y += 0.00012;
 
       stars.material.opacity = look.starOpacity;
       moon.position.copy(MOON_DIRECTION).multiplyScalar(radius * 0.9);

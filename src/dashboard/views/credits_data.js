@@ -18,7 +18,7 @@ export const CREDIT_GROUPS = [
     items: [
       { id: 'D1', name: 'Mars 2020 TRN CTX DTM Mosaic, 20 m/px (DOI 10.5066/P906QQT8)', url: 'https://astrogeology.usgs.gov/search/map/mars_2020_terrain_relative_navigation_ctx_dtm_mosaic', use: 'DEM del dataset jezero_ctx.' },
       { id: 'D2', name: 'Mars 2020 Science Investigation CTX DEM Mosaic', url: 'https://astrogeology.usgs.gov/search/map/mars_2020_science_investigation_ctx_dem_mosaic', use: 'DEM del cráter completo. Aún no se usa.' },
-      { id: 'D3', name: 'DTM HiRISE ESP_045994_1985 / ESP_046060_1985', url: 'https://hirise.lpl.arizona.edu/ESP_045994_1985', use: 'Vista a pie a ~1 m/px. Aún no se usa.' },
+      { id: 'D3', name: 'DTM HiRISE DTEEC_045994_1985_046060_1985_U01 (USGS/UA)', url: 'https://hirise.lpl.arizona.edu/ESP_045994_1985', use: 'Zona hirise_jezero: ventana de 2 km a 1 m/px, preparada por el equipo.' },
       { id: 'D4', name: 'Mars 2020 TRN CTX Orthorectified Image Mosaic', url: 'https://astrogeology.usgs.gov/search/map/mars_2020_terrain_relative_navigation_context_camera_orthorectified_image_mosaic', use: 'Textura base. Aún no se usa: el mapa muestra un sombreado calculado.' },
       { id: 'D5', name: 'Topographic Slopes of Mars 2020 Landing Site, Jezero West', url: 'https://astrogeology.usgs.gov/search/map/topographic_slopes_of_mars_2020_landing_site_jezero_west', use: 'Validación de la pendiente M1.' },
       { id: 'D6', name: 'MEDA, clima de Perseverance (PDS)', url: 'https://pds-geosciences.wustl.edu/missions/mars2020/', use: 'Ajuste de M17. Aún no se usa con datos reales.' },
@@ -59,11 +59,22 @@ export const CREDIT_GROUPS = [
     ],
   },
   {
+    title: 'Lo que es arte y no dato',
+    items: [
+      { id: '', name: 'Color del terreno', url: '', use: 'La textura base se tiñe con una paleta óxido elegida por el equipo. No es el color medido de la superficie ni un ortomosaico.' },
+      { id: '', name: 'Rocas', url: '', use: 'Su posición y tamaño se generan con una función fija, con más rocas en ladera. No vienen de datos del terreno.' },
+      { id: '', name: 'Microrrelieve', url: '', use: 'De cerca el suelo lleva ondulaciones de hasta 14 cm para que no se vea liso. La elevación y la pendiente que usan los modelos y el visor salen siempre del DEM.' },
+      { id: '', name: 'Cielo y atmósfera', url: '', use: 'Los colores siguen la altura del Sol (M16) y el polvo (M17), pero son dirección de arte, no un modelo radiativo. Fobos está fijo en el cielo.' },
+      { id: '', name: 'Astronauta', url: '', use: 'Modelo hecho por el equipo con geometría de three.js. Correr y saltar usan valores de diseño que el documento del proyecto no define.' },
+    ],
+  },
+  {
     title: 'Software',
     items: [
       { id: '', name: 'three.js (licencia MIT)', url: 'https://threejs.org/', use: 'Escena 3D, controles, carga de modelos glTF.' },
       { id: '', name: 'Decodificador Draco de Google (Apache-2.0), distribuido con three.js', url: 'https://github.com/google/draco', use: 'Descompresión de los modelos 3D.' },
       { id: '', name: 'Vite (licencia MIT)', url: 'https://vite.dev/', use: 'Servidor de desarrollo y empaquetado.' },
+      { id: '', name: 'IBM Plex Sans e IBM Plex Mono (licencia OFL)', url: 'https://www.ibm.com/plex/', use: 'Tipografía de la interfaz, incluida en la aplicación.' },
     ],
   },
 ];

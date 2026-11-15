@@ -38,6 +38,7 @@ marswalk/
 │   │   ├── player/        caminar, correr, saltar
 │   │   ├── camera/        primera y tercera persona
 │   │   └── hud/           visor del casco
+│   ├── world/             mundo 3D compartido: renderer, cielo, atmósfera, terreno, rocas
 │   ├── shared/            estado global, constantes, utilidades
 │   ├── styles/
 │   └── assets/
@@ -49,7 +50,8 @@ marswalk/
 Reglas de dependencia:
 
 - `src/models/` solo importa de `src/shared/`.
-- `src/dashboard/` y `src/gameplay/` importan de `src/models/`, `src/models3d/` y `src/shared/`, pero no entre sí.
+- `src/dashboard/` y `src/gameplay/` importan de `src/models/`, `src/models3d/`, `src/world/` y `src/shared/`, pero no entre sí.
+- `src/world/` importa de `src/models/` y `src/shared/`.
 - `src/intro/` solo conoce a `src/shared/`.
 
 ---

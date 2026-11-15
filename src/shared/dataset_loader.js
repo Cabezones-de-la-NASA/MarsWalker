@@ -18,6 +18,19 @@ async function fetchOk(url) {
   return response;
 }
 
+// Lista de zonas disponibles (public/data/index.json, lo escribe data_pipeline/build_index.py).
+// -> [{ dataset_id, label, source, resolution_m, size_m, has_poi }], o [] si no hay índice.
+export async function loadDatasetIndex() {
+  try {
+    const response = await fetch('/data/index.json');
+    if (!response.ok || !(response.headers.get('content-type') || '').includes('json')) return [];
+    const index = await response.json();
+    return Array.isArray(index.datasets) ? index.datasets : [];
+  } catch {
+    return [];
+  }
+}
+
 // -> { metadata, heights_m: Float32Array, baseUrl, textureUrl, poi }
 // poi es el contenido de poi.json, o null si el dataset no lo trae.
 export async function loadDataset(dataset_id) {

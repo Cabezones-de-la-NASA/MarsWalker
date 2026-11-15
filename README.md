@@ -50,6 +50,7 @@ marswalk/
 │   │   ├── player/
 │   │   ├── camera/
 │   │   └── hud/
+│   ├── world/
 │   ├── shared/
 │   ├── styles/
 │   └── assets/
@@ -92,6 +93,7 @@ Al inicializar Vite aparecerán en la raíz `index.html`, `package.json`, `vite.
 | `src/gameplay/player/` | Movimiento del astronauta: caminar, correr, saltar y seguir el suelo. | |
 | `src/gameplay/camera/` | Cámara en primera y tercera persona. | |
 | `src/gameplay/hud/` | El visor del casco: oxígeno, pulso, brújula y radar. | |
+| `src/world/` | El mundo 3D que comparten el dashboard y el modo a pie: renderer y perfiles gráficos, cielo, atmósfera, material y malla del terreno, parche de detalle, rocas y polvo. | Interfaz, paneles o lógica de juego. |
 | `src/shared/` | Lo que usan todas las partes: estado global, constantes y utilidades. | Código que solo usa una parte. |
 | `tests/` | Pruebas de los modelos matemáticos, un archivo por módulo de `src/models/`. | |
 | `data_pipeline/` | Scripts de Python que convierten los datos de terreno originales al formato de `public/data/`. No forman parte de la aplicación. | |
@@ -102,7 +104,8 @@ Al inicializar Vite aparecerán en la raíz `index.html`, `package.json`, `vite.
 Estas reglas son las que nos dejan trabajar en paralelo sin estorbarnos:
 
 1. `src/models/` no importa nada de las otras carpetas de `src/`, salvo `src/shared/`.
-2. `src/dashboard/` y `src/gameplay/` pueden importar de `src/models/`, `src/models3d/` y `src/shared/`.
+2. `src/dashboard/` y `src/gameplay/` pueden importar de `src/models/`, `src/models3d/`, `src/world/` y `src/shared/`.
+   `src/world/` importa de `src/models/` y `src/shared/`. `src/main.js` crea el mundo y decide qué pantalla está activa.
 3. `src/dashboard/` y `src/gameplay/` no se importan entre sí. Si necesitan lo mismo, eso va en `src/shared/`.
 4. `src/intro/` solo conoce a `src/shared/` y avisa cuando termina.
 5. Un cambio en `src/shared/` lo revisa todo el equipo.

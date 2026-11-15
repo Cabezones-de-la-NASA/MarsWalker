@@ -35,7 +35,8 @@ export function createRocks(scene, dem, quality) {
   const group = new THREE.Group();
   group.name = 'rocks';
   group.visible = false;
-  const material = new THREE.MeshStandardMaterial({ color: PALETTE.rustRed, roughness: 0.94, metalness: 0, flatShading: true });
+  // El color de cada roca va por instancia; el material es blanco para no oscurecerlo.
+  const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.94, metalness: 0, flatShading: true });
   const perShape = Math.ceil(quality.rockCount / SHAPES);
   const meshes = [];
   for (let k = 0; k < SHAPES; k++) {
@@ -56,7 +57,7 @@ export function createRocks(scene, dem, quality) {
   const scale = new THREE.Vector3();
   const positionVec = new THREE.Vector3();
   const color = new THREE.Color();
-  const dark = new THREE.Color(PALETTE.burntSienna);
+  const dark = new THREE.Color(PALETTE.rustRed);
   const light = new THREE.Color(PALETTE.terracotta);
   let lastX_m = Infinity;
   let lastZ_m = Infinity;

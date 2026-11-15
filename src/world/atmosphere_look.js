@@ -42,9 +42,10 @@ export function atmosphereLook({ elevation_deg, phase, dust_tau = 0.5, storm = f
       mieColor: mixHex(PALETTE.solarAmber, 0xff8247, haze),
       mieIntensity: 0.85 - 0.5 * haze,
       skyOpacity: 1,
-      sunColor: mixHex(mixHex(0xffb580, PALETTE.solarAmber, high), 0xff8247, haze * 0.8),
-      sunIntensity: (1.5 + 1.5 * high) * (1 - 0.6 * haze),
-      hemiSky: mixHex(PALETTE.dustyPeach, STORM_HORIZON, haze * 0.7),
+      // Sol alto: ámbar muy claro, casi blanco, para no teñir de rojo el terreno naranja.
+      sunColor: mixHex(mixHex(0xffb580, 0xfff0dc, high), 0xff8247, haze * 0.8),
+      sunIntensity: (1.3 + 1.2 * high) * (1 - 0.6 * haze),
+      hemiSky: mixHex(0xd9b7a0, STORM_HORIZON, haze * 0.7),
       hemiGround: mixHex(PALETTE.dustBrown, 0x33160c, haze),
       hemiIntensity: 0.85 + 0.45 * high,
       fillIntensity: 0.3,

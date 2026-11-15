@@ -1,0 +1,48 @@
+{
+  "datasets": [
+    {
+      "dataset_id": "hirise_jezero",
+      "label": "Jezero HiRISE 1 m/px (ventana 2 km)",
+      "source": "HiRISE",
+      "resolution_m": 1.0096633,
+      "size_m": [
+        2019.33,
+        2019.33
+      ],
+      "has_poi": false
+    },
+    {
+      "dataset_id": "jezero_ctx",
+      "label": "Jezero CTX 20 m/px",
+      "source": "CTX",
+      "resolution_m": 20.0,
+      "size_m": [
+        10240.0,
+        10240.0
+      ],
+      "has_poi": true
+    },
+    {
+      "dataset_id": "synthetic_crater",
+      "label": "Cráter sintético 20 m/px",
+      "source": "synthetic",
+      "resolution_m": 20.0,
+      "size_m": [
+        10240.0,
+        10240.0
+      ],
+      "has_poi": false
+    },
+    {
+      "dataset_id": "jezero_region",
+      "label": "Jezero completo CTX 60 m/px",
+      "source": "CTX",
+      "resolution_m": 60.0,
+      "size_m": [
+        31920.0,
+        30240.0
+      ],
+      "has_poi": false
+    }
+  ]
+}

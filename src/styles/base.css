@@ -31,3 +31,18 @@ body {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* Fundido a negro entre el mapa y la superficie */
+.mode-fade {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: #050302;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s var(--ease);
+}
+
+.mode-fade.is-on {
+  opacity: 1;
+}

@@ -128,6 +128,8 @@ export function tintBaseRaster(rgba, dem) {
       color = mix3(color, TINT.rustRed, smooth(6, 16, slope_deg) * 0.8);
       color = mix3(color, TINT.burntSienna, smooth(16, 30, slope_deg) * 0.7);
       color = mix3(color, TINT.dustBrown, low * low * 0.35);
+      // Se aclara hacia el ocre para que el conjunto no quede saturado de rojo.
+      color = mix3(color, TINT.paleOchre, 0.2);
 
       // La luz del sombreado original, normalizada a su media.
       const lum = (rgba[i * 4] + rgba[i * 4 + 1] + rgba[i * 4 + 2]) / 765;

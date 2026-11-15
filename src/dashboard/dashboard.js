@@ -31,11 +31,11 @@ function el(tag, className, text) {
 const ASTRONAUT_START_OFFSET_M = 6;
 
 /**
- * startDashboard(container, { world, dem, dataset, terrain }) ->
+ * startDashboard(container, { world, dem, dataset, terrain, zones }) ->
  *   setActive(bool)   muestra u oculta el dashboard (al bajar a la superficie se oculta)
  *   y referencias para las pruebas de navegador.
  */
-export async function startDashboard(container, { world, dem, dataset, terrain }) {
+export async function startDashboard(container, { world, dem, dataset, terrain, zones = [] }) {
   const ui = el('div', 'dashboard-ui');
   container.append(ui);
   const dockLeft = el('div', 'dock dock-left');
@@ -112,7 +112,7 @@ export async function startDashboard(container, { world, dem, dataset, terrain }
   });
 
   const routeLine = createRouteLine(world.scene, dem, world.renderer);
-  world.onFrame(() => routeLine.update(world.camera));
+  world.onFrame((delta_s) => routeLine.update(world.camera, delta_s));
   state.crew = DEFAULT_CREW.map((member) => ({ ...member }));
   const popupHost = el('div');
   dockRight.append(popupHost);
@@ -139,7 +139,14 @@ export async function startDashboard(container, { world, dem, dataset, terrain }
       { id: 'credits', label: 'Créditos', element: creditsView.element },
     ],
     {
-      subtitle: dataset.metadata.label,
+      zones,
+      zone: dataset.metadata.dataset_id,
+      // Cambiar de zona recarga la página con ?dataset=: se rehacen el terreno y los modelos.
+      onZone(id) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('dataset', id);
+        window.location.href = url.toString();
+      },
       qualityOptions: Object.values(QUALITY_PROFILES).map((profile) => [profile.id, profile.label]),
       quality: world.quality.id,
       // El perfil gráfico se aplica al recargar: cambia el renderer y las mallas.
