@@ -9,6 +9,11 @@ const STORAGE_KEY = 'marswalk.onboarded.v4';
 
 // Cada paso: título, texto, lista opcional (items), elemento que se resalta (target) y el
 // evento que lo da por hecho (done); sin evento se avanza con el botón.
+// [diseño] Giro mínimo del mapa (unos 45°) y tiempo mínimo en pantalla para dar por
+// hecho el primer paso.
+const ROTATE_DONE_RAD = 0.8;
+const MIN_READ_MS = 2500;
+
 const STEPS = [
   {
     title: 'Bienvenido a Marte',
@@ -83,6 +88,7 @@ export function createOnboarding(ui, { orbitControls }) {
   ui.append(card);
 
   let step = -1;
+  let shownAt_ms = 0;
   let highlighted = null;
 
   function highlight(selector) {
@@ -93,6 +99,8 @@ export function createOnboarding(ui, { orbitControls }) {
 
   function show(index) {
     step = index;
+    shownAt_ms = performance.now();
+    turned_rad = 0;
     const current = STEPS[index];
     count.textContent = `Primeros pasos · ${index + 1} de ${STEPS.length}`;
     number.textContent = String(index + 1);
@@ -135,7 +143,22 @@ export function createOnboarding(ui, { orbitControls }) {
   skip.addEventListener('click', finish);
   // Cada paso se da por hecho cuando la persona hace lo que pide.
   const doneStep = (event) => advance(STEPS.findIndex((item) => item.done === event));
-  orbitControls.addEventListener('end', () => doneStep('orbit'));
+  // El primer paso no se da por hecho con cualquier toque: hay que girar el mapa de verdad
+  // (ROTATE_DONE_RAD en total) y haber tenido tiempo de leerlo.
+  let lastAzimuth = orbitControls.getAzimuthalAngle();
+  let turned_rad = 0;
+  orbitControls.addEventListener('change', () => {
+    const azimuth = orbitControls.getAzimuthalAngle();
+    let delta = azimuth - lastAzimuth;
+    if (delta > Math.PI) delta -= Math.PI * 2;
+    if (delta < -Math.PI) delta += Math.PI * 2;
+    lastAzimuth = azimuth;
+    if (STEPS[step]?.done !== 'orbit') return;
+    turned_rad += Math.abs(delta);
+  });
+  orbitControls.addEventListener('end', () => {
+    if (turned_rad >= ROTATE_DONE_RAD && performance.now() - shownAt_ms >= MIN_READ_MS) doneStep('orbit');
+  });
   on('astronaut:moved', () => doneStep('astronaut:moved'));
   on('route:computed', () => doneStep('route:computed'));
   on('mode:request', (mode) => {
