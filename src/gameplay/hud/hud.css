@@ -585,3 +585,7 @@
 .hud-card {
   top: 12%;
 }
+
+.hud-clock kbd[hidden] {
+  display: none;
+}

@@ -346,3 +346,18 @@
 .route-detail > summary:hover {
   color: var(--accent);
 }
+
+.engineer-links .engineer-realism {
+  justify-content: flex-start;
+  align-items: flex-start;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.engineer-realism small {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}

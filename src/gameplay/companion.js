@@ -78,6 +78,11 @@ export function createCompanion({ world, groundAt }) {
         settle(1);
       }
     },
+    // Quita el rover del mundo (modo realista). place() lo devuelve.
+    remove() {
+      follower = null;
+      if (object) object.visible = false;
+    },
     position: () => (follower ? { x_m: follower.x_m, z_m: follower.z_m } : null),
     update(delta_s, target, camera, cfg) {
       if (!follower) return;

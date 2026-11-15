@@ -146,9 +146,9 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   let timeScale = DEFAULT_TIME_SCALE;
 
   function setTimeScale(scale) {
-    timeScale = scale;
-    vitals.setTimeScale(scale);
-    hud.setTimeScale(scale);
+    // Solo mueve el reloj de Marte (Sol y clima). La fisiología va siempre en tiempo real.
+    timeScale = state.realism ? 1 : scale;
+    hud.setTimeScale(timeScale);
   }
 
   const hud = createHud(container, {
@@ -211,6 +211,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   }
   function truckDistance_m() {
     const parked = truck.state();
+    if (!parked) return Infinity;
     return Math.hypot(parked.x_m - player.x_m, parked.z_m - player.z_m);
   }
   const formatDistance = (d_m) => (d_m >= 1000 ? `${(d_m / 1000).toFixed(1)} km` : `${d_m.toFixed(0)} m`);
@@ -247,11 +248,11 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
     },
     // G trae la camioneta junto al astronauta, esté donde esté.
     onSummonVehicle() {
-      if (active && !paused && !driving && !chatOpen) placeVehicle();
+      if (active && !paused && !driving && !chatOpen && !state.realism) placeVehicle();
     },
     // T pasa a la siguiente velocidad del tiempo (la pausa se elige en el menú).
     onTimeScale() {
-      if (!active || paused) return;
+      if (!active || paused || state.realism) return;
       const speeds = TIME_SCALES.filter((scale) => scale > 0);
       setTimeScale(speeds[(speeds.indexOf(timeScale) + 1) % speeds.length]);
     },
@@ -319,7 +320,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   on('astronaut:moved', (position_m) => {
     if (active) return;
     spawn(position_m);
-    placeCompanion();
+    if (!state.realism) placeCompanion();
   });
 
   world.onFrame((delta_s) => {
@@ -402,7 +403,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
         } else {
           if (target) prompts.push(['E', target.prompt]);
           if (truck.canBoard(player.x_m, player.z_m)) prompts.push(['F', 'Subir a la camioneta']);
-          else prompts.push(['G', `Traer la camioneta (está a ${formatDistance(truckDistance_m())})`]);
+          else if (truck.state()) prompts.push(['G', `Traer la camioneta (está a ${formatDistance(truckDistance_m())})`]);
         }
       }
       hud.setPrompts(prompts);
@@ -412,7 +413,6 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
         ltst_h: state.environment?.ltst_h ?? null,
         vitals: snapshot.vitals,
         status: snapshot.status,
-        time_scale: snapshot.time_scale,
         elapsed_s: snapshot.elapsed_s,
         nav: {
           x_m: player.x_m,
@@ -449,9 +449,17 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
       if (driving) setDriving(false);
       spawn(state.astronaut_position_m ?? [0, 0]);
       setTimeScale(DEFAULT_TIME_SCALE);
-      // Si el astronauta se movió en el mapa, el rover reaparece a su lado.
-      const rover = companion.position();
-      if (!rover || Math.hypot(rover.x_m - player.x_m, rover.z_m - player.z_m) > 30) placeCompanion();
+      if (state.realism) {
+        // Con realismo se va solo y a pie: sin rover de compañía ni camioneta.
+        companion.remove();
+        truck.remove();
+      } else {
+        // Si el astronauta se movió en el mapa, el rover reaparece a su lado.
+        const rover = companion.position();
+        if (!rover || Math.hypot(rover.x_m - player.x_m, rover.z_m - player.z_m) > 30) placeCompanion();
+        if (!truck.state()) placeVehicle();
+      }
+      hud.setRealism(state.realism);
       vitals.reset(player.x_m, player.z_m);
       footprints.reset();
       world.setView('surface');

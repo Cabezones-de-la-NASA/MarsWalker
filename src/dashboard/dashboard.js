@@ -34,6 +34,7 @@ function el(tag, className, text) {
 // círculo de colisión.
 const ASTRONAUT_START_OFFSET_M = 9;
 const ENGINEER_KEY = 'marswalk.engineer';
+const REALISM_KEY = 'marswalk.realism';
 
 /**
  * startDashboard(container, { world, dem, dataset, terrain, mission, zones }) ->
@@ -183,6 +184,30 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
   engineerLinks.append(...tabs.secondaryButtons);
   if (tabs.qualityControl) engineerLinks.append(tabs.qualityControl);
 
+  // Jugar con realismo: tiempo real, solo a pie, sin rover ni camioneta.
+  const realismLabel = el('label', 'engineer-realism');
+  const realismBox = el('input');
+  realismBox.type = 'checkbox';
+  const realismText = el('span', null, 'Jugar con realismo');
+  realismText.append(el('small', null, 'Tiempo 1×, solo a pie, sin rover ni camioneta'));
+  realismLabel.append(realismBox, realismText);
+  engineerLinks.append(realismLabel);
+  try {
+    state.realism = window.localStorage.getItem(REALISM_KEY) === '1';
+  } catch {
+    // Sin almacenamiento: empieza desactivado.
+  }
+  realismBox.checked = state.realism;
+  realismBox.addEventListener('change', () => {
+    state.realism = realismBox.checked;
+    launchBar.setRealism(state.realism);
+    try {
+      window.localStorage.setItem(REALISM_KEY, state.realism ? '1' : '0');
+    } catch {
+      // Sin almacenamiento: no se recuerda.
+    }
+  });
+
   // Barra de lanzamiento e indicador de aterrizaje arrastrable.
   const launchBar = createLaunchBar(ui, { dem, onExplore: () => emit('mode:request', 'gameplay') });
   const dropPin = createDropPin({
@@ -192,6 +217,7 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
     onMove: (x_m, z_m, dragging) => launchBar.setLanding(x_m, z_m, dragging),
   });
   launchBar.setLanding(...state.astronaut_position_m);
+  launchBar.setRealism(state.realism);
   world.onFrame((delta_s) => dropPin.update(delta_s));
 
   // Primeros pasos: salen solos la primera vez que el dashboard queda a la vista.

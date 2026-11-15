@@ -54,6 +54,11 @@ export function createVehicle({ world, groundAt }) {
       object.visible = true;
       settle(1);
     },
+    // Quita la camioneta del mundo (modo realista). place() la devuelve.
+    remove() {
+      vehicle = null;
+      object.visible = false;
+    },
     state: () => vehicle,
     height_m: () => object.position.y,
     // input null: aparcada (se frena sola). env: el del modelo, con colisiones y límites.

@@ -12,18 +12,15 @@ const SEGMENT_S = 1;
  * createVitals({ dem, getMember, getAmbientTemp_c }) ->
  *   update(delta_s, x_m, z_m)   acumula lo caminado; devuelve true si cerró un tramo
  *   get()   -> { member, vitals (estado de member.js), status, distance_m (a pie), driven_m (en
- *              camioneta), elapsed_s, time_scale }
- *   setTimeScale(n), reset(x_m, z_m)
+ *              camioneta), elapsed_s }
+ *   reset(x_m, z_m)
  *
- * time_scale acelera el reloj de la fisiología para poder ver cambios en una demostración:
- * cada segundo real cuenta como n segundos caminando al ritmo de ese momento. Con 1 la
- * simulación va en tiempo real. La distancia mostrada es siempre la real.
+ * La fisiología va siempre en tiempo real: la velocidad del reloj de Marte no la toca.
  */
 export function createVitals({ dem, getMember, getAmbientTemp_c }) {
   const cfg = defaultConfig();
   let member = getMember();
   let vitals = initMemberState(member, cfg);
-  let time_scale = 1;
   let distance_m = 0;
   let driven_m = 0;
   let elapsed_s = 0;
@@ -48,9 +45,6 @@ export function createVitals({ dem, getMember, getAmbientTemp_c }) {
 
   return {
     reset,
-    setTimeScale(next) {
-      time_scale = next;
-    },
     // riding: va en la camioneta. Lo recorrido no cuenta como caminata: la fisiología
     // avanza como si estuviera quieto (distancia y desnivel cero) y los metros van aparte.
     update(delta_s, x_m, z_m, { riding = false } = {}) {
@@ -66,7 +60,7 @@ export function createVitals({ dem, getMember, getAmbientTemp_c }) {
         distance_m += step_m;
         pending_m += step_m;
       }
-      if (pending_s < SEGMENT_S || time_scale <= 0) return false;
+      if (pending_s < SEGMENT_S) return false;
 
       // Desnivel y pendiente del tramo, del DEM (no del microrrelieve visual).
       const elev_m = dem.sampleElevation_m(x_m, z_m);
@@ -74,10 +68,10 @@ export function createVitals({ dem, getMember, getAmbientTemp_c }) {
       const slope_deg = pending_m > 0.05 ? (Math.atan(Math.abs(delta_elev_m) / pending_m) * 180) / Math.PI : 0;
       vitals = advanceMemberState(
         {
-          walking_time_h: (pending_s * time_scale) / 3600,
+          walking_time_h: pending_s / 3600,
           slope_deg,
-          delta_elev_m: delta_elev_m * time_scale,
-          surface_distance_m: pending_m * time_scale,
+          delta_elev_m,
+          surface_distance_m: pending_m,
           walk_speed_ms: pending_m / pending_s,
           ambient_temp_c: getAmbientTemp_c(),
         },
@@ -91,7 +85,7 @@ export function createVitals({ dem, getMember, getAmbientTemp_c }) {
       return true;
     },
     get() {
-      return { member, vitals, status: memberStatus(vitals.flags), distance_m, driven_m, elapsed_s, time_scale };
+      return { member, vitals, status: memberStatus(vitals.flags), distance_m, driven_m, elapsed_s };
     },
   };
 }

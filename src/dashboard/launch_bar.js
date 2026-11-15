@@ -86,7 +86,8 @@ export function createLaunchBar(ui, { dem, onExplore }) {
 
   const explore = el('button', 'explore-button btn-primary launch-button');
   explore.type = 'button';
-  explore.append(el('span', 'launch-button-icon', '▶'), el('span', null, 'Explorar Marte'));
+  const exploreLabel = el('span', null, 'Explorar Marte');
+  explore.append(el('span', 'launch-button-icon', '▶'), exploreLabel);
   explore.addEventListener('click', onExplore);
 
   const status = el('div', 'launch-status');
@@ -100,6 +101,10 @@ export function createLaunchBar(ui, { dem, onExplore }) {
 
   return {
     element: bar,
+    // Avisa en el botón de que se bajará en modo realista.
+    setRealism(on) {
+      exploreLabel.textContent = on ? 'Explorar Marte · realismo' : 'Explorar Marte';
+    },
     // Lectura del último clic en el terreno (coordenadas, elevación y pendiente).
     setClick(text) {
       click.textContent = text;
