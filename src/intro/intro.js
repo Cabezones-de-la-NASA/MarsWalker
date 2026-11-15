@@ -1,6 +1,7 @@
 // Introducción: cabina espacial con Marte 3D, música ambiental, video de transición
 // y acercamiento progresivo hacia el cráter Jezero antes de revelar el dashboard.
 import { emit } from '../shared/state.js';
+import { BASE_URL } from '../shared/base_url.js';
 import './intro.css';
 
 const MARS_VERTEX_SHADER = `#version 300 es
@@ -54,13 +55,13 @@ function buildIntroMarkup() {
   root.className = 'intro-root';
   root.innerHTML = `
     <div class="intro-cabin">
-      <img class="intro-cabin-image" src="/media/referencia_ventanilla_circular.png" width="740" height="494" alt="" fetchpriority="high">
+      <img class="intro-cabin-image" src="${BASE_URL}media/referencia_ventanilla_circular.png" width="740" height="494" alt="" fetchpriority="high">
       <div class="intro-glass">
         <canvas class="intro-stars" aria-hidden="true"></canvas>
         <canvas class="intro-mars" role="img" aria-label="Marte iluminado a través de la ventanilla de la nave"></canvas>
       </div>
     </div>
-    <img class="intro-astronaut" src="/media/astronauta_cabina.png" width="1024" height="1536"
+    <img class="intro-astronaut" src="${BASE_URL}media/astronauta_cabina.png" width="1024" height="1536"
       alt="Una astronauta con casco y traje espacial mira Marte de perfil" fetchpriority="high">
     <div class="intro-shade" aria-hidden="true"></div>
     <button type="button" class="intro-cta" id="intro-start-trip">
@@ -83,10 +84,10 @@ function buildIntroMarkup() {
     <div class="intro-brand-mark">MarsWalk</div>
     <div class="intro-transition-overlay" id="intro-transition-overlay" aria-hidden="true">
       <div class="intro-video-loader" id="intro-video-loader" aria-live="polite">Cargando viaje...</div>
-      <video class="intro-trip-video" id="intro-trip-video" src="/media/space_mono.mp4" preload="auto" playsinline disablePictureInPicture></video>
+      <video class="intro-trip-video" id="intro-trip-video" src="${BASE_URL}media/space_mono.mp4" preload="auto" playsinline disablePictureInPicture></video>
       <button type="button" class="intro-skip-story" id="intro-skip-story">Saltar historia</button>
     </div>
-    <audio id="intro-cabin-music" src="/media/musica_cabina.mpeg" autoplay loop></audio>
+    <audio id="intro-cabin-music" src="${BASE_URL}media/musica_cabina.mpeg" autoplay loop></audio>
   `;
   return root;
 }
@@ -331,7 +332,7 @@ export function startIntro(container, { waitReady, onRevealStart, onComplete } =
   };
 
   drawStars();
-  map.src = '/media/mars_map.jpg';
+  map.src = `${BASE_URL}media/mars_map.jpg`;
 
   // --- Control de audio, video de historia y transición hacia Jezero ---
   const music = root.querySelector('#intro-cabin-music');

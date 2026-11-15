@@ -4,11 +4,9 @@
 // Lo usan el dashboard y el gameplay. Devuelve datos crudos; el DEM se arma con
 // createDem de src/models/terrain/ en quien lo consume.
 
+import { BASE_URL } from './base_url.js';
+
 export const DEFAULT_DATASET_ID = 'hirise_jezero';
-// Vite define BASE_URL según el entorno:
-// - Desarrollo: '/'
-// - GitHub Pages: '/MarsWalker/'
-const BASE_URL = import.meta.env.BASE_URL;
 const DATASET_ID_PATTERN = /^[a-z0-9_]+$/;
 
 // Lee ?dataset= de la URL; si falta o no es un nombre de carpeta válido, usa el de por defecto.
