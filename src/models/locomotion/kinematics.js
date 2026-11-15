@@ -78,7 +78,9 @@ export function stepPlayer(state, input, env, dt_s, cfg = LOCOMOTION) {
     const ahead_m = env.groundAt(state.x_m + input.dirX * probe_m, state.z_m + input.dirZ * probe_m);
     const here_m = env.groundAt(state.x_m, state.z_m);
     const along_deg = (Math.atan2(ahead_m - here_m, probe_m) * 180) / Math.PI;
-    const speed_ms = (input.run ? cfg.run_speed_ms : cfg.walk_speed_ms) * slopeSpeedFactor(along_deg, cfg);
+    // En el aire la cuesta de abajo no frena: así se puede saltar a lo alto de una roca.
+    const slope = state.grounded ? slopeSpeedFactor(along_deg, cfg) : 1;
+    const speed_ms = (input.run ? cfg.run_speed_ms : cfg.walk_speed_ms) * slope;
     targetX = input.dirX * speed_ms;
     targetZ = input.dirZ * speed_ms;
   }
@@ -131,4 +133,19 @@ export function stepPlayer(state, input, env, dt_s, cfg = LOCOMOTION) {
 
 export function horizontalSpeed_ms(state) {
   return Math.hypot(state.vx_ms, state.vz_ms);
+}
+
+/**
+ * Altura extra del suelo por plataformas (rocas de cima plana a las que se sube saltando).
+ * platforms: [{ x_m, z_m, radius_m, height_m }] -> metros sobre el terreno en (x_m, z_m).
+ * El borde es un escalón: andando no se sube (la pendiente lo impide), saltando sí.
+ */
+export function platformHeight_m(platforms, x_m, z_m) {
+  let height_m = 0;
+  for (const platform of platforms) {
+    if (Math.hypot(x_m - platform.x_m, z_m - platform.z_m) <= platform.radius_m) {
+      height_m = Math.max(height_m, platform.height_m);
+    }
+  }
+  return height_m;
 }

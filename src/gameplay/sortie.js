@@ -8,6 +8,7 @@ import {
 } from '../models/missions/first_sortie.js';
 import { NOMINAL_DUST_TAU, STORM_DUST_TAU } from '../models/environment/weather.js';
 import { MARS_FACTS } from '../shared/mars_facts.js';
+import * as THREE from 'three';
 import { createBeacon, createInterestMark } from '../models3d/props.js';
 import { createStation } from '../models3d/station.js';
 
@@ -20,6 +21,9 @@ const DUST_STEP = 0.04; // cambio mínimo de τ que se manda a la escena
 // [diseño] El rover solo se adelanta si el astronauta lo sigue de cerca.
 const LEAD_LEASH_M = 22;
 const SAMPLE_COLOR = 0x2bb673;
+// [diseño] La primera muestra está sobre una roca de cima plana: hay que subir saltando.
+const ROCK_RADIUS_M = 1.8;
+const ROCK_HEIGHT_M = 1.2;
 
 // Datos con fuente sobre las rocas de Jezero, para cuando se toma cada muestra.
 const SAMPLE_FACTS = MARS_FACTS.filter((fact) => /núcleo de roca|campo de rocas/.test(fact.text));
@@ -33,7 +37,7 @@ const formatClock = (seconds) => `${Math.floor(seconds / 60)}:${String(Math.floo
  *   isActive(), phase(), goal(), basePosition(), capsuleInspected(), cancel(), debug()
  * say(text): el rover dice una frase (burbuja y voz). onDone(): la misión terminó.
  */
-export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, getOxygen_l, onDone }) {
+export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, getOxygen_l, onDone, platforms }) {
   let mission = null; // { state, home, samples_m, hold_s, oxygenStart_l, lastTick }
   let dust_tau = NOMINAL_DUST_TAU;
   let sentDust_tau = NOMINAL_DUST_TAU;
@@ -48,6 +52,31 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
     world.scene.add(beacon, mark);
     return { beacon, mark };
   });
+  // Roca de la primera muestra: un bloque facetado de cima plana, con la baliza arriba.
+  // Es decorado del juego, como las demás rocas; su huella se añade a `platforms`.
+  const rockGeometry = new THREE.CylinderGeometry(ROCK_RADIUS_M, ROCK_RADIUS_M * 1.25, ROCK_HEIGHT_M + 0.6, 9, 1);
+  const rockPosition = rockGeometry.attributes.position;
+  for (let i = 0; i < rockPosition.count; i++) {
+    // Los vértices de abajo se desordenan un poco; la cima queda plana para pisarla.
+    if (rockPosition.getY(i) < 0) {
+      const wobble = 0.82 + 0.3 * Math.abs(Math.sin(i * 12.9898) * 43758.5453 % 1);
+      rockPosition.setX(i, rockPosition.getX(i) * wobble);
+      rockPosition.setZ(i, rockPosition.getZ(i) * wobble);
+    }
+  }
+  rockGeometry.computeVertexNormals();
+  const rock = new THREE.Mesh(rockGeometry, new THREE.MeshStandardMaterial({ color: 0x8a4a2e, roughness: 0.95, flatShading: true }));
+  rock.castShadow = world.quality.shadows;
+  rock.receiveShadow = world.quality.shadows;
+  rock.visible = false;
+  world.scene.add(rock);
+  let platform = null;
+  function removeRock() {
+    rock.visible = false;
+    if (platform) platforms.splice(platforms.indexOf(platform), 1);
+    platform = null;
+  }
+
   const homeMark = createInterestMark(1.6);
   // La base de la misión: una estación detrás de la cápsula. Se queda tras terminar.
   const station = createStation({ shadows: world.quality.shadows });
@@ -120,6 +149,14 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
       clearing = false;
       dust_tau = NOMINAL_DUST_TAU;
       sendDust(true);
+      // La roca va antes que las balizas: así groundAt ya da la altura de su cima.
+      removeRock();
+      const [rockX_m, rockZ_m] = plan.samples_m[0];
+      const rockBase_m = groundAt(rockX_m, rockZ_m);
+      rock.position.set(rockX_m, rockBase_m + (ROCK_HEIGHT_M - 0.6) / 2, rockZ_m);
+      rock.visible = true;
+      platform = { x_m: rockX_m, z_m: rockZ_m, radius_m: ROCK_RADIUS_M, height_m: ROCK_HEIGHT_M };
+      platforms.push(platform);
       markers.forEach(({ beacon, mark }, index) => {
         const [x_m, z_m] = plan.samples_m[index];
         beacon.position.set(x_m, groundAt(x_m, z_m), z_m);
@@ -138,6 +175,7 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
       mission = null;
       clearing = false;
       hideMarkers();
+      removeRock();
       station.visible = false;
       hud.setSortie(null);
       dust_tau = NOMINAL_DUST_TAU;
@@ -203,7 +241,9 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
       // Recoger: mantener E junto a la muestra mientras el rover taladra.
       let drilling = false;
       if (goal !== 'home') {
-        const near = distance_m <= SORTIE.collect_reach_m && canCollect(mission.state);
+        // La primera muestra está en lo alto de la roca: hay que estar pisando su cima.
+        const reach_m = goal === 0 ? ROCK_RADIUS_M : SORTIE.collect_reach_m;
+        const near = distance_m <= reach_m && player.grounded && canCollect(mission.state);
         drilling = near && holding;
         mission.hold_s = drilling ? mission.hold_s + delta_s : 0;
         if (mission.hold_s >= SORTIE.collect_hold_s) {
@@ -241,7 +281,7 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
 
       // Visor: qué hacer, a qué distancia y, si toca, la cuenta atrás.
       const where = goal === 'home' ? 'Refúgiate en la base' : goal === 0 ? 'Sigue al rover hasta la primera roca' : 'Corre a la segunda roca';
-      const near = goal !== 'home' && distance_m <= SORTIE.collect_reach_m && canCollect(now);
+      const near = goal !== 'home' && distance_m <= (goal === 0 ? ROCK_RADIUS_M : SORTIE.collect_reach_m) && player.grounded && canCollect(now);
       // Teclas en grande según lo que toca aprender en cada tramo.
       const needsJump = now.phase === 'to_first' && !now.jumped;
       let keys = null;
@@ -250,7 +290,10 @@ export function createSortie({ world, dem, groundAt, bounds, hud, sound, say, ge
         detail = 'Toma la muestra';
         keys = [['E', 'mantener pulsada']];
       } else if (needsJump && distance_m <= SORTIE.jump_hint_m) {
-        detail = `Salta para llegar a la roca · ${distance_m.toFixed(0)} m`;
+        detail = `La baliza está sobre la roca: salta para subir · ${distance_m.toFixed(0)} m`;
+        keys = [['Espacio', 'saltar']];
+      } else if (now.phase === 'to_first' && distance_m <= SORTIE.jump_hint_m) {
+        detail = `Sube a la roca de un salto · ${distance_m.toFixed(0)} m`;
         keys = [['Espacio', 'saltar']];
       } else if (now.phase === 'to_first') {
         keys = [['Shift', 'correr']];

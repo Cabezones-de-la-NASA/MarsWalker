@@ -5,41 +5,30 @@ import './onboarding.css';
 import { on } from '../shared/state.js';
 
 // v2: el tutorial cambió (indicador de aterrizaje, primer contacto); se enseña de nuevo.
-const STORAGE_KEY = 'marswalk.onboarded.v3';
+const STORAGE_KEY = 'marswalk.onboarded.v4';
 
 // Cada paso: título, texto, lista opcional (items), elemento que se resalta (target) y el
 // evento que lo da por hecho (done); sin evento se avanza con el botón.
 const STEPS = [
   {
-    title: 'Esto es el cráter Jezero, en Marte',
-    text: 'Es un mapa 3D hecho con datos reales de elevación. Arrastra para girarlo, usa la rueda para acercarte y el botón derecho para desplazarte.',
+    title: 'Bienvenido a Marte',
+    text: 'Este es el cráter Jezero. Arrastra para girar el mapa y usa la rueda para acercarte.',
     done: 'orbit',
   },
   {
-    title: 'Elige dónde aterrizar',
-    text: 'El indicador naranja marca dónde bajarás. Arrástralo sobre el terreno: abajo verás la pendiente y si el sitio es seguro.',
-    target: '.launch-status',
-    done: 'astronaut:moved',
-  },
-  {
-    title: 'Planifica una caminata',
-    text: 'Haz clic en dos puntos del mapa: el primero es el inicio y el segundo, el destino. La ruta se calcula sola y se dibuja con flechas.',
-    target: '.route-panel',
+    title: 'Llegar pronto, y llegar vivo',
+    text: 'Aquí el oxígeno se acaba y las cuestas agotan. Haz clic en dos puntos del mapa y te trazamos el camino. Puedes pedirlo de tres maneras:',
+    items: [
+      ['Ahorra oxígeno', 'el camino que menos aire gasta.'],
+      ['Cuida al astronauta', 'evita lo que más cansa o pone en riesgo.'],
+      ['Corredor', 'prueba muchos caminos parecidos y se queda con el mejor (idea tomada de un algoritmo cuántico).'],
+    ],
+    target: '.route-cards',
     done: 'route:computed',
   },
   {
-    title: 'Tres formas de trazar la ruta',
-    text: 'En "Plan de EVA" eliges cómo se calcula. Prueba las tres y compara:',
-    items: [
-      ['Ahorra oxígeno', 'el algoritmo A* busca el camino que menos oxígeno gasta, teniendo en cuenta cada cuesta.'],
-      ['Cuida al astronauta', 'tú marcas qué importa más (pulso, calor, pendiente, radiación…) y la ruta lo evita.'],
-      ['Corredor inspirado en QAOA', 'una versión clásica de un algoritmo cuántico: explora un corredor de rutas en varias rondas.'],
-    ],
-    target: '.route-cards',
-  },
-  {
-    title: 'Baja a Marte',
-    text: 'Pulsa el botón grande. Aterrizarás en una cápsula y el rover te guiará en tu primera misión. Lo técnico (capas, clima, fórmulas) está en "Modo avanzado", arriba a la izquierda.',
+    title: 'Ahora, a caminarlo',
+    text: 'Arrastra el indicador naranja a donde quieras aterrizar y pulsa el botón grande. Un rover te acompañará.',
     target: '.explore-button',
   },
 ];

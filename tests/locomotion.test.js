@@ -128,3 +128,20 @@ test('locomoción: stepPlayer no modifica el estado de entrada', () => {
   stepPlayer(before, { ...FORWARD, jump: true }, flatEnv(), 0.1);
   assert.deepEqual(before, copy);
 });
+
+test('locomoción: a una roca de cima plana no se sube andando, pero sí saltando', async () => {
+  const { platformHeight_m } = await import('../src/models/locomotion/kinematics.js');
+  const rock = { x_m: 0, z_m: 6, radius_m: 1.6, height_m: 1.2 };
+  assert.equal(platformHeight_m([rock], 0, 6), 1.2);
+  assert.equal(platformHeight_m([rock], 0, 3.9), 0);
+  assert.equal(platformHeight_m([], 0, 6), 0);
+  const env = flatEnv({ groundAt: (x, z) => platformHeight_m([rock], x, z) });
+  // Andando hacia la roca se queda al pie.
+  const walker = run(still(), FORWARD, env, 12);
+  assert.ok(walker.y_m === 0 && walker.z_m < rock.z_m - rock.radius_m + 0.05, `z = ${walker.z_m}, y = ${walker.y_m}`);
+  // Saltando al llegar al borde, aterriza arriba (el salto sube más que la roca).
+  assert.ok(LOCOMOTION.jump_speed_ms ** 2 / (2 * 3.71) > rock.height_m);
+  let s = stepPlayer(walker, { ...FORWARD, jump: true }, env, 1 / 60);
+  for (let i = 0; i < 400 && !(s.grounded && s.y_m > 0); i++) s = stepPlayer(s, FORWARD, env, 1 / 60);
+  assert.ok(s.grounded && s.y_m === rock.height_m, `y = ${s.y_m}`);
+});

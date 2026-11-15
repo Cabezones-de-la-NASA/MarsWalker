@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { state, on, emit } from '../shared/state.js';
 import { sampleSlope_deg } from '../models/terrain/slope.js';
-import { stepPlayer, horizontalSpeed_ms, LOCOMOTION } from '../models/locomotion/kinematics.js';
+import { stepPlayer, horizontalSpeed_ms, platformHeight_m, LOCOMOTION } from '../models/locomotion/kinematics.js';
 import { visualGround_m } from '../world/surface_detail.js';
 import { resolveRockCollision } from '../world/rock_field.js';
 import { createAstronautRig } from '../models3d/explorer.js';
@@ -75,7 +75,9 @@ const PARACHUTE_SCALE = 1.7;
 export function createGameplay(container, { world, dem, dataset, terrain, rocks, dust, mission }) {
   const getPoints = () => mission.getPoints();
   const [width_m, depth_m] = dem.size_m;
-  const groundAt = (x_m, z_m) => visualGround_m(dem, x_m, z_m);
+  // Suelo que se pisa: el terreno más las rocas de cima plana a las que se sube saltando.
+  const platforms = [];
+  const groundAt = (x_m, z_m) => visualGround_m(dem, x_m, z_m) + platformHeight_m(platforms, x_m, z_m);
 
   const companion = createCompanion({ world, groundAt });
   const truck = createVehicle({ world, groundAt });
@@ -302,7 +304,7 @@ export function createGameplay(container, { world, dem, dataset, terrain, rocks,
   const windLevel = () => Math.min(Math.max(
     ((state.environment?.dust_tau ?? NOMINAL_DUST_TAU) - NOMINAL_DUST_TAU) / (STORM_DUST_TAU - NOMINAL_DUST_TAU), 0), 1);
   const sortie = createSortie({
-    world, dem, groundAt, bounds, hud, sound, say: roverSay,
+    world, dem, groundAt, bounds, hud, sound, say: roverSay, platforms,
     getOxygen_l: () => vitals.get().vitals.o2_l,
     onDone() {
       // Misión cumplida: llega la camioneta y todo queda libre.
