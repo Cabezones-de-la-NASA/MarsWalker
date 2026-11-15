@@ -34,8 +34,9 @@ function syntheticDem() {
 
 test('M15: aviso obligatorio y constantes de diseño', () => {
   assert.match(QAOA_NOTICE, /inspirado en QAOA/);
-  assert.match(QAOA_NOTICE, /No ejecuta un circuito cuántico/);
-  assert.match(QAOA_NOTICE, /ni promete ventaja cuántica/);
+  // El aviso dice lo que es: un algoritmo clásico, y en qué se parece y se distingue del original.
+  assert.match(QAOA_NOTICE, /Algoritmo clásico/);
+  assert.match(QAOA_NOTICE, /el original lo hace sobre cúbits y este sobre pesos reales/);
   const header = readFileSync(new URL('../src/models/routing/qaoa_inspired.js', import.meta.url), 'utf8')
     .split('\n').slice(0, 8).join('\n');
   assert.match(header, /heurístico clásico inspirado en QAOA/);

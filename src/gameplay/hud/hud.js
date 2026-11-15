@@ -163,7 +163,8 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   helpLine(['Shift'], 'correr');
   helpLine(['Space'], 'saltar');
   helpLine(['E'], 'interactuar · hablar con el rover');
-  helpLine(['F'], 'camioneta');
+  helpLine(['F'], 'subir o bajar de la camioneta');
+  helpLine(['G'], 'traer la camioneta');
   helpLine(['T'], 'velocidad del tiempo');
   helpLine(['V'], 'cambiar vista');
   helpLine(['Esc'], 'menú');
@@ -206,12 +207,13 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
   scaleLabel.append(scaleSelect);
   box.append(
     scaleLabel,
-    el('div', 'hud-note', 'El tiempo mueve el Sol, el clima y la fisiología. Acelerado, cada segundo cuenta como varios caminando al ritmo actual: el oxígeno y la hidratación bajan más deprisa; la distancia mostrada sigue siendo la real. También se cambia con la tecla T.'),
+    el('div', 'hud-note', 'La velocidad del tiempo mueve el Sol y el clima de Marte. El oxígeno y el resto de la fisiología van siempre en tiempo real. También se cambia con la tecla T. Con "Jugar con realismo" (Modo avanzado, en el mapa) el tiempo queda en 1×.'),
   );
   const controls = el('dl', 'hud-controls');
   for (const [keys, text] of [
     ['W A S D', 'Moverse'], ['Ratón', 'Mirar'], ['Shift', 'Correr'], ['Space', 'Saltar'],
     ['E', 'Interactuar y hablar con el rover'], ['F', 'Subir o bajar de la camioneta'],
+    ['G', 'Traer la camioneta a tu lado'],
     ['T', 'Velocidad del tiempo'], ['Tab', 'Telemetría completa'],
     ['V', 'Primera o tercera persona'], ['Esc', 'Este menú'],
   ]) {
@@ -246,12 +248,29 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
       clock.classList.toggle('is-paused', scale === 0);
     },
     // Tab: muestra u oculta la telemetría completa.
+    // Con realismo el tiempo queda fijo en 1× y no hay vehículos.
+    setRealism(on) {
+      hud.classList.toggle('is-realism', on);
+      scaleSelect.disabled = on;
+      clockKey.hidden = on;
+      if (on) clockScale.textContent = 'realismo · tiempo real';
+    },
     toggleDetails() {
       return hud.classList.toggle('is-detailed');
     },
     // lines: textos; kind: etiqueta corta sobre el título.
-    showCard({ kind, title, lines }) {
+    // image (opcional): { src, credit, alt }; solo se aceptan enlaces https.
+    showCard({ kind, title, lines, image }) {
       card.replaceChildren(el('h2', 'hud-title', kind), el('h3', null, title));
+      if (image?.src?.startsWith('https://')) {
+        const picture = el('img', 'hud-card-image');
+        picture.alt = image.alt ?? '';
+        picture.referrerPolicy = 'no-referrer';
+        picture.addEventListener('error', () => picture.remove());
+        picture.src = image.src;
+        card.append(picture);
+        if (image.credit) card.append(el('div', 'hud-card-credit', `Crédito: ${image.credit}`));
+      }
       for (const line of lines) card.append(el('p', null, line));
       card.hidden = false;
     },
@@ -268,7 +287,7 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
      * data = { vitals, status, o2_capacity_l, nav: { x_m, z_m, elevation_m, slope_deg,
      *          heading_deg, speed_ms, distance_m }, environment: { ambient_temp_c, phase },
      *          elapsed_s, samples, sampleSites, visited, objectives, running, firstPerson, fps,
-     *          time_scale }
+     *          vehicle, objective, ltst_h }
      */
     update(data) {
       const v = data.vitals;
@@ -292,8 +311,6 @@ export function createHud(container, { onResume, onExit, onTimeScale, timeScales
         ? 'Al correr, el gasto es una extrapolación: el modelo M5 está medido caminando.'
         : data.vehicle?.driving
           ? 'En la camioneta el gasto es el de estar quieto.'
-          : data.time_scale > 1
-            ? `Tiempo acelerado ${data.time_scale}×: el consumo también.`
           : 'Radiación: solo rayos cósmicos de fondo; las tormentas solares no están modeladas.';
 
       const n = data.nav;

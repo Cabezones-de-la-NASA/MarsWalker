@@ -12,6 +12,8 @@ export const state = {
   crew: [],
   // A qué responde un clic en el mapa: 'route' (por defecto), 'place_base' o 'place_objective'.
   clickMode: 'route',
+  // Jugar con realismo: tiempo real, solo a pie, sin rover de compañía ni camioneta.
+  realism: false,
 };
 
 const handlers = new Map();

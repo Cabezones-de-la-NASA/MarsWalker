@@ -23,7 +23,7 @@ import { sampleSlope_deg, riskIndex } from '../terrain/slope.js';
 import { ROUTING_DEFAULTS, segmentO2Cost_l, segmentSlope_deg, safetyPenalty } from './o2_cost.js';
 
 export const QAOA_NOTICE =
-  'Heurístico clásico inspirado en QAOA. No ejecuta un circuito cuántico ni promete ventaja cuántica.';
+  'Algoritmo clásico inspirado en QAOA, el algoritmo cuántico de optimización aproximada. Como el original, alterna 4 rondas de un paso de coste y otro de mezcla; el original lo hace sobre cúbits y este sobre pesos reales de rutas candidatas, en un ordenador corriente.';
 
 // Todas las constantes de M15 son [diseño].
 export const MIN_LAYERS = 18;
