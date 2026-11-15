@@ -1,5 +1,5 @@
 // Barra superior del dashboard: marca, pestañas y selector de zona. Las vistas técnicas
-// (secondary) y el perfil gráfico se entregan aparte para el cajón "Modo ingeniero".
+// (secondary) y el perfil gráfico se entregan aparte para el cajón "Modo avanzado".
 import './views.css';
 import logoUrl from '../../assets/space_apps_logo.png';
 

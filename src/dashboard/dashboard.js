@@ -47,10 +47,10 @@ export async function startDashboard(container, { world, dem, dataset, terrain, 
   const dockRight = el('div', 'dock dock-right');
   ui.append(dockLeft, dockRight);
 
-  // Modo ingeniero: capas, entorno, tripulación, fórmulas y gráficos. Plegado de entrada
+  // Modo avanzado: capas, entorno, tripulación, fórmulas y gráficos. Plegado de entrada
   // para que el mapa y la exploración manden; un clic lo abre y se recuerda abierto.
   const engineer = el('details', 'engineer-drawer');
-  const engineerSummary = el('summary', null, 'Modo ingeniero');
+  const engineerSummary = el('summary', null, 'Modo avanzado');
   engineerSummary.append(el('small', null, 'capas · entorno · fórmulas'));
   const engineerBody = el('div', 'engineer-body');
   engineer.append(engineerSummary, engineerBody);

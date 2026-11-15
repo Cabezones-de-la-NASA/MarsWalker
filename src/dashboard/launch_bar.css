@@ -124,7 +124,7 @@
   }
 }
 
-/* ---- Modo ingeniero: lo técnico, plegado pero a un clic ---- */
+/* ---- Modo avanzado: lo técnico, plegado pero a un clic ---- */
 .engineer-drawer {
   pointer-events: auto;
 }
@@ -200,7 +200,7 @@
   border-color: var(--accent);
 }
 
-/* La lectura de coordenadas del clic solo interesa en modo ingeniero. */
+/* La lectura de coordenadas del clic solo interesa en modo avanzado. */
 .dashboard-ui:not(.is-engineer) .readout {
   display: none;
 }
