@@ -1,4 +1,4 @@
-# Alone in Mars (MarsWalk)
+# Alone in Mars
 
 > **Team Name:** Cabezones de la NASA  
 > **Local Event / Universal Event:** NASA Space Apps Challenge 2026  
