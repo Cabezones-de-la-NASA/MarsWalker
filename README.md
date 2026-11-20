@@ -367,16 +367,6 @@ Full prompt history archived at [`Promts/prompt-guion-video-audio.md`](Promts/pr
 
 ---
 
-## 6. Project Submission Verification Checklist
-
-- [ ] **Terms & Conditions:** Read and agreed to the NASA Space Apps Project Submission Guide, Participant Terms and Conditions, and Privacy Policy.
-- [ ] **Original Work Confirmed:** Verified that all work is original and all external resources (code, text, images, data, and AI/SI usage) are listed in Sections 4 and 5.
-- [ ] **Incognito Link Test:** Tested both **Project Demonstration** and **Project** (`https://cabezones-de-la-nasa.github.io/MarsWalker/`) URLs in an incognito/private browser window to confirm zero login/permission barriers.
-- [ ] **Demo Limits Verified:** Confirmed demo is **≤ 7 slides** or **≤ 30 seconds** (`27–28 s` cut documented in Section 4.1).
-- [ ] **Final Submission:** Clicked **"Submit for Judging"** (not just *"Save Progress"*) before the local deadline (`11:59 PM` local event time).
-
----
-
 <div align="center">
   <sub><b>Disclaimer:</b> Alone in Mars (MarsWalk) is a student project created for the NASA Space Apps Challenge. It is neither endorsed nor sponsored by NASA. Official NASA imagery, planetary constants, and 3D models are used solely for educational and informational purposes with full attribution under NASA Media Usage Guidelines.</sub>
 </div>
